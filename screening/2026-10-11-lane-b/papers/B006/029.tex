@@ -1,0 +1,1442 @@
+\pdfoutput=1
+
+\documentclass[english]{jnsao}
+\bibliographystyle{jnsao}
+
+\usepackage{mathtools} % e.g. for \coloneqq
+\usepackage[nameinlink,capitalize]{cleveref}
+
+\usepackage{enumitem}
+\setlist[enumerate,1]{label={(\roman*)}}
+\setlist[enumerate,2]{label={(\alph*)}}
+
+\renewcommand\qedsymbol{$\color{structure}\blacksquare$}
+\theoremstyle{definition}
+\newtheorem{assumption}[theorem]{Assumption}
+
+\crefname{assumption}{Assumption}{Assumptions}
+\crefname{remark}{Remark}{Remarks}
+\crefname{example}{Example}{Examples}
+\crefname{lemma}{Lemma}{Lemmas}
+\crefname{theorem}{Theorem}{Theorems}
+\crefname{proposition}{Proposition}{Propositions}
+\crefname{corollary}{Corollary}{Corollaries}
+\crefname{definition}{Definition}{Definitions}
+
+\input{macros}
+
+\title{Minimizers of the Onsager--Machlup functional\\are posterior modes.}
+\shorttitle{Variational characterization of posterior modes}
+\author{Remo Kretschmann\thanks{Institute of Mathematics, University of Würzburg (\email{remo.kretschmann@mathematik.uni-wuerzburg.de}).}}
+\shortauthor{Remo Kretschmann}
+\date{2022-12-08}
+\hypersetup{
+    pdftitle = {Minimizers of the Onsager--Machlup functional are posterior modes.},
+    pdfauthor = {Remo Kretschmann},
+    pdfkeywords = {maximum a posteriori estimator, inverse problems, Bayesian inference, nonparametric statistics, asymptotic statistics, impulsive noise, Tikhonov regularization, inverse heat equation},
+}
+
+% Licensing information
+\manuscriptcopyright{{\copyright} Remo Kretschmann}
+\manuscriptlicense{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+In this work we connect two notions: That of the nonparametric mode of a probability measure, defined by asymptotic small ball probabilities, and that of the Onsager--Machlup functional, a generalized density also defined via asymptotic small ball probabilities. We show that in a separable Hilbert space setting and under mild conditions on the likelihood, the modes of a Bayesian posterior distribution based upon a Gaussian prior agree with the minimizers of its Onsager--Machlup functional.
+We apply this result to inverse problems and derive conditions on the forward mapping under which this variational characterization of posterior modes holds. Our results show rigorously that in the limit case of infinite-dimensional data corrupted by additive Gaussian or Laplacian noise, nonparametric MAP estimation is equivalent to Tikhonov--Phillips regularization. In comparison with the work of Dashti, Law, Stuart, and Voss (2013), the assumptions on the likelihood are relaxed so that they cover in particular the important case of Gaussian process noise.
+We illustrate our results by applying them to a severely ill-posed linear problem with Laplacian noise, where we express the MAP estimator analytically and study its rate of convergence.
+\end{abstract}
+
+\section{Introduction}
+
+Maximum a posteriori (MAP) estimates are a useful and widely used way to describe points of maximal probability under a Bayesian posterior distribution. Unlike the conditional mean, their computation does not require numerical integration with respect to the posterior distribution, which may be prohibitively expensive for certain problems. Instead, they can typically be found as the solution to an optimization problem, which in many situations allows their efficient computation.
+
+MAP estimates refer to modes of a Bayesian posterior distribution. The modes of a probability measure with a continuous Lebesgue density are simply the maximizers of this density. Probability measures on infinite-dimensional spaces do not have a Lebesgue density, which makes it necessary to generalize the definition of a mode to cover this setting. A common way to do this is to consider a point as a mode if small balls around it have asymptotically maximal probability as made rigorous in \cref{def_mode}. A problem with this definition is that it is not immediately clear how to find or compute such points.
+One way to generalize the notion of a Lebesgue density is the Onsager--Machlup functional, which describes the asymptotic probability of small balls around points under the posterior distribution as made rigorous in \cref{def_omf}. For Bayesian posterior distributions, it typically has the form of a penalized likelihood, and since its minimizers describe points of maximal probability, they are natural candidates to be modes. The question when minimizers of the Onsager--Machlup functional coincide with MAP estimates in the context of nonparamatric Bayesian inference is, however, a matter of ongoing research.
+
+A first attempt at answering this question in a separable Banach space setting and for Gaussian priors has been made in \cite{Dashti:2013}. However, the proof therein is incomplete. On the one hand, parts of the proof in general only hold for separable Hilbert spaces. On the other hand, there remain several gaps in the proof in the Hilbert space case. This will be discussed in more detail in \cref{sect_main_res}. In the author's PhD thesis \cite{Kretschmann:2019}, most of these gaps were closed. In \cite{klebanov2022}, a remaining issue was resolved, completing the proof in the Hilbert space case.
+
+The coincidence of MAP estimators and minimizers of the Onsager--Machlup functional has been proven for Besov priors \cite{agapiou2018}, and, very recently, for diagonal Gaussian priors on $\ell^p$ \cite{klebanov2022}. Ideas on how to generalize the proof to general separable Banach spaces have been discussed in \cite{wacker2020map}, but in this case, the question whether MAP estimates coincide with minimizers of the Onsager--Machlup functional is still open.
+
+Helin and Burger introduced the more general notion of a weak mode (or weak MAP estimate in their terminology) in \cite{helin2015}, which is closely related to the Onsager--Machlup functional and thus allows a direct characterization of weak modes as its minimizers. Since any mode is also a weak mode, this immediately yields a variational characterization of the mode for unimodal distributions. Lie and Sullivan studied the coincidence of weak and strong modes in \cite{Lie_Sul_2018}, i.e., the question whether every weak mode is also a mode. They found that under a uniformity condition, this is indeed the case, but that there are also examples of weak modes that are not modes. Said uniformity condition is, however, rather restrictive, as it assumes that all balls around a weak mode with small enough radius already have maximal probabilty among balls of the same radius. This excludes for example skewed distributions, and its practical relevance is limited. In \cite{Ayanbayev_2022a,Ayanbayev_2022b}, the convergence of weak modes is connected to the $\Gamma$-convergence of Onsager--Machlup functionals, covering Bayesian inverse problems with Gaussian and Besov priors and countable product measures on weighted $\ell^p$ spaces.
+
+We are particularly interested in Bayesian inverse problems. Here, the Onsager--Machlup functional has the form of a Tikhonov--Phillips functional, so that its minimizers can be understood as regularized solutions. Previous results regarding the coincidence of MAP estimates and minimizers of the Onsager--Machlup functional are insofar unsatisfactory as that they do not cover the important limit case of inverse problems with infinite-dimensional data corrupted by Gaussian process noise.
+Both in \cite{Dashti:2013} and \cite{klebanov2022}, the likelihood is required to be uniformly bounded from above. Likelihoods arising from inverse problems with infinite-dimensional data are, however, typically not bounded from above both in case of Gaussian and Laplacian noise, as we will see in \cref{ex:gauss_unbounded,ex:unbounded_phi}. In \cite{agapiou2018}, the scope was limited to inverse problems with finite data. In \cite{Kretschmann:2019}, the log-likelihood was only required to be Lipschitz continuous, thereby allowing for infinite-dimensional Laplacian noise, but not for infinite-dimensional Gaussian noise.
+
+\subsection{Contributions}
+
+In this work, we relax the assumptions on the likelihood in such a way that they allow for the case of Gaussian process noise. We assume that the negative log-likelihood is Lipschitz continuous on bounded sets and satisfies a lower cone condition, see \cref{ass:phi}. 
+We show that under these assumptions, MAP estimates do in fact coincide with minimizers of the Onsager--Machlup functional for general Bayesian posterior distributions based upon Gassian priors on a separable Hilbert space. This provides a mean to compute MAP estimates both analytically and numerically. Conversely, it guarantees that penalized maximum likelihood estimates indeed describe points of maximal posterior probability.
+
+We moreover establish Lipschitz conditions on the forward mapping for nonlinear Bayesian inverse problems with infinite-dimensional data under which aforementioned assumptions on the likelihood are satisfied. We do this for two types of additive noise: Gaussian noise, which covers in particular the important case of Gaussian white noise, and Laplacian noise, which can be understood as an example of impulsive noise. Our results show rigorously that Bayesian MAP estimation is equivalent to Tikhonov--Phillips regularization in the considered cases.
+
+Eventually, we apply our results to a class of severely ill-posed linear inverse problems that include, i.a., the inverse heat equation to express the MAP estimator explicitly and study its rate of convergence in case of Laplacian noise.
+
+\subsection{Organization of this paper}
+
+This work is structured as follows. 
+In \cref{sect_var_char}, we introduce and discuss the definitions of a mode and the Onsager--Machlup functional in terms of small ball probabilities, we state and discuss our assumptions on the likelihood, we formulate our main result --- a variational characterization of posterior modes in case of a Gaussian prior --- and give an outline of its proof.
+In \cref{sect_ip}, we derive the likelihood for Bayesian inverse problems in case of infinite-dimensional additive Gaussian and Laplacian noise, and state conditions on the forward mapping under which a variational characterization of the MAP estimates is possible.
+In \cref{sect_lin_prob}, we consider a severely ill-posed linear problem, derive the posterior distribution and the MAP estimate in case of Laplacian noise, and study the rate of convergence of the MAP estimator.
+The proof of our main result \cref{var_char_modes} is carried out in \cref{sect_proofs_var_char}, including a number of auxiliary results.
+\Cref{sect_proofs_ip,sect_proofs_lin_prob} contain technical proofs from \cref{sect_ip,sect_lin_prob}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Variational characterization of maximum a posteriori estimates}
+\label{sect_var_char}
+
+\subsection{Modes and the Onsager--Machlup functional}
+
+The central result in this section is the coincidence of MAP estimates with minimizers of the Onsager--Machlup functional under mild assumptions on the likelihood.
+
+MAP estimates refer to the modes of a Bayesian posterior distribution.
+They are widely used in Bayesian inverse problems because they can typically be found as the solution to an optimization problem and do not require integration with respect to the posterior distribution. Their statistical interpretation in a nonparametric setting may, however, not always be straightforward.
+If a measure has a continuous Lebesgue density, then its modes are simply the maximizers of this density. 
+Although every numerical computation of a mode is finite dimensional, it is desirable to have a well-defined notion of a mode in the infinite-dimensional limit case of which the mode in the finite-dimensional case can be considered an approximation.
+For probability measures on infinite-dimensional spaces, which cannot have a Lebesgue density, modes are usually defined in terms of small ball probabilities.
+The following definition has been introduced in \cite{Dashti:2013}.
+
+\begin{definition}[\protect{\cite[Def.~3.1]{Dashti:2013}}]
+	\label{def_mode}
+	Let $\mu$ be a probability measure on a separable Banach space $X$.
+	A point $\hat{x} \in X$ is called \emph{mode} of $\mu$, if it satisfies
+	\begin{equation}
+		\lim_{\varepsilon \to 0} \frac{\mu(B_\varepsilon(\hat{x}))}{\sup_{x \in X} \mu(B_\varepsilon(x))} = 1.
+	\end{equation}
+	Here, $B_\varepsilon(x) \subset X$ denotes the open ball with radius $\varepsilon$ centred at $x \in X$.
+\end{definition}
+
+Another approach to describing points that maximize the probability under a measure in a certain sense is seeking minimizers of its Onsager--Machlup functional, which plays the role of a generalized log-density for measures without a Lebesgue density. In our context, it is defined as follows.
+
+\begin{definition}
+	\label{def_omf}
+	Let $\mu$ be a probability measure on $X$.
+	Let $E \subset X$ denote the set of admissible shifts for $\mu$ that yield an equivalent measure, i.e., all $h \in X$ for which the shifted measure
+	\begin{equation*}
+		\mu_h := \mu(\cdot - h)
+	\end{equation*}
+	is equivalent with $\mu$.
+	A functional $I$: $E \to \R$ is called \emph{Onsager--Machlup functional} of $\mu$, if
+	\begin{equation}
+		\label{def_OM_funct}
+		\lim_{\varepsilon \to 0} \frac{\mu(B_\varepsilon(h_1))}{\mu(B_\varepsilon(h_2))} = \exp\left(I(h_2) - I(h_1)\right) \quad\text{for all }h_1,h_2 \in E.
+	\end{equation}
+\end{definition}
+
+The Onsager--Machlup functional describes the asymptotic ratio of small ball probabilites around any two points in the subspace $E$. For points outside of $E$, the limit on the left hand side of \eqref{def_OM_funct} does not need to exist and can be infinite. As a first example, we consider the Onsager--Machlup functional of a Gaussian measure.
+
+\begin{proposition}
+	The Onsager--Machlup functional $I_0$: $E \to \R$ of a centered Gaussian measure $\Normal_Q$ on $X$ with covariance operator $Q$ is given by
+	\[ I_0(x) = \frac12\norm{x}_E^2 \quad \text{for all}~x \in E, \]
+	where $E := \ran(Q^{1/2})$ is equipped with the norm $\norm{x}_E := \norm{Q^{-1/2}x}_X$.
+\end{proposition}
+\begin{proof}
+By \cite[Thm.~2.3.1]{DaPrato:2001}, the space $E$ of admissible shifts for the measure $\Normal_Q$ is given by its Cameron--Martin space $\ran(Q^{1/2})$.
+It follows from Proposition 3 in Section 18 of \cite{Lifshits:1995} that
+\begin{align*}
+	\lim_{r \to 0} \frac{\Normal_Q(B_r(h_1))}{\Normal_Q(B_r(h_2))}
+	&= \lim_{r \to 0} \frac{\Normal_Q(rB_1(0))}{\Normal_Q(h_2 + rB_1(0))} \cdot \lim_{r \to 0} \frac{\Normal_Q(h_1 + rB_1(0))}{\Normal_Q(rB_1(0))} \\
+	&= \exp \left(\frac12\big\|Q^{-\frac12}h_2\big\|_X^2\right) \exp \left(-\frac12\big\|Q^{-\frac12}h_1\big\|_X^2\right)
+\end{align*}
+for all $h_1,h_2 \in E$.
+\end{proof}
+
+In nonparametric Bayesian inference, it is not immediately clear when these two approaches describe the same points, that is, when the modes of the posterior distribution coincide with the minimizers of its Onsager--Machlup functional.
+
+\subsection{Bayesian set-up}
+
+Now, we consider a Bayesian posterior distribution $\mu^y$ on a separable Hilbert space $X$ whose density with respect to a centered Gaussian prior distribution $\mu_0 := \Normal_Q$ is described by Bayes' formula
+\begin{equation}
+	\frac{\di\mu^y}{\di\mu_0}(u) = \frac{\exp(-\Phi(u,y))}{Z(y)}.
+	\label{post_dist}
+\end{equation}
+Here, $Q$ is a self-adjoint, positive definite, trace class operator on $X$.
+The data $y$ may be an element of another separable Hilbert space $Y$ but is considered as fixed throughout this section, i.e., we consider the posterior distribution $\mu^y$ inferred from one specific realization $y$ of the data. Consequently, we interpret the negative log-likelihood $\Phi(u) = \Phi(u,y)$ as a function of the parameter $u$. We make the following assumptions on the likelihood.
+\begin{assumption}
+	\label{ass:phi}
+	The function $\Phi$: $X \to \R$ satisfies the following two conditions.
+	\begin{enumerate}
+		\item \label{ass:phi_loc_lip} $\Phi$ is \emph{Lipschitz continuous on bounded sets}, i.e., for every $r > 0$, there exists $L = L(r) > 0$ such that
+		\[ \abs{\Phi(x_1) - \Phi(x_2)} \le L \norm{x_1 - x_2}_X \quad \text{for all}~x_1, x_2 \in B_r(0). \]
+		\item \label{ass:phi_lower_bound} There exists $\underline{L} \ge 0$ such that $\Phi$ satisfies the \emph{lower cone condition}
+		\[ \Phi(x) \ge \Phi(0) - \underline{L}\norm{x}_X \quad \text{for all}~x \in X. \]
+	\end{enumerate}
+\end{assumption}
+
+\Cref{ass:phi} is, in particular, satisfied if $\Phi$ is Lipschitz continuous, i.e., if there exists $L > 0$ such that
+\[ \abs{\Phi(x_1) - \Phi(x_2)} \le L\norm{x_1 - x_2}_X \quad \text{for all}~x_1, x_2 \in X. \]
+A Lipschitz continuous likelihood arises for example in inverse problems with Laplacian noise, see \cref{sec:laplacian_noise}.
+We will moreover see in \cref{sec:gaussian_noise} that \cref{ass:phi} covers the important case of infinite-dimensional Gaussian noise because the lower cone condition in $0$ allows for positive quadratic growth of $\Phi$. This case is neither covered by the assumptions used in \cite{Dashti:2013} and \cite{klebanov2022}, which include a uniform lower bound on $\Phi$, see \cref{ex:gauss_unbounded}, nor by those used in \cite{Kretschmann:2019}, which demand global Lipschitz continuity.
+
+The Onsager--Machlup functional of $\mu^y$ is now given by the sum of the Onsager--Machlup functional $I_0$ of the prior distribution and the negative log-likelihood $\Phi$. Moreover, it possesses a minimizer.
+\begin{proposition}
+	\label{form_OM_funct}
+	If $\Phi$ satisfies \cref{ass:phi}, then the Onsager--Machlup functional $I$: $E \to \R$ of $\mu^y$, as given in \eqref{post_dist}, has the form
+	\begin{equation}
+		\label{def_I}
+		I(x) = \Phi(x) + \frac12\norm{x}_E^2 \quad\text{for all}~x \in E.
+	\end{equation}
+\end{proposition}
+
+\begin{proposition}
+	\label{min_I_ex}
+	If $\Phi$ satisfies \cref{ass:phi}, then $I$, as given by \eqref{def_I}, has a minimizer in $E$.
+\end{proposition}
+
+\subsection{Main result}
+\label{sect_main_res}
+
+The main result of this work is the following.
+\begin{theorem} 
+	\label{var_char_modes}
+	If $\Phi$ satisfies \cref{ass:phi}, then $x \in X$ is a mode of $\mu^y$, as given in \eqref{post_dist}, if and only if it minimizes the Onsager--Machlup functional of $\mu^y$.
+\end{theorem}
+
+\Cref{var_char_modes} gives a positive answer to aforementioned question in case of a Gaussian prior distribution on a separable Hilbert space: Under mild conditions on the likelihood, nonparametric posterior modes do indeed agree with minimizers of the Onsager--Machlup functional. This opens up the possibility of computing posterior modes explicitly by solving a canonical optimization problem and gives a statistical interpretation of the chosen objective functional.
+
+In \cref{form_OM_funct}, we have seen that the Onsager--Machlup functional of $\mu^y$ has the form of a Tikhonov--Phillips functional with discrepancy term $\Phi(x,y)$ and quadratic penalty term $\frac12\norm{x}_E^2$, which allows a rigorous interpretation of nonparametric MAP estimation as Tikhonov--Phillips regularization and vice versa.
+
+In \cite{Dashti:2013}, the coincidence of posterior modes with minimizers of the Onsager--Machlup functional is stated in a separable Banach space setting as Theorem 3.5 and Corollary 3.10. However, the proof given in \cite{Dashti:2013} is incomplete. On the one hand, parts of the proof only hold for separable Hilbert spaces, as pointed out in \cite{wacker2020map}. On the other hand, even in the Hilbert space case the proof contains gaps that are closed in this work. Most of these corrections have been introduced in \cite{Kretschmann:2019}, but we also incorporate corrections just recently found necessary in \cite{klebanov2022}.
+
+The outline of the proof of \cref{var_char_modes} can be described as follows.
+\begin{enumerate}
+	\item \label{amf} For every $\epsilon > 0$, choose $x_\epsilon \in X$ such that
+	\begin{equation}
+		\label{def:amf}
+		\mu^y(B_\epsilon(x_\epsilon)) \ge (1 - \epsilon) \sup_{x \in X} \mu^y(B_\epsilon(x)).
+	\end{equation}
+	\item Show as follows that for every positive sequence $\{\epsilon_n\}_{n\in\N}$ such that $\epsilon_n \to 0$, the sequence $\{x_{\epsilon_n}\}_{n\in\N}$ contains a subsequence that converges towards some $\bar{x} \in E$.
+	\begin{enumerate}
+		\item Show that $\{x_{\epsilon_n}\}_{n\in\N}$ is bounded and thus has a weakly convegent subsequence with limit $\bar{x} \in X$.
+		\item Prove that $\bar{x} \in E$.
+		\item Conlude that the subsequence converges in fact strongly toward $\bar{x}$.
+	\end{enumerate}
+	\item \label{cp_min_mode} Show thay every cluster point of the sequence $\{x_{\epsilon_n}\}_{n\in\N}$ is both a mode of $\mu^y$ and a minimizer of the Onsager--Machlup functional of $\mu^y$.
+	\item Use the existence of a point with these properties to prove that every mode of $\mu^y$ is a minimizer of the Onsager--Machlup functional of $\mu^y$ and vice versa.
+\end{enumerate}
+The proof itself is carried out in \cref{sect_proofs_var_char}. Parts \ref{amf} to \ref{cp_min_mode} are stated separately as \cref{thmConvSub}.
+The most notable corrections in comparison with \cite{Dashti:2013} are the following.
+\begin{itemize}
+	\item[(C1)] Lemma 3.9 in \cite{Dashti:2013} has been used in step (ii) (c). However, it has the wrong form: Its statement is needed for a sequence that converges weakly towards an arbitrary point in $E$, but it is only proved for a sequence that converges weakly to $0$. We prove the required statement in \cref{lem:weakNotStrong}.
+	\item[(C2)] In step (iii), \cref{lem:limsuple1} is needed but not proved. Its proof was kindly provided by Masoumeh Dashti (personal communication, 3 July 2017).
+	\item[(C3)] In step (iii), it is only proved that
+	\[ \lim_{n\to\infty} \frac{\mu^y(B_{\epsilon_n^\prime}(\bar{x}))}{\sup_{x \in X} \mu^y(B_{\epsilon_n^\prime}(x))} = 1 \]
+	for a subsequence $\{\epsilon_n^\prime\}_{n\in\N}$ of $\{\epsilon_n\}_{n\in\N}$. This is not immediately obvious because it is hidden by the notation $\epsilon \to 0$. In order for $\bar{x}$ to be a mode, the limit needs to be $1$ for any positive sequence $\{\epsilon_n\}_{n\in\N}$ with $\epsilon_n \to 0$.
+	\item[(C4)] In the proof of Theorem 3.5 in \cite{Dashti:2013}, the family of maximizers $\{\tilde{x}_\epsilon\}_{\epsilon > 0}$ of $x \mapsto \mu^y(B_\epsilon(x))$ is considered instead of the family $\{x_\epsilon\}_{\epsilon > 0}$ defined in step (i). However, as pointed out in \cite{klebanov2022}, these maximizers do not necessarily exist. Here, we adopt the approach of Klebanov and Wacker to resolve this issue by working with the so called \emph{asymptotic maximizing family} $\{x_\epsilon\}_{\epsilon > 0}$ defined by \eqref{def:amf} instead, which does exist by definition of the supremum.
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Bayesian inverse problems}
+\label{sect_ip}
+
+Let us now consider the inverse problem of finding an unknown quantity $u$, given an indirect measurement
+\begin{equation}
+	\label{inv_prob}
+	y = F(u) + \eta
+\end{equation}
+corrupted by additive noise $\eta$. Here, $u$ and $y$ each lie in a separable Hilbert space $X$ and $Y$, respectively. The relation between unknown and measured quantity is described by an operator $F$: $X \to Y$ and may be nonlinear.
+We are particularly interested in the case when this problem is ill-posed.
+We assume that the noise $\eta$ follows a distribution $\nu$.
+Now, we take a Bayesian approach and assign a prior distribution $\mu_0$ to $u$, where we assume that $u$ and $\eta$ are independent. 
+
+Let us assume that $\nu_z := \nu(\cdot - z)$ is absolutely continuous with respect to $\nu$ for all $z$ in a linear subspace $Z$ of $Y$, i.e., that $\{\nu_z\}_{z \in Z}$ is dominated by $\nu$.
+If we furthermore assume that $\ran(F) \subseteq Z$, then $\nu_{F(u)}$ is a regular conditional distribution of $y$, given $u$, by \cite[Prop.~1.4]{Kretschmann:2019}.
+The negative log-likelihood is then given by $\Psi(F(u),y)$, where
+\[
+	\Psi(z,y) := -\ln \frac{\di\nu_z}{\di\nu}(y)
+\]
+denotes for each $z \in Z$ the negative log-density of $\nu_z$ with respect to $\nu$.
+If the likelihood $(u,y) \mapsto \exp(-\Psi(F(u),y))$ is a measurable function on $X \times Y$, and if the integral
+\[
+	\int_{X} \exp(-\Psi(F(x),y)) \mu_0(\di x)
+\]
+is positive for all $y \in Y$, then Bayes' formula 
+\[
+	\frac{\di\mu^y}{\di\mu_0}(u) 
+	= \frac{\exp(-\Psi(F(u),y))}{\int_{X} \exp(-\Psi(F(x),y)) \mu_0(\di x)}
+\]
+as given in Bayes' Theorem \cite[Thm.~1.3]{Kretschmann:2019} defines a regular conditional distibution $\mu^y$ of $u$, given $y$, in terms of its density with respect to $\mu_0$.
+We see that $\mu^y$ satisfies equation \eqref{post_dist} with $\Phi(u,y) = \Psi(F(u),y)$.
+
+
+\subsection{Gaussian noise}
+\label{sec:gaussian_noise}
+In case of Gaussian noise $\eta \sim \Normal_Q$, $\nu_z = \Normal_{z,Q}$ is absolutely continuous with respect to $\nu = \Normal_Q$ for all $z \in Z = \ran(Q^{1/2})$, and $\Psi$ is given by the Cameron--Martin formula
+\[
+	\Psi(z,y) = \sum_{k=1}^\infty \left( \frac{\scalprod{z,e_k}_Y^2}{2\lambda_k} - \frac{\scalprod{z,e_k}_Y\scalprod{y,e_k}_Y}{\lambda_k} \right)
+\]
+as given in \cite[Thm.~2.3.1]{DaPrato:2001}, where $(\lambda_k, e_k)_{k\in\N}$ denotes an eigensystem of $Q$. 
+
+In case that $Y$ is infinite-dimensional, $\Phi$ is in general not bounded from below.
+\begin{example}
+\label{ex:gauss_unbounded}
+Let $Y$ be an infinite-dimensional separable Hilbert space. Then we can construct $y \in Y$ and a sequence $(u^n)_{n\in\N}$ such that $\Phi(u^n,y) \to -\infty$ as $n \to \infty$. Let the forward mapping be a bounded linear operator $A$ from $X$ to $Y$ such that $e_k \in \ran(A)$ for all $k \in \N$ (e.g., $A = \Id$ on $X = Y$). Then,
+\begin{align*}
+\Phi(u,y) &= \Psi(Au,y) = \sum_{k=1}^\infty \left( \frac{\scalprod{Au,e_k}_Y^2}{2\lambda_k} - \frac{\scalprod{Au,e_k}_Y\scalprod{y,e_k}_Y}{\lambda_k} \right) \\
+&= \sum_{k=1}^\infty \left( \frac{\scalprod{Au - y,e_k}_Y^2}{2\lambda_k} - \frac{\scalprod{y,e_k}_Y^2}{2\lambda_k} \right)
+\end{align*}
+for all $u \in X$. Now, choose $\phi_k \in X$ for all $k \in \N$ such that $A\phi_k = e_k$, $y \in Y \setminus \ran(Q^{1/2})$, and set
+\[ u^n := \sum_{k=1}^n \scalprod{y,e_k}\phi_k \]
+for all $n \in \N$. Then, we have
+\begin{equation*}
+\Phi(u^n,y) = -\sum_{k=1}^n \frac{\scalprod{y,e_k}_Y^2}{2\lambda_k} \to -\infty
+\end{equation*}
+as $n \to \infty$ since $y \notin \ran(Q^{1/2})$.
+\end{example}
+
+\begin{lemma}
+	\label{cond_gauss}
+	Assume that the forward mapping $F$ satisfies $\ran(F) \subseteq \ran(Q)$, that $Q^{-1} \circ F$ is Lipschitz continuous on bounded sets and that there exists $L_0 > 0$ such that
+	\begin{equation}
+		\label{Lip0_cond}
+		\norm{Q^{-1}F(u) - Q^{-1}F(0)}_Y \le L_0 \norm{u}_X \quad \text{for all}~u \in X.
+	\end{equation}
+	Then
+	\[ \Phi(u,y) = \Psi(F(u),y) = \frac12\bignorm{Q^{-\frac12}F(u)}_Y^2 - \bigscalprod{Q^{-1}F(u),y}_Y \]
+	satisfies \cref{ass:phi}.
+\end{lemma}
+
+\begin{corollary}
+	Assume that the prior distribution is Gaussian $\mu_0 = \Normal_\Sigma$ and that the noise $\eta$ follows a Gaussian distribution $\Normal_Q$.
+	Under the assumptions of \cref{cond_gauss}, the modes of the posterior distribution $\mu^y$ are the minimizers of
+	\[ I(u) = \frac12\norm{F(u) - y}_Q^2 + \frac12\norm{u}_\Sigma^2, \quad u \in X. \]
+\end{corollary}
+\begin{proof}
+	This follows immediately from \cref{cond_gauss,form_OM_funct,var_char_modes}.
+\end{proof}
+
+\begin{remark}
+	\Cref{cond_gauss} can be generalized to likelihoods induced by a Gaussian white noise process. In this case, $\ran(Q)$ is replaced by the sample space $\widetilde{Y}$, and $Y$ by the topological dual $V'$ of a subspace $V$ of $\widetilde{Y}$ such that a Gaussian white noise process $\eta$ on $\widetilde{Y}$ acts as a bounded linear functional on $V$. Such a subspace can be constructed as $V = \ran(Q^{1/2})$ using a self-adjoint positive trace class operator $Q \in L(\widetilde{Y})$. Then, $\Phi$: $X \times V'$ has the form
+	\[ \Phi(u,y) = \frac12\norm{F(u)}_{\widetilde{Y}}^2 - \dualpair{y,F(u)}_{V' \times V}, \]
+	the range condition is $\ran(F) \subseteq V$, $F$ has to be Lipschitz continuous on bounded sets as a mapping from $X$ to $V$, and condition \eqref{Lip0_cond} becomes
+	\[ \norm{F(u) - F(0)}_{V} \le L_0\norm{u}_X \quad \text{for all}~u \in X. \]
+\end{remark}
+
+\subsection{Laplacian noise}
+\label{sec:laplacian_noise}
+
+We are particularly interested in the case of Laplacian noise, which we define as follows.
+Let $\Laplace_{a,\lambda}$ denote the usual Laplace distribution on $\R$ with mean $a \in \R$ and variance $\lambda > 0$.
+We define a Laplacian random variable $\xi$ with values in a separable Hilbert space $X$ for $a \in X$ and a self-adjoint positive trace class operator $Q \in L(X)$ with eigensystem $(\lambda_k,e_k)_{k\in\N}$ by
+\[
+	\xi := \sum_{k=1}^\infty \xi_k e_k,
+\]
+where $(\xi_k)_{k\in\N}$ are independent real-valued random variables with $\xi_k \sim \Laplace_{a_k,\lambda_k}$ for all $k\in\N$. We denote its distribution by $\Laplace_{a,Q}$ or just $\Laplace_Q$ if $a = 0$. 
+The random variable $\xi$ is well-defined because
+\[ \E\norm{\xi}_X^2 = \sum_{k=1}^\infty \E\abs{\xi_k}^2 = \sum_{k=1}^\infty \lambda_k = \Tr Q \]
+is almost surely finite.
+Note that in contrast with Gaussian random variables, a different choice of the eigenbasis $\{e_k\}_{k\in\N}$, if there exists a freedom of choice, defines a random variable with a different distribution.
+
+The following result characterizes the admissible shifts of a Laplacian measure in terms of its covariance operator analogous to the Cameron--Martin theorem \cite[Thm.~2.3.1]{DaPrato:2001}.
+\begin{theorem}
+	\label{thmLaplaceAlt}
+	Let $Q \in L(X)$ be a self-adjoint positive trace class operator on a Hilbert space $X$ with eigensystem $(\lambda_k, e_k)_{k\in\N}$.
+	\begin{enumerate}
+		\item If $a \notin \ran(Q^\frac12)$, then $\Laplace_{a,Q}$ and $\Laplace_Q$ are singular.
+		\item If $a \in \ran(Q^\frac12)$, then $\Laplace_{a,Q}$ and $\Laplace_Q$ are equivalent and the density $\frac{\di\Laplace_{a,Q}}{\di\Laplace_Q}$ is given by
+		\begin{align*}
+			\frac{\di\Laplace_{a,Q}}{\di\Laplace_Q}(x) 
+			&= \exp\left( -\sqrt{2} \sum_{k=1}^\infty \left(\left|\scalprod{Q^{-\frac12}(x - a), e_k}\right| - \left|\scalprod{Q^{-\frac12}x, e_k}\right|\right) \right) \\
+			&= \exp\left( -\sqrt{2}\sum_{k=1}^\infty \frac{ \left|x_k - a_k\right| - \left|x_k\right| }{ \sqrt{\lambda_k} } \right)
+		\end{align*}
+	$\Laplace_Q$-almost everywhere, where $x_k := \scalprod{x,e_k}$ and $a_k := \scalprod{a,e_k}$ for all $k \in \N$.
+	\end{enumerate}
+\end{theorem}
+\Cref{thmLaplaceAlt} shows that for Laplacian noise $\eta \sim \Laplace_Q$, $\nu_z = \Laplace_{z,Q}$ is absolutely continuous with respect to $\nu = \Laplace_Q$ for all $z \in Z = \ran(Q^{1/2})$, and
+\begin{equation}
+	\label{Psi_Laplace}
+	\Psi(z,y) = \sqrt{2} \sum_{k=1}^\infty \frac{\abs{\scalprod{y,e_k}_Y - \scalprod{z,e_k}_Y} - \abs{\scalprod{y,e_k}_Y}}{\lambda_k^{1/2}},
+\end{equation}
+where $(\lambda_k^2, e_k)_{k\in\N}$ denotes an eigensystem of $Q$.
+
+\begin{example}
+	\label{ex:unbounded_phi}
+	In case of Laplacian noise $\eta \sim \Laplace_Q$, we can construct $y \in Y$ and a sequence $(u^n)_{n \in \N}$ in $X$ such that $\Phi(u^n,y) \to -\infty$ as $n \to \infty$.
+	Let the forward mapping be a bounded linear operator $A$ from $X$ to $Y$ such that $e_k \in \ran(A)$ for all $k \in \N$ (e.g., $A = \Id$ on $X = Y$). Then, $\Phi(x,y) = \Psi(Ax,y)$ with $\Psi$ as given in \eqref{Psi_Laplace}.
+	Now, choose $\varphi_k \in X$ for all $k \in \N$ such that $A\varphi_k = e_k$, and set
+	\[ y := \sum_{k=1}^\infty \frac{1}{k}e_k, \qquad u^n := \sum_{k=1}^n \frac{1}{k}\varphi_k \]
+	for all $n \in \N$. This way,
+	\[ \Phi(u^n,y) = \sqrt{2} \sum_{k=1}^n \sigma_k^{-1} \left(0 - \frac{1}{k}\right). \]
+	Let $m \in \N$ be large enough such that $\sigma_k \le 1$ for all $k \ge m$. Then, it follows that
+	\[ \Phi(u^n,y) \le -\sqrt{2} \sum_{k=1}^n \frac{1}{k} \]
+	for all $n \ge m$. However, $\sum_{k=1}^n \frac{1}{k} \to \infty$ as $n \to \infty$, so that $\Phi(u^n,y) \to -\infty$.
+\end{example}
+
+
+Here, we examine under which conditions on the forward mapping $F$ the negative log-likelihood $\Phi(x,y) = \Psi(F(x),y)$ is Lipschitz continuous in case of additive Laplacian noise $\eta \sim \Laplace_Q$, that is when $\Psi$ is given by \eqref{Psi_Laplace}.
+
+\begin{proposition}
+	\label{cond_nonlin_op}
+	Let $(\lambda_k, e_k)_{k\in\N}$ denote an eigensystem of $Q$ and let the forward mapping $F$: $X \to Y$ satisfy one of the following two conditions.
+	\begin{enumerate}
+		\item There exists $C > 0$ such that
+		\[ \sum_{k=1}^\infty \frac{\abs{\scalprod{F(x_1) - F(x_2), e_k}_Y}}{\lambda_k^{1/2}} \le C \norm{x_1 - x_2}_X \quad \text{for all}~x_1,x_2 \in X, \]
+		\emph{or}
+		\item $F$ is Fréchet differentiable and there exists $C > 0$ such that
+		\begin{equation}
+			\label{cond_F}
+			\sum_{k=1}^\infty \frac{\norm{F'(x)^*e_k}_X}{\lambda_k^{1/2}} \le C \quad \text{for all}~x \in X.
+		\end{equation}
+	\end{enumerate}
+	Then $x \mapsto \Phi(x,y)$ is Lipschitz continuous for all $y \in Y$.
+\end{proposition}
+
+\begin{proposition}
+	\label{cond_lin_op}
+	If the forward mapping is a compact linear operator $K$ such that $KK^*$ is diagonalizable with respect to the eigenvectors $(e_k)_{k\in\N}$ of $Q$, and if the eigensystem $(\kappa_k^2,e_k)_{k\in\N}$ of $KK^*$ satisfies
+	\[ \sum_{k=1}^\infty \frac{\abs{\kappa_k}}{\lambda_k^{1/2}} \le C \]
+	for some $C > 0$, then $x \mapsto \Phi(x,y)$ is Lipschitz continuous for all $y \in Y$.
+\end{proposition}
+
+If any of these conditions is satisfies, minimizers of $I^y(x) = \Psi(F(x),y) + \frac12\norm{x}_E^2$ are indeed posterior modes by \cref{var_char_modes,form_OM_funct}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Severely ill-posed linear problems}
+\label{sect_lin_prob}
+
+Eventually, we study the rate of convergence of the MAP estimator based upon a Gaussian prior distribution for a severely ill-posed linear problem with measurements corrupted by Laplacian noise.
+This problem can be considered as a generalization of the inverse heat equation.
+
+Let $\{\phi_k\}_{k\in\N}$ be an orthonormal basis of a separable Hilbert space $X$. Moreover, let $\{\alpha_k\}_{k\in\N}$ be a positive, non-decreasing sequence such that
+\[
+	C_- k^\frac{2}{d} \le \alpha_k \le C_+ k^\frac{2}{d} \quad \text{for all }k \in \N.
+\]
+Now, we define a linear operator $A$ on
+\[
+	\dom(A) := \left\{ x \in X: \sum_{k=1}^\infty \alpha_k^2 \abs{\scalprod{x,\phi_k}_X}^2 < \infty \right\}
+\]
+by
+\[
+	Ax := \sum_{k=1}^\infty \alpha_k \scalprod{x,\phi_k}_X \phi_k.
+\]
+Next, we define the forward operator $K$: $X \to X$ via functional calculus as $K := e^{-A}$, i.e., by
+\[
+	Kx := \sum_{k=1}^\infty e^{-\alpha_k} \scalprod{x,\phi_k}_X \phi_k.
+\]
+As a limit of linear operators with finite-dimensional range, $K$ is a compact linear oparator.
+We then consider the inverse problem of finding $u$, given a noisy measurement $y$ related to $u$ by
+\begin{equation*}
+	y = Ku + \eta.
+\end{equation*}
+
+\begin{example}
+	For appropriately chosen subsets $\Omega$ of $\R^d$ (e.g. bounded, open, and with $C^\infty$ boundary), the weak Laplace operator $A := -\Delta$ in $X := L^2(\Omega)$ has the aforementioned properties. The eigenfunctions of $A$ under Dirichlet boundary conditions form an orthonormal basis of $L^2(\Omega)$, and the corresponding eigenvalues grow in the order of $k^{2/d}$ according to Weyl's asymptotic formula. The domain of $A$ is then given by $\dom(A) = H^2(\Omega) \cap H_0^1(\Omega)$.
+	
+	For $u \in L^2(\Omega)$, $v(t) := e^{-tA}u$ constitutes the unique solution to the heat equation
+	\[ \frac{\di v(t)}{\di t} = \Delta v(t) \quad \text{for}~t > 0 \]
+	with initial condition $v(0) = u$. For $A = -\Delta$, the aforementioned inverse problem thus corresponds to finding the heat distribution $u$ on $\Omega$ at time $0$ from a noisy measurement $y$ of the heat distribution $Ku = e^{-A}u$ at time $1$.
+\end{example}
+
+For $s \in \R$, we define powers $A^s$ of $A$ on
+\[
+	\dom(A^{s}) := \left\{ x \in X: \sum_{k=1}^\infty \alpha_k^{2s} \abs{\scalprod{x,\phi_k}_X}^2 < \infty \right\}
+\]
+via functional calculus as
+\[
+	A^s x := \sum_{k=1}^\infty \alpha_k^s \scalprod{x,\phi_k}_X \phi_k.
+\]
+The operator $A$ induces a scale of Hilbert spaces $\{\X{s}\}_{s \ge 0}$, where
+\[ \X{s} := \dom(A^\frac{s}{2}) = \ran(A^{-\frac{s}{2}}) = \left\{ x \in X: \sum_{k=1}^\infty \alpha_k^s \abs{\scalprod{x,\phi_k}_X}^2 < \infty \right\} \]
+is endowed with the norm $\norm{x}_\X{s} := \norm{A^{s/2}x}_X$.
+The operator $A^{-\alpha}$ is trace class for any $\alpha > d/2$ since
+\begin{equation}
+	\label{eq:pow_A_trace_class}
+	\Tr A^{-\alpha} = \sum_{k=1}^\infty \scalprod{A^{-\alpha}\phi_k,\phi_k}_X = \sum_{k=1}^\infty \alpha_k^{-\alpha} \le C_-^{-\alpha} \sum_{k=1}^\infty k^{-\frac{2\alpha}{d}}.
+\end{equation}
+
+We model the inverse problem in a Bayesian framework. We assume that the noise follows a Laplacian distribution $\nu := \Laplace_{b^2A^{-\beta}}$ with $b > 0$ and $\beta > d/2$, and we assign a centered Gaussian prior distribution $\mu_0 := \Normal_{r^2A^{-\alpha}}$ with $r > 0$ and $\alpha > d/2$. As before, we assume that $u$ and $\eta$ are independent.
+
+\subsection{Posterior distribution}
+
+If the shifted measure $\Laplace_{e^{-A}u, b^2 A^{-\beta}}$ is absolutely continuous with respect to the noise distribution $\Laplace_{b^2 A^{-\beta}}$ for every $u \in X$, then it follows from \cite[Prop.~1.4]{Kretschmann:2019} that
+\[ (u,V) \mapsto \Laplace_{e^{-A}u, b^2 A^{-\beta}}(V) \]
+is a regular conditional distribution of $y$ given $u$.
+\Cref{thmLaplaceAlt} tells us that $\Laplace_{e^{-A}u, b^2 A^{-\beta}}$ and $\Laplace_{b^2 A^{-\beta}}$ are equivalent if and only if $e^{-A}u \in \ran(A^{-\beta/2})$.
+This is indeed the case for all $u \in X$ by \cite[Lem.~5.15]{Kretschmann:2019}.
+From \cref{thmLaplaceAlt} we now obtain the density
+\begin{equation*}
+	\frac{\di \Laplace_{e^{-A}u, b^2 A^{s-\beta}}}{\di \Laplace_{b^2 A^{s-\beta}}}(y)
+	= \exp(-\Phi(u,y))
+\end{equation*}
+for each $u \in X$, where
+\begin{equation} 
+	\label{eq:def_phi}
+	\Phi(u,y) := \sqrt{2} \sum_{k=1}^\infty \frac{ \left|\scalprod{y,\varphi_k}_X - e^{-\alpha_k}\scalprod{u,\varphi_k}_X\right| - \left|\scalprod{y,\varphi_k}_X\right|}{b\alpha_k^{-\beta/2}}
+\end{equation}
+for all $u,y \in X$.
+
+\begin{proposition}
+	\label{prop:phi_cont}
+	The function $\Phi$: $X \times X \to \R$, defined by \eqref{eq:def_phi}, is continuous, and for every $y \in X$, $u \mapsto \Phi(u,y)$ is Lipschitz continuous with a Lipschitz constant independent of $y$.
+\end{proposition}
+
+\begin{proposition}
+	\label{prop:Z_pos_fin}
+	The function $u \mapsto \exp(-\Phi(u,y))$ is $\Normal_{r^2 A^{-\tau}}$-integrable for all $y \in X$ and there exists a constant $C_Z > 0$ such that
+	\begin{equation*}
+		\int_X \exp(-\Phi(u,y)) \Normal_{r^2 A^{-\tau}}(\di u) \ge C_Z \quad \text{for all }y \in X.
+	\end{equation*}
+\end{proposition}
+With this knowledge, we are able to apply Bayes' formula.
+\begin{theorem}
+	\label{post_dist_lin_prob}
+	A regular conditional distribution $(y,B) \mapsto \mu^y(B)$ of $u$ given $y$ exists, the posterior distribution $\mu^y$ is absolutely continuous with respect to the prior distribution $\Normal_{r^2 A^{-\tau}}$ for every $y \in X$ and has the density
+	\begin{equation} 
+		\label{eq:post_dens}
+		\frac{\di\mu^y}{\di\Normal_{r^2 A^{-\tau}}}(u)
+		= \frac{1}{Z(y)} \exp(-\Phi(u,y)),
+	\end{equation}
+	where $\Phi$ is given by \eqref{eq:def_phi} and
+	\begin{equation*}
+		Z(y) = \int_X \exp(-\Phi(u,y)) \Normal_{r^2 A^{-\tau}}(\di u).
+	\end{equation*}
+\end{theorem}
+\begin{proof}[Proof of \cref{post_dist_lin_prob}]
+	By \cref{thmLaplaceAlt} and \cite[Lem.~5.15]{Kretschmann:2019}, the measure $P_{u} := \Laplace_{e^{-A}u, b^2 A^{-\beta}}$ is absolutely continuous with respect to $\nu := \Laplace_{b^2 A^{s-\beta}}$ for all $u \in X$ with the density $y \mapsto p_{u}(y) := \exp(-\Phi(u,y))$. 
+	The function $(u,y) \mapsto p_u(y)$ is measurable by \cref{prop:phi_cont} and $Z(y) > 0$ for all $y \in X$ by \cref{prop:Z_pos_fin}.
+	Therefore, we may apply Bayes' theorem \cite[Thm.~1.3]{Kretschmann:2019}, which yields the proposition.
+\end{proof}
+
+It can be shown that the posterior distribution is stable with respect to changes in the data, that is, small changes in $y$ result in small changes in the $\mu^y$ measured in Hellinger distance, see Theorem 5.30 in \cite{Kretschmann:2019}. Introducing a Gaussian prior has a stabilising effect on the considered inverse problem.
+
+\subsection{Maximum a posteriori estimator}
+
+Next, we use the variational characterization from \cref{var_char_modes} to find the modes of the posterior distribution $\mu^y$ as minimizers of its Onsager--Machlup functional.
+By the Cameron--Martin theorem \cite[Thm.~2.3.1]{DaPrato:2001}, the Cameron--Martin space of the prior distribution $\Normal_{r^2 A^{-\tau}}$ is given by $\X{\tau} = \ran(A^{-\tau/2})$, and its Cameron--Martin norm by $\norm{h}_\X{\tau} = \frac{1}{r}\norm{A^{-\tau/2}h}$.
+
+\begin{theorem} 
+	\label{thm:omf_heat}
+	For every $y \in \X{s}$, the functional $I^y: \X{\tau} \to \R$, defined by
+	\begin{align} 
+		\label{eq:omf_heat}
+		I^y(u) &:= \Phi(u,y) + \frac{1}{2r^2}\norm{u}_\X{\tau}^2 \\
+		&= \frac{\sqrt{2}}{b} \sum_{k=1}^\infty \alpha_k^\frac{\beta}{2} \left(\left|\scalprod{y,\varphi_k}_X - e^{-\alpha_k} \scalprod{u,\varphi_k}_X\right| - \left|\scalprod{y,\varphi_k}_X\right|\right) + \frac{1}{2r^2} \sum_{k=1}^\infty \alpha_k^\tau \left|u_k\right|^2 \nonumber
+	\end{align}
+	for all $u \in \X{\tau}$, is the Onsager--Machlup functional of $\mu^y$ and has a minimizer $\bar u \in \X{\tau}$.
+\end{theorem}
+\begin{proof}
+	Let $y \in X$. By \cref{post_dist_lin_prob}, the density of the posterior distribution $\mu^y$ w.r.t. the prior distribution $\Normal_{r^2 A^{-\tau}}$ is given by \eqref{eq:post_dens}.
+	$\Phi$ is Lipschitz continuous in $u$ by \cref{prop:phi_cont}, so $u \mapsto \Phi(u,y) + \frac{1}{2r^2}\norm{u}_\X{\tau}^2$ is the Onsager--Machlup functional of $\mu^y$ by \cref{form_OM_funct}, and has a minimizer $\bar u \in \X{\tau}$ by \cref{min_I_ex}.
+\end{proof}
+
+\begin{corollary} 
+	\label{cor:omf_min_map_heat}
+	Let $y \in X$. Then, every minimizer of the functional $I^y$, defined by \eqref{eq:omf_heat}, is a mode of $\mu^y$. Conversely, every mode of $\mu^y$ minimizes $I^y$.
+\end{corollary}
+\begin{proof}
+	By \cref{post_dist_lin_prob}, the density of $\mu^y$ w.r.t. $\Normal_{r^2 A^{-\tau}}$ is given by \eqref{eq:post_dens}.
+	Now, \cref{var_char_modes} tells us that the minimizers of $I^y$ are precisely the MAP estimates for $\mu^y$ as $\Phi$ is Lipschitz continuous in $u$ by \cref{prop:phi_cont}.
+\end{proof}
+
+\Cref{thm:omf_heat,cor:omf_min_map_heat} tell us that for the considered inverse problem, a regularized solution found by minimizing $I^y$ does indeed describe a point of maximal posterior probability both in the sense of a small ball mode and a minimizer of the Onsager--Machlup functional.
+We express the minimizer explicitly and show that it is unique.
+\begin{lemma} 
+	\label{lemCompMAP}
+	Let $y \in X$ and let $\bar{u} = \bar{u}(y) \in \X{\tau}$ be a minimizer of $I^y$.
+	Then,
+	\begin{equation*}
+		\bar{u} = \sum_{k=1}^\infty P_{\big[-\frac{r^2}{b}R_k,\frac{r^2}{b}R_k\big]} \Big(e^{\alpha_k}\scalprod{y,\varphi_k}_X\Big) \varphi_k.
+	\end{equation*}
+	where
+	\[ R_k := \sqrt{2}\alpha_k^{\frac{\beta}{2} - \tau}e^{-\alpha_k} \]
+	for all $k \in \N$ and $P_I$ denotes the projection onto the closed interval $I \subset \R$.
+	In particular, the minimizer $\bar u$ of $I^y$ is unique.
+\end{lemma}
+We can interpret the expression in \cref{lemCompMAP} in the following way: The MAP estimator acts upon the data by projecting it onto a hyperrectangle 
+	\[ Q := \{ y \in X: \scalprod{y, \varphi_k}_X \le e^{-\alpha_k}R_k \text{ for all }k \in \N \}. \]
+and then applying the inverse $e^A$ of the forward operator.
+
+\Cref{cor:omf_min_map_heat} and \cref{lemCompMAP} guarantee that for every $y \in X$, the posterior distribution $\mu^y$ has a unique mode, the minimizer of its Onsager--Machlup functional $I^y$. This allows us to define the \emph{maximum a posteriori (MAP) estimator} $\umap$: $Y \to X$ by assigning to each $y \in X$ the mode $\umap(y)$ of $\mu^y$, and to express it as
+\[ \umap(y) = \argmin_{u \in \X{\tau}} I^y(u) = \argmin_{u \in \X{\tau}} \left\{ \Phi(u,y) + \frac{1}{2r^2}\norm{u}_\X{\tau}^2 \right\}. \]
+Minimizing $I^y$ corresponds to Tikhonov--Phillips regularization with an $\ell^1$-like discrepancy term and a quadratic penalty term, where the inverse prior variance plays the role of the regularization parameter.
+Here, our main result \cref{var_char_modes} allows us to find and express the the small ball mode of the posterior distribution explicitly using its minimizing property.
+It can be shown that the MAP estimator $\umap$ is continuous, see Theorem 5.37 in \cite{Kretschmann:2019}. The MAP estimate is stable with respect to changes in the data.
+
+\subsection{Consistency of the MAP estimator}
+
+Finally, we show consistency of the MAP estimator under the frequentist assumption that the data is generated by a deterministic true solution $u^\dagger \in X$, that is, when
+\[ y \sim \Laplace_{e^{-A}u^\dagger, b^2 A^{-\beta}}. \]
+Here, the value of our main result \cref{var_char_modes} lies in allowing us to translate the consistency of the minimizer of $I^y$ into consistency of the posterior mode.
+Under a source condition on $u^\dagger$ and with an a priori choice of the prior variance $r^2$ in the order of the noise level $b$, the mean squared error of the MAP estimator converges in the order of the noise level.
+
+\begin{theorem} 
+	\label{thmConvRateVar}
+	Let $u^\dagger \in X$, $b, r > 0$, and $y \sim \Laplace_{e^{-A}u^\dagger, b^2 A^{-\beta}}$. 
+	If there exists $w \in X$ such that
+	\begin{equation}
+		\label{source_cond}
+		u^\dagger = A^{\frac{\beta}{2} - \tau}e^{-A}w 
+		\quad \text{and} \quad \sup_{k\in\N} \abs{\scalprod{w,\varphi_k}_X} \le \rho,
+	\end{equation}
+	and if there exists $C > 0$ such that
+		\[ \frac{\rho}{\sqrt{2}} b \le r^2 \le C b, \]
+	then 
+		\[ \E\left[ \norm{\umap(y) - u^\dagger}_{X}^2 \right] \le 2C \left(\Tr A^{-\tau}\right) b. \]
+\end{theorem}
+
+\Cref{thmConvRateVar} shows in particular that the MAP estimator is consistent with the stated choice of $r$, since its convergence toward the true solution in mean square implies convergence in probability by Markov's inequality.
+
+We compare the rate of convergence stated in \cref{thmConvRateVar} with the convergence rate of the minimax risk when the Laplacian noise is replaced by Gaussian noise $\eta \sim \Normal_{b^2 A^{-\beta}}$. We restrict ourselves to the case that the inverse problem is exponentially ill-posed, that is, we set $d = 2$, and assume that the eigenvalues of $A$ associated with the eigenvectors $\varphi_k$ are exactly $\alpha_k = pk$ for some $p > 0$. If we moreover replace the source condition \eqref{source_cond} by the slightly stronger condition that the true solution lies in the class
+\[ \Theta := \left\{ A^{\frac{\beta}{2} - \tau}e^{-A}w: w \in X, \norm{w}_X \le \rho \right\}, \]
+the results of \cite{DingMathe:2017} yield convergence of the MSE minimax risk
+\[ \inf_{\hat{u}} \sup_{u^\dagger \in \Theta} \E\left[\norm{\hat{u} - u^\dagger}_X^2\right] \]
+in the order of $b$, see subsection 5.5.6 in \cite{Kretschmann:2019}. Here, the infimum is taken over all estimators $\hat{u} = \hat{u}(y)$.
+We observe that in the considered case, the minimax rate for Laplacian noise is not worse than for Gaussian noise.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section*{Conclusion}
+
+We saw that under mild assumptions on the likelihood and in a separable Hilbert space setting, modes of a Bayesian posterior distribution based upon a Gaussian prior do indeed coincide with minimizers of its Onsager--Machlup functional. Under appropriate conditions on the forward mapping, our assumptions on the likelihood are in particular satisfied for Bayesian inverse problems with infinite-dimensional additive Gaussian or Laplacian noise. The proof of our main result fills gaps present in previous proofs and constitutes the first rigorous proof in the separable Hilbert space setting that covers the fundamental limit case of inverse problems with Gaussian process noise. 
+Our work shows that in the considered cases, nonparametric MAP estimation and Tikhonov--Phillips regularization are equivalent and links the choice of the discrepancy term to the log-likelihood.
+In the example of a severely ill-posed linear problem with Laplacian noise, the variational characterization of modes allowed us to express the MAP estimator explicitly and determine the rate of convergence of its mean squared error.
+
+Our results pave the way for the study of nonparametric MAP estimates for inverse problems with other non-Gaussian noise models. It is, moreover, still an open question if a variational characterization of posterior modes as minimizers of the Onsager--Machlup functional holds true under similar assumptions in the separable Banach space case.
+
+\section*{Acknowledgements}
+
+I want to thank Frank Werner and Christian Clason for their valuable feedback and fruitful discussions.
+
+% Appendix
+
+\input{appendix}
+
+% Bibliography
+
+\bibliography{references}
+
+\end{document}
+
+
+\renewcommand{\epsilon}{\varepsilon}
+\renewcommand{\phi}{\varphi}
+\renewcommand{\emptyset}{\varnothing}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{{\mathbb{R}}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\di}{\mathrm{d}}
+\newcommand{\Borel}{\mathcal{B}}
+\newcommand{\Normal}{\mathcal{N}}
+\newcommand{\Laplace}{\mathcal{L}}
+\newcommand{\SLd}{\mathcal{SL}_d}
+\newcommand{\umap}{\hat{u}_\mathrm{MAP}}
+\newcommand{\ucm}{\hat{u}_\mathrm{CM}}
+\newcommand{\calD}{\mathcal{D}}
+\newcommand{\calB}{\mathcal{B}}
+\newcommand{\calC}{\mathcal{C}}
+\newcommand{\calH}{\mathcal{H}}
+
+\newcommand{\Prob}[1]{\mathbb{P}\left[#1\right]}
+\newcommand{\Exp}[1]{\mathbb{E}\left[#1\right]}
+\newcommand{\X}[1]{{\mathcal{X}^{#1}}}
+
+\DeclareMathOperator{\dom}{\mathcal{D}}
+\DeclareMathOperator{\ran}{\mathcal{R}}
+\DeclareMathOperator{\Tr}{tr}
+\DeclareMathOperator{\Id}{Id}
+\DeclareMathOperator*{\argmax}{arg\,max} % * - limits beneath operator
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator{\spn}{span}
+\DeclareMathOperator{\sgn}{sign}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\Cov}{Cov}
+\DeclareMathOperator{\erfc}{erfc}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\erfcinv}{erfcinv}
+\DeclareMathOperator{\erfcx}{erfcx}
+
+\newcommand{\abs}[1]{{\lvert#1\rvert}}
+\newcommand{\bigabs}[1]{\left\lvert#1\right\rvert}
+\newcommand{\norm}[1]{{\lVert#1\rVert}}
+\newcommand{\bignorm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\scalprod}[1]{{(#1)}}
+\newcommand{\bigscalprod}[1]{\left(#1\right)}
+\newcommand{\dualpair}[1]{{\langle#1\rangle}}
+
+\appendix
+
+\section{Proofs of section \ref{sect_var_char}}
+\label{sect_proofs_var_char}
+
+\begin{proof}[Proof of \cref{form_OM_funct}]
+	By \eqref{post_dist} and the continuity of $\Phi$, $\mu_0$ and $\mu^y$ are equivalent and thus have the same space $E = \ran(Q^{1/2})$ of admissible shifts. 
+	By Theorem 3.2 in \cite{Dashti:2013}, the Onsager--Machlup functional $I$ of $\mu^y$ is given by \eqref{def_I} if $\Phi$ satisfies the following three conditions.
+	\begin{enumerate}
+		\item For every $\epsilon > 0$, there exists $M = M(\varepsilon) \in \R$, such that for all $x \in X$,
+			\[ \Phi(x) \ge M - \epsilon\norm{x}_X^2. \]
+		\item $\Phi$ is bounded from above on bounded sets, i.e., for every $r > 0$, there exists $K = K(r) > 0$, such that $\Phi(x) \le K$ for all $x \in B_r(0)$.
+		\item $\Phi$ is Lipschitz continuous on bounded sets, i.e., for every $r > 0$, there exists $L = L(r) > 0$, such that for all $x_1, x_2 \in B_r(0)$, we have
+			\[ \abs{\Phi(x_1) - \Phi(x_2)} \le L \norm{x_1 - x_2}_X. \]
+	\end{enumerate}
+	We verify that these conditions hold.
+	Condition (iii) is trivially satisfied.
+	Condition (ii) is satisfied with $K := \max \{\Phi(0), 0\} + L(r)r$ by the Lipschitz continuity of $\Phi$ on bounded sets, as
+	\[ \Phi(x) \le \Phi(0) + L\norm{x}_X \le \Phi(0) + L(r)r \le K \]
+	for all $x \in B_r(0)$.
+	By \cref{ass:phi} \ref{ass:phi_lower_bound} we have
+	\begin{equation*}
+		\Phi(x) + \varepsilon\left\|x\right\|_X^2
+		\ge \Phi(0) - \underline{L}\norm{x}_X + \varepsilon\norm{x}_X^2
+		= \Phi(0) + \varepsilon \left(\left\|x\right\|_X - \frac{\underline{L}}{\varepsilon}\right)\norm{x}_X
+	\end{equation*}
+	for all $\varepsilon > 0$ and $x \in X$.
+	Now, the minimum of the function $f(t) = \varepsilon(t - \frac{\underline{L}}{\varepsilon})t$ on $\R$ is attained in $\frac{\underline{L}}{2\varepsilon}$, so that for given $\varepsilon > 0$, condition (i) is satisfied with
+	\begin{equation*}
+		M := \Phi(0) + f\left(\frac{\underline{L}}{2\varepsilon}\right) = \Phi(0) - \frac{\underline{L}^2}{4\varepsilon}.
+	\end{equation*}
+\end{proof}
+\begin{proof}[Proof of \cref{min_I_ex}]
+	By Theorem 5.4 in \cite{stuart_2010}, $I$ has a minimizer in $E$ if $\Phi$ satisfies the following two conditions.
+	\begin{enumerate}
+		\item For every $\epsilon > 0$, there exists $M = M(\varepsilon) \in \R$, such that for all $x \in X$,
+			\[ \Phi(x) \ge M - \epsilon\norm{x}_X^2. \]
+		\item $\Phi$ is Lipschitz continuous on bounded sets, i.e., for every $r > 0$, there exists $L = L(r) > 0$, such that for all $x_1, x_2 \in B_r(0)$, we have
+			\[ \abs{\Phi(x_1) - \Phi(x_2)} \le L \norm{x_1 - x_2}_X. \]
+	\end{enumerate}
+	It can be seen as in the proof of \cref{form_OM_funct} that these conditions hold under \cref{ass:phi}.
+\end{proof}
+
+The proof of our main result, \cref{var_char_modes}, relies on the following theorem.
+\begin{theorem}
+	\label{thmConvSub}
+	For every $\varepsilon > 0$, let $x_\epsilon \in X$ satisfy
+	\begin{equation*}
+		\mu^y(B_\varepsilon(x_\varepsilon)) \ge \left(1 - \epsilon\right) \sup_{x \in X} \mu^y(B_\varepsilon(x)).
+	\end{equation*}
+	If $\Phi$ satisfies \cref{ass:phi}, then the following holds true for every positive sequence $\{\varepsilon_n\}_{n\in\N}$ with $\varepsilon_n \to 0$:
+	\begin{enumerate}
+		\item \label{conv_subseq} The sequence $\{x_{\varepsilon_n}\}_{n\in\N}$ contains a subsequence that converges in $X$ toward some $\bar{x} \in E$.
+		\item \label{cluster_point_min} For every cluster point $\bar{x} \in X$ of $\{x_{\varepsilon_n}\}_{n\in\N}$, the convergent subsequence $\{x_{\epsilon_{n_m}}\}_{m\in\N}$ satisfies
+		\begin{equation*}
+			\lim_{m\to\infty} \frac{\mu^y(B_{\varepsilon_{n_m}}(\bar{x}))}{\mu^y(B_{\varepsilon_{n_m}}(x_{\varepsilon_{n_m}}))} = 1
+		\end{equation*}
+		and minimizes the Onsager--Machlup functional of $\mu^y$.
+		\item \label{cluster_point_map} Every cluster point $\bar{x} \in X$ of $\{x_{\varepsilon_n}\}_{n\in\N}$ is a mode of $\mu^y$.
+	\end{enumerate}
+\end{theorem}
+
+\Cref{thmConvSub} tells us that the cluster points of the sequence $x_{\epsilon_n}$ are both modes of $\mu^y$ and minimizers of $I$. It furthermore ensures the existence of such a cluster point. The proof of \cref{thmConvSub} builds on a number of auxiliary lemmas.
+
+We can approximate the probability of balls under the Gaussian measure $\Normal_Q$ arbitrarily well by the probabilty of cylinder sets.
+% Arbitrarily close approximation of balls by cylindrical sets
+\begin{lemma}
+	\label{approx_ball_cylinder}
+	Let $u \in X$ and $\varepsilon > 0$. For all $n \in \N$ and $x \in X$ define the projections $P_n$: $X \mapsto \R^n$, 
+		\[ P_n x := (\scalprod{x,\varphi_1}_X, \dots, \scalprod{x,\varphi_n})^T. \]
+	Moreover, for every $n \in \N$ let $A_n$ be the cylindrical set
+		\[ A_n := \{x \in X: P_n x \in B_\varepsilon(P_n u)\}, \]
+	where $B_\varepsilon(P_n u) := \{z \in \R^n: \norm{z - P_n u}_2 < \varepsilon\}$ denotes an open Euclidean ball in $\R^n$.
+	Then for every $\delta > 0$ there exists an $N \in \N$ such that
+		\[ \Normal_Q(B_\varepsilon(u) \bigtriangleup A_n) \le \delta \quad \text{for }n \ge N, \]
+	where $\bigtriangleup$ denotes the symmetric difference.
+\end{lemma}
+\begin{proof}
+	First, we note that $\mu_0(\overline{B_\varepsilon(u)}) = \mu_0(B_\varepsilon(u))$ and 
+		\[ \mu_0(\{x \in X: P_n x \in \overline{B_\varepsilon(P_n u)}\}) = \mu_0(\overline{A_n}) = \mu_0(A_n) \quad \text{for all }n \in \N. \]
+
+	Next, we show that the sets $\overline{A_n}$ decrease to $\overline{B_\varepsilon(u)}$.	It can easily be seen that $\overline{A_1} \supset \overline{A_2} \supset \dots$ holds and that $\overline{B_\varepsilon(u)} \subset \overline{A_n}$ for all $n \in \N$. In order to see that $\bigcap_{n=1}^\infty \overline{A_n} = \overline{B_\varepsilon(u)}$, we consider a point $x \in X \setminus \overline{B_\varepsilon(u)}$. Then, $\rho := \norm{x - u}^2 - \varepsilon^2 > 0$ and we can choose a $K \in \N$ such that
+	\[ \norm{P_K x - P_K u}_2^2 = \sum_{k=1}^K \abs{\scalprod{x - u,\varphi_k}_X}^2 \ge \norm{x - u}^2 - \frac{\rho}{2} = \varepsilon^2 + \frac{\rho}{2} > \varepsilon^2. \]
+This shows that $P_K x \notin \overline{B_\varepsilon(P_K u)}$. Therefore, $x \notin \overline{A_K}$ and in particular $x \notin \bigcap_{n=1}^\infty \overline{A_n}$.
+	
+	As a probability measure, $\mu_0$ is upper semicontinuous by \cite[Thm.~1.36]{Klenke:2014}, so that
+		\[ \mu_0(\overline{A_n}) \to \mu_0(\overline{B_\varepsilon(u)}) \quad \text{as }n \to \infty. \]
+	For every $\delta > 0$, this allows us to choose an $N \in \N$ such that
+		\[ \mu_0(B_\varepsilon(u) \bigtriangleup A_n) 
+		= \mu_0(A_n \setminus B_\varepsilon(u))
+		= \mu_0(A_n) - \mu_0(B_\varepsilon(u))
+		\le \delta \quad \text{for }n \ge N. \]
+\end{proof}
+
+We have the following two results regarding the probabilites of small balls with a sequence of center points under the Gaussian measure $\mu_0$.
+% lim sup small ball probabilites = 0 for weakly but not strongly convergent sequence with limit in E
+\begin{lemma} 
+	\label{lem:weakNotStrong}
+	Let $\{x_\epsilon\}_{\epsilon > 0} \subset X$ and $\{\varepsilon_n\}_{n\in\N} \subset (0,\infty)$ with $\varepsilon_n \to 0$. 
+	Suppose that $\{x_{\varepsilon_n}\}_{n\in\N}$ converges weakly but not strongly in $X$ toward $\bar{x} \in E$.
+	Then, for every $\delta > 0$, there exists $n \in \N$ such that
+		\[ \frac{\mu_0(B_{\varepsilon_n}(x_{\varepsilon_n}))}{\mu_0(B_{\varepsilon_n}(0))} \le \delta. \]
+\end{lemma}
+\begin{proof}
+Let $\delta > 0$. Let $\{\varphi_k\}_{k\in\N}$ be an orthonormal basis of $X$ consisting of eigenvectors of $Q$, let $\{\lambda_k\}_{k\in\N}$ be the associated eigenvalues in descending order and define $a_k \coloneqq \frac{1}{\lambda_k}$ for all $k \in \N$. Furthermore, we define $u_k := \scalprod{u,\varphi_k}_X$ and
+	\[ P_k u \coloneqq \left(u_1, u_2, \dots, u_k\right)^T \]
+for all $u \in X$ and $k \in \N$.
+For the measure $\mu_{0,m} := \mu_0 \circ P_m^{-1}$ on $\R^m$,
+	\[ \mu_{0,m}(M) = C_m \int_{M} e^{-\frac12\left(a_1 x_1^2 + \dots + a_m x_m^2\right)} \di x \]
+holds for all $M \in \calB(\R^m)$ by \cite[Prop.~1.2.2]{Bogachev:1998}, where $C_m = ((2\pi)^m \prod_{k=1}^m \lambda_k)^{-1/2}$.
+Since $u_{\varepsilon_n}$ converges weakly and not strongly to $\bar u$, we have
+	\[ \liminf_{n\to\infty} \left\|u_{\varepsilon_n}\right\|_X > \norm{\bar u}_X. \]
+Therefore, $n_0 \in \N$ and $c > 0$ exist such that 
+	\[ \left\|u_{\varepsilon_n}\right\|_X^2 \ge \norm{\bar u}_X^2 + c \quad\text{for all }n \ge n_0. \]
+We choose $A > 0$ such that $e^{-\frac{c^2}{36}A^2} \le \frac{\delta}{2}$ and $K \in \N$ such that $a_k > A^2$ for all $k \ge K$. For $m \ge K$ and $n \in \N$ we consider
+\begin{align*}
+	\mu_{0,m}(B_{\varepsilon_n}(0))
+	&= C_m \int_{B_{\varepsilon_n}(0)} e^{-\frac12\left(a_1 x_1^2 + \dots + a_m x_m^2\right)} \di x \\
+	&= C_m \int_{B_{\varepsilon_n}(0)} e^{-\frac12 A^2\left(x_{K+1}^2 + \dots + x_m^2\right)}
+	e^{-\frac12\left(a_1 x_1^2 + \dots + a_K x_K^2 + \left(a_{K+1} - A^2\right)x_{K+1}^2 + \dots + \left(a_m - A^2\right)x_m^2\right)} \di x \\
+	&= \frac{C_m}{\widehat{C}_m} \int_{B_{\varepsilon_n}(0)} e^{-\frac12 A^2\left(x_{K+1}^2 + \dots + x_m^2\right)} \widehat\mu_{0,m}(\di x)
+	\ge \frac{C_m}{\widehat{C}_m} e^{-\frac12 A^2 {\varepsilon_n}^2} \widehat\mu_{0,m}(B_{\varepsilon_n}(0)),
+\end{align*}
+where
+	\[ \widehat\mu_{0,m}(M) \coloneqq \widehat{C}_m \int_M e^{-\frac12\left(a_1 x_1^2 + \dots + a_K x_K^2 + \left(a_{K+1} - A^2\right)x_{K+1}^2 + \dots + \left(a_m - A^2\right)x_m^2\right)} \di x \]
+for all $M \in \calB(\R^m)$. Note that $\widehat\mu_{0,m}$ is a centered Gaussian measure.
+The weak convergence implies $\scalprod{u_{\varepsilon_n},\varphi_k}_X \to \scalprod{\bar u,\varphi_k}_X$ for all $k \in \N$. Therefore, we can choose $n_1 \ge n_0$ such that for all $n \ge n_1$,
+	\[ \sum_{k = 1}^K \left( \scalprod{u_{\varepsilon_n}, \varphi_k}_X^2 - \scalprod{\bar u, \varphi_k}_X^2 \right) \le \frac{c}{3}, \]
+and consequently
+\begin{align*}
+	\sum_{k=K+1}^\infty \scalprod{u_{\varepsilon_n},\varphi_k}_X^2
+	&= \norm{u_{\varepsilon_n}}_X^2 - \sum_{k=1}^K \scalprod{u_{\varepsilon_n},\varphi_k}_X^2
+	\ge \norm{\bar u}_X^2 + c - \sum_{k=1}^K \scalprod{u_{\varepsilon_n},\varphi_k}_X^2 \\
+	&= c + \sum_{k = 1}^K \left( \scalprod{\bar u, \varphi_k}_X^2 - \scalprod{u_{\varepsilon_n}, \varphi_k}_X^2 \right) + \sum_{k=K+1}^\infty \scalprod{\bar u, \varphi_k}_X^2
+	\ge \frac{2}{3}c.
+\end{align*}
+Finally, we choose $n \ge n_1$ such that $\varepsilon_n \le \frac{c^2}{36}$ and $\rho > 0$ such that 
+\[	\left(\frac{\delta}{2} + 1\right)\rho \le \frac{\delta}{2}\mu_0(B_{\varepsilon_n}(0)). \]
+By \cref{approx_ball_cylinder}, there exists an $m_0 \ge K$ for the balls $B_{\varepsilon_n}(0)$ and $B_{\varepsilon_n}(u_{\varepsilon_n})$ such that the cylindrical sets
+	\[ A_0 \coloneqq P_m^{-1}(B_{\varepsilon_n}(P_m 0))) \quad\text{and}\quad A_u = P_m^{-1}(B_{\varepsilon_n}(P_m u_{\varepsilon_n})) \]
+satisfy $\mu_0(B_{\varepsilon_n}(0)\,\bigtriangleup\,A_0) < \rho$ and $\mu_0(B_{\varepsilon_n}(u_{\varepsilon_n})\,\bigtriangleup\,A_u) < \rho$ for all $m > m_0$.
+Note that here, $B_{\varepsilon}(P_m u)$ denotes an open ball in $\R^m$ for $\varepsilon > 0$ and $u \in X$.
+It follows that
+	\[ \mu_0(B_{\varepsilon_n}(u_{\varepsilon_n})) \le \mu_{0,m}(B_{\varepsilon_n}(P_m u_{\varepsilon_n})) + \rho \]
+and
+	\[ \mu_{0,m}(B_{\varepsilon_n}(P_m 0)) \le \mu_0(B_{\varepsilon_n}(0)) + \rho. \]
+In a last step, we choose $m \ge m_0$ such that
+	\[ \sum_{k = K + 1}^m \scalprod{u_{\varepsilon_n},\varphi_k}_X^2 \ge \frac{c}{3}. \]
+By Andersons's inequality (see Theorem 2.8.10 in \cite{Bogachev:1998}), we have 
+\[	\widehat\mu_{0,m}(B_{\varepsilon_n}(P_m u_{\varepsilon_n})) \le \widehat\mu_{0,m}(B_{\varepsilon_n}(0)). \]
+By the choice of $n$ and $A$, this leads to
+\begin{align*}
+	\mu_{0,m}(B_{\varepsilon_n}(P_m u_{\varepsilon_n}))
+	&= \frac{C_m}{\widehat{C}_m} \int_{B_{\varepsilon_n}(P_m u_{\varepsilon_n})} e^{-\frac12 A^2\left(x_{K+1}^2 + \dots + x_m^2\right)} \widehat\mu_{0,m}(\di x) \\
+	&\le \frac{C_m}{\widehat{C}_m} e^{-\frac12 A^2 \left(\frac{c}{3} - \varepsilon_n\right)^2} \widehat\mu_{0,m}(B_{\varepsilon_n}(P_m u_{\varepsilon_n})) \\
+	&\le \frac{C_m}{\widehat{C}_m} e^{-\frac12 A^2 \left(\frac{c^2}{9} - 2\varepsilon_n\right)} e^{-\frac12 A^2 \varepsilon_n^2} \widehat\mu_{0,m}(B_{\varepsilon_n}(0)) \\
+	&\le e^{-\frac{c^2}{36}A^2} \mu_{0,m}(B_{\varepsilon_n}(0))
+	\le \frac{\delta}{2} \mu_{0,m}(B_{\varepsilon_n}(0)).
+\end{align*}
+Consequently, by the choice of $m_0$ and $\rho$ we have
+\begin{align*}
+	\mu_0(B_{\varepsilon_n}(u_{\varepsilon_n}))
+	&\le \frac{\delta}{2}\left(\mu_0(B_{\varepsilon_n}(0)) + \rho\right) + \rho
+	= \frac{\delta}{2}\mu_0(B_{\varepsilon_n}(0)) + \left(\frac{\delta}{2} + 1\right)\rho \\
+	&\le \frac{\delta}{2}\mu_0(B_{\varepsilon_n}(0)) + \frac{\delta}{2}\mu_0(B_{\varepsilon_n}(0))
+	= \delta\mu_0(B_{\varepsilon_n}(0)).
+\end{align*}
+\end{proof}
+
+The proof of the following lemma was kindly provided by Masoumeh Dashti (personal communication, 3 July 2017).
+% lim sup small ball probabilites <= 1 for convergent sequence with limit in E
+\begin{lemma}
+	\label{lem:limsuple1}
+	Let $\{\varepsilon_n\}_{n\in\N} \subset (0,\infty)$ with $\varepsilon_n \to 0$.
+	Assume that $\{x_n\}_{n\in\N} \subset X$ converges in $X$ toward $\bar{x} \in E$. 
+	Then,
+	\begin{equation*}
+		\limsup_{n \to \infty} \frac{\mu_0(B_{\varepsilon_n}(x_n))}{\mu_0(B_{\varepsilon_n}(\bar{x}))} \le 1.
+	\end{equation*}
+\end{lemma}
+\begin{proof}
+First note that $Z = Q(X)$ is dense in $E = Q^\frac12(X)$, and that for every $w \in Z$ the linear functional $W_{Q^{-1/2}w} = \scalprod{Q^{-1}w,\cdot}_X$ is continuous.
+Now, by the Cameron-Martin theorem and Anderson's inequality,
+\begin{align*}
+	\mu_0(B_{\varepsilon_n}(u_n))
+	&= \int_{B_{\varepsilon_n}(u_n - w)} \exp\left(-\norm{w}_E^2 + W_{Q^{-\frac12}w}(v)\right) \mu_0(\di v) \\
+	&\le e^{-\frac12\norm{w}_E^2} \sup_{v \in B_{\varepsilon_n}(u_n - w)} \left\{\exp(\scalprod{Q^{-1}w,v}_X)\right\} \mu_0(B_{\varepsilon_n}(u_n - w)) \\
+	&\le e^{-\frac12\norm{w}_E^2} \sup_{v \in B_{\varepsilon_n}(u_n - w)} \left\{\exp(\scalprod{Q^{-1}w,v}_X)\right\} \mu_0(B_{\varepsilon_n}(0))
+\end{align*}
+holds for all $w \in Z$ and $n \in \N$.
+On the other hand, the symmetry of $B_{\varepsilon_n}(0)$ implies
+\begin{align*}
+	\mu_0(B_{\varepsilon_n}(\bar u))
+	&= e^{-\frac12\norm{\bar u}_E^2} \int_{B_{\varepsilon_n}(0)} \exp(W_{Q^{-\frac12}\bar u}(v)) \mu_0(\di v) \\
+	&= e^{-\frac12\norm{\bar u}_E^2} \int_{B_{\varepsilon_n}(0)} \frac12\left(\exp(W_{Q^{-\frac12}\bar u}(v)) + \exp(-W_{Q^{-\frac12}\bar u}(v))\right) \mu_0(\di v) \\
+	&\ge e^{-\frac12\norm{\bar u}_E^2} \mu_0(B_{\varepsilon_n}(0)).
+\end{align*}
+Using the continuity of $\scalprod{Q^{-1}w,\cdot}_X$ we obtain
+\begin{align*}
+	\limsup_{n \to \infty} \frac{\mu_0(B_{\varepsilon_n}(u_n))}{\mu_0(B_{\varepsilon_n}(\bar u))}
+	&\le e^{\frac12\norm{\bar u}_E^2 - \frac12\norm{w}_E^2} \limsup_{n \to \infty} \left\{ \sup_{v \in B_{\varepsilon_n}(u_n - w)} \exp(\scalprod{Q^{-1}w,v}_X) \right\} \\
+	&= e^{\frac12\norm{\bar u}_E^2 - \frac12\norm{w}_E^2} \exp(\scalprod{Q^{-1}w,\bar{u} - w}_X) \\
+	&= e^{\frac12\norm{\bar u}_E^2 - \frac12\norm{w}_E^2} \exp(\scalprod{w,\bar{u} - w}_E)
+\end{align*}
+for all $w \in Z$.
+In particular, if we consider a sequence $\{w_j\}_{j\in\N} \subset Z$ with $w_j \to \bar u$ in $E$ as $j \to \infty$, the previous estimate leads to
+\begin{equation*}
+	\limsup_{n \to \infty} \frac{\mu_0(B_{\varepsilon_n}(u_n))}{\mu_0(B_{\varepsilon_n}(\bar u))} \le 1.
+\end{equation*}
+\end{proof}
+
+\begin{proof}[Proof of \cref{thmConvSub}]
+First of all, we note that for each $\epsilon > 0$, an $x_\epsilon \in X$ with $\mu^y(B_\epsilon(x_\epsilon)) \ge (1 - \epsilon) \sup_{x \in X} \mu^y(B_\epsilon(x))$ exists by definition of the supremum, and the supremum is finite because $\mu^y$ is a probability measure.
+Without loss of generality, we may assume that $\Phi(0) = 0$, because adding a constant to $\Phi$ can be absorbed by the normalization constant $Z$ without changing the measure $\mu^y$.
+
+% Boundedness
+Ad \ref{conv_subseq}: Let $\{\epsilon_n\}_{n\in\N}$ be a positive null sequence and assume w.l.o.g. that $\epsilon_n \le 1$ for all $n \in \N$. We first show that $\{u_{\varepsilon_n}\}_{n\in\N}$ is bounded in $X$.
+By \cref{ass:phi} \ref{ass:phi_loc_lip}, we have
+	\[ \Phi(u) = \Phi(u) - \Phi(0) \le L(1) \norm{u}_X \]
+for all $u \in B_1(0)$. From this we obtain, using Anderson's inequality, that
+\begin{align*} 
+	\mu^y(B_\varepsilon(u_\varepsilon))
+	&\ge \left(1 - \epsilon\right) \sup_{u \in X} \int_{B_\varepsilon(u)} \mu^y(dv)
+	= \left(1 - \epsilon\right) \sup_{u \in X} \int_{B_\varepsilon(u)} \frac{1}{Z} e^{-\Phi(v)} \mu_0(dv) \nonumber\\
+	&\ge \frac{1 - \epsilon}{Z} \int_{B_\varepsilon(0)} e^{-\Phi(v)} \mu_0(dv)
+	\ge \frac{1 - \epsilon}{Z} \int_{B_\varepsilon(0)} e^{-L(1)\norm{v}_X} \mu_0(dv) \nonumber\\
+	&\ge \frac{1 - \epsilon}{Z} e^{-L(1)\varepsilon} \mu_0(B_\varepsilon(0))
+\end{align*}
+with $Z = \int_X \exp(-\Phi(v)) \mu_0(\mathrm{d}v)$ for all $\epsilon = (0,1]$.
+On the other hand, we have
+	\[ \Phi(u) = \Phi(u) - \Phi(0) \ge \underline{L} \norm{u}_X \]
+for all $u \in X$ by \cref{ass:phi} \ref{ass:phi_lower_bound}, which yields
+\begin{equation*} 
+	\mu^y(B_\varepsilon(u)) 
+	= \int_{B_\varepsilon(u)} \frac{1}{Z} e^{-\Phi(v)} \mu_0(dv)
+	\le \frac{1}{Z} \int_{B_\varepsilon(u)} e^{\underline{L}\norm{v}_X} \mu_0(dv)
+	\le \frac{1}{Z} e^{\underline{L}\left(\norm{u}_X + \varepsilon\right)} \mu_0(B_\varepsilon(u))
+\end{equation*}
+holds for all $u \in X$.
+Together, we obtain
+	\[ \mu_0(B_\varepsilon(u_\varepsilon)) 
+	\ge Z e^{-\underline{L}\left(\left\|u_\varepsilon\right\|_X + \varepsilon\right)} \mu^y(B_\varepsilon(u_\varepsilon))
+	\ge \left(1 - \epsilon\right) e^{-\underline{L}\left\|u_\varepsilon\right\|_X - \left(\underline{L} + L(1)\right)\varepsilon} \mu_0(B_\varepsilon(0)) \]
+for all $\varepsilon \in (0,1]$.
+However, \cite[Lem.~3.6]{Dashti:2013} states that there is an $a_1 > 0$ such that
+	\[ \frac{\mu_0(B_\varepsilon(u_\varepsilon))}{\mu_0(B_\varepsilon(0))} \le e^{-\frac{a_1}{2}\left(\left\|u_\varepsilon\right\|_X^2 - 2\varepsilon\right)} \]
+for all $\varepsilon > 0$.
+Assuming that $\{u_{\varepsilon_n}\}_{n\in\N}$ is unbounded, i.e., that there is a subsequence, again denoted by $\{u_{\varepsilon_n}\}_{n\in\N}$, with $\norm{u_{\varepsilon_n}}_X \to \infty$ as $n \to \infty$, leads to a contradiction, because
+\begin{align*}
+	&\frac{a_1}{2}\left(\norm{u_{\varepsilon_n}}^2 - 2\varepsilon_n\right) - \underline{L}\norm{u_{\varepsilon_n}} - \left(\underline{L} + L(1)\right)\varepsilon_n + \ln(1 - \epsilon_n) \\
+	&= \left(\frac{a_1}{2}\norm{u_{\varepsilon_n}} - \underline{L}\right)\norm{u_{\varepsilon_n}} - \left(a_1 + \underline{L} + L(1)\right)\varepsilon_n + \ln(1 - \epsilon_n)\to \infty
+\end{align*}
+as $n \to \infty$, which implies
+	\[ \left(1 - \epsilon_n\right) e^{-\underline{L}\left\|u_{\varepsilon_n}\right\|_X - \left(\underline{L} + L(1)\right)\varepsilon_n} > e^{-\frac{a_1}{2}\left(\left\|u_{\varepsilon_n}\right\|_X^2 - 2\varepsilon_n\right)} \]
+for sufficiently large $n$.
+So $\{u_{\varepsilon_n}\}_{n\in\N}$ is bounded and therefore contains a subsequence, again denoted by $\{u_{\varepsilon_n}\}_{n\in\N}$, which converges weakly toward some $\bar u \in X$ as $n \to \infty$. We can choose $R > 0$ such that $u_{\epsilon_n} \in B_R(0)$ for all $n \in \N$. In the following, let $L$ denote the Lipschitz constant of $\Phi$ on $B_{R + 1}(0)$.
+
+% Limit in E
+Now, we show that $\bar u \in E$. By the choice of $u_\varepsilon$ and the boundedness of $\{u_\varepsilon\}_{\varepsilon > 0}$ we have
+\begin{equation}
+\label{eq:est_ratio_mu0}
+\begin{split}
+	\frac23 &\le 1 - \epsilon \le \frac{\mu^y(B_\varepsilon(u_\varepsilon))}{\mu^y(B_\varepsilon(0))}
+	= \frac{\int_{B_\varepsilon(u_\varepsilon)} e^{-\Phi(v)} \mu_0(\di v)}{\int_{B_\varepsilon(0)} e^{-\Phi(v)} \mu_0(\di v)}
+	\le \frac{e^{L\left(\left\|u_\varepsilon\right\|_X + \varepsilon\right)}}{e^{-L\varepsilon}} \frac{\mu_0(B_\varepsilon(u_\varepsilon))}{\mu_0(B_\varepsilon(0))} \\
+	&= e^{L\left(\left\|u_\varepsilon\right\|_X + 2\varepsilon\right)} \frac{\mu_0(B_\varepsilon(u_\varepsilon))}{\mu_0(B_\varepsilon(0))}
+	\le e^{L\left(R + 2\right)} \frac{\mu_0(B_\varepsilon(u_\varepsilon))}{\mu_0(B_\varepsilon(0))}
+\end{split}
+\end{equation}
+for all $0 < \varepsilon \le \frac13$. 
+If we assume that $\bar u \notin E$, then \cite[Lem.~3.7]{Dashti:2013} tells us that there is an $n \in \N$ such that $\mu_0(B_{\varepsilon_n}(u_{\varepsilon_n}))/\mu_0(B_{\varepsilon_n}(0)) \le \frac13 e^{-L\left(R + 2\right)}$ and consequently
+	\[ \frac{\mu^y(B_\varepsilon(u_{\varepsilon_n}))}{\mu^y(B_{\varepsilon_n}(0))} \le \frac13, \]
+which poses a contradiction. So $\bar u \in E$.
+
+% Strong convergence
+Next, we show that $u_{\varepsilon_n}$ converges strongly in $X$. Suppose it does not.
+Then \cref{lem:weakNotStrong} applies and yields
+	\[ \liminf_{n\to\infty} \frac{\mu_0(B_{\varepsilon_n}(u_{\varepsilon_n}))}{\mu_0(B_{\varepsilon_n}(0))} = 0, \]
+which is contradictory to \eqref{eq:est_ratio_mu0}.
+So the subsequence $\{u_{\varepsilon_n}\}_{n\in\N}$ does indeed converge strongly toward $\bar u \in E$.
+
+% Cluster point limit ratio = 1
+Ad \ref{cluster_point_min}: Let $\{u_{\varepsilon_n}\}_{n\in\N}$ denote the subsequence that converges toward the cluster point $\bar{u} \in X$. First, we show that
+	\[ \lim_{n\to\infty} \frac{\mu^y(B_{\varepsilon_n}(\bar u))}{\mu^y(B_{\varepsilon_n}(u_{\varepsilon_n}))} = 1. \]
+By definition of $u_\varepsilon$ and the Lipschitz continuity of $\Phi$ on bounded sets we have
+\begin{equation*}
+	1 - \epsilon \le \frac{\mu^y(B_\varepsilon(u_\varepsilon))}{\mu^y(B_\varepsilon(\bar u))}
+	= e^{\Phi(\bar u) - \Phi(u_\varepsilon)} \frac{\int_{B_\varepsilon(u_\varepsilon)} e^{\Phi(u_\varepsilon)-\Phi(v)} \mu_0(\di v)}{\int_{B_\varepsilon(\bar u)} e^{\Phi(\bar u)-\Phi(v)} \mu_0(\di v)}
+	\le e^{L \norm{u_\varepsilon - \bar u}_X} e^{2L\varepsilon} \frac{\mu_0(B_{\varepsilon}(u_{\varepsilon}))}{\mu_0(B_{\varepsilon}(\bar u))},
+\end{equation*}
+for all $\varepsilon > 0$ and consequently, by the convergence $u_{\varepsilon_n} \to \bar u$ and \cref{lem:limsuple1},
+\begin{equation*}
+	1 \le \liminf_{n\to\infty} \frac{\mu^y(B_{\varepsilon_n}(u_{\varepsilon_n}))}{\mu^y(B_{\varepsilon_n}(\bar u))}
+	\le \limsup_{n\to\infty} \frac{\mu^y(B_{\varepsilon_n}(u_{\varepsilon_n}))}{\mu^y(B_{\varepsilon_n}(\bar u))}
+	\le \limsup_{n\to\infty} \frac{\mu_0(B_{\varepsilon_n}(u_{\varepsilon_n}))}{\mu_0(B_{\varepsilon_n}(\bar u))} \le 1.
+\end{equation*}
+
+% Cluster point is minimizer
+Next we show that $\bar{u}$ minimizes the Onsager--Machlup functional $I$ of $\mu^y$. By \cref{form_OM_funct} a minimizer $u^* \in E$ of $I$ exists. If we suppose that $\bar u$ was not a minimizer of $I$, then $I(\bar u) - I(u^*) > 0$, and thus
+\begin{align*}
+	1 &= \lim_{n \to \infty} (1 - \epsilon_n) \le \lim_{n \to \infty} \frac{\mu^y(B_{\varepsilon_n}(u_{\varepsilon_n}))}{\mu^y(B_{\varepsilon_n}(u^*))} 
+	= \lim_{n \to \infty} \frac{\mu^y(B_{\varepsilon_n}(u_{\varepsilon_n}))}{\mu^y(B_{\varepsilon_n}(\bar u))} \lim_{n \to \infty} \frac{\mu^y(B_{\varepsilon_n}(\bar u))}{\mu^y(B_{\varepsilon_n}(u^*))} \\
+	&= 1\exp(I(u^*) - I(\bar u)) < 1,
+\end{align*}
+by the definition of $u_\varepsilon$ and \cref{form_OM_funct}, which poses a contradiction.
+
+% Cluster point is mode
+Ad \ref{cluster_point_map}: It remains to show that $\bar u$ is a mode of $\mu^y$, i.e., that for every positive sequence $\{\delta_n\}_{n\in\N}$ with $\delta_n \to 0$ we have
+\begin{equation}
+	\label{eq:map_prop_ubar}
+	\lim_{n\to\infty} \frac{\mu^y(B_{\delta_n}(\bar{u}))}{\mu^y(B_{\delta_n}(u_{\delta_n}))} = 1.
+\end{equation}
+To this end, we choose an arbitrary subsequence of $\{\delta_n\}_{n\in\N}$, again denoted by $\{\delta_n\}_{n\in\N}$.
+Then, by \ref{conv_subseq}, there exists a subsubsequence, again denoted by $\{\delta_n\}_{n\in\N}$, such that $u_{\delta_n} \to \tilde{u}$ for some $\tilde{u} \in E$. Moreover, by \ref{cluster_point_min}, the limit $\tilde{u}$ minimizes $I$ and satisfies
+	\[ \lim_{n\to\infty} \frac{\mu^y(B_{\delta_n}(\tilde{u}))}{\mu^y(B_{\delta_n}(u_{\delta_n}))} = 1. \]
+Since $\bar{u}$ minimizes $I$ as well by \ref{cluster_point_min}, this implies
+\begin{align*}
+	\lim_{n \to \infty} \frac{\mu^y(B_{\delta_n}(\bar{u}))}{\mu^y(B_{\delta_n}(u_{\delta_n}))}
+	&= \lim_{n \to \infty} \frac{\mu^y(B_{\delta_n}(\bar{u}))}{\mu^y(B_{\delta_n}(\tilde{u}))}
+	\lim_{n\to\infty} \frac{\mu^y(B_{\delta_n}(\tilde{u}))}{\mu^y(B_{\delta_n}(u_{\delta_n}))} \\
+	&= \exp(I(\tilde{u}) - I(\bar{u}))1 = 1
+\end{align*}
+for the subsubsequence $\{\delta_n\}_{n\in\N}$ by \cref{form_OM_funct}.
+Now \eqref{eq:map_prop_ubar} follows for the original sequence $\{\delta_n\}_{n\in\N}$ from a subsequence-subsequence argument.
+\end{proof}
+
+\begin{proof}[Proof of \cref{var_char_modes}]
+By \cref{thmConvSub}, there exists $\bar{u} \in E$ which is both a mode of $\mu^y$ and a minimizer of the Onsager--Machlup functional $I$ of $\mu^y$.
+
+Let $\hat u$ be a mode of $\mu^y$. Since $\bar u$ is also a mode, it follows that
+\begin{align*}
+	\lim_{\varepsilon \to 0} \frac{\mu^y(B_\varepsilon(\hat u))}{\mu^y(B_\varepsilon(\bar u))}
+	&= \lim_{\varepsilon \to 0} \frac{\mu^y(B_\varepsilon(\hat u))}{\mu^y(B_\varepsilon(u_\varepsilon))} \lim_{\varepsilon \to 0} \frac{\mu^y(B_\varepsilon(u_\varepsilon))}{\mu^y(B_\varepsilon(\bar u))} = 1.
+\end{align*}
+Due to the Lipschitz continuity of $\Phi$ on bounded sets, we have
+\begin{equation*}
+	\frac{\mu^y(B_\varepsilon(\hat u))}{\mu^y(B_\varepsilon(\bar u))}
+	= e^{\Phi(\bar u) - \Phi(\hat u)} \frac{\int_{B_\varepsilon(\hat u)} e^{\Phi(\hat u)-\Phi(v)} \mu_0(\di v)}{\int_{B_\varepsilon(\bar u)} e^{\Phi(\bar u)-\Phi(v)} \mu_0(\di v)}
+	\le e^{L \norm{\hat u - \bar u}_X} e^{2L\varepsilon} \frac{\int_{B_\varepsilon(\hat u)} \mu_0(\di v)}{\int_{B_\varepsilon(\bar u)} \mu_0(\di v)}.
+\end{equation*}
+This implies that $\hat u \in E$, as otherwise \cite[Lem.~3.7]{Dashti:2013} leads to
+\begin{align*}
+	1 &= \liminf_{\varepsilon \to 0} \frac{\mu^y(B_\varepsilon(\hat u))}{\mu^y(B_\varepsilon(\bar u))}
+	\le e^{L \norm{\hat u - \bar u}_X} \liminf_{\varepsilon \to 0} \frac{\mu_0(B_\varepsilon(\hat u))}{\mu_0(B_\varepsilon(\bar u))} = 0,
+\end{align*}
+a contradiction. The definition of the OM functional yields
+\begin{align*}
+	1 = \lim_{\varepsilon \to 0} \frac{\mu^y(B_\varepsilon(\hat u))}{\mu^y(B_\varepsilon(\bar u))}
+	&= \exp(I(\bar u) - I(\hat u)),
+\end{align*}
+and consequently $I(\bar u) = I(\hat u)$, i.e., $\hat{u}$ is also a minimizer of $I$.
+
+Conversely, let $u^*$ be a minimizer of $I$. Since $\bar u$ is also a minimizer and a mode, \cref{form_OM_funct} tells us that
+\begin{equation*}
+	\lim_{\varepsilon \to 0} \frac{\mu^y(B_\varepsilon(u^*))}{\mu^y(B_\varepsilon(u_\varepsilon))}
+	= \lim_{\varepsilon \to 0} \frac{\mu^y(B_\varepsilon(u^*))}{\mu^y(B_\varepsilon(\bar u))} \lim_{\varepsilon \to 0} \frac{\mu^y(B_\varepsilon(\bar u))}{\mu^y(B_\varepsilon(u_\varepsilon))}
+	= \exp(I(\bar u) - I(u^*))1 = 1.
+\end{equation*}
+\end{proof}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Proofs of section \ref{sect_ip}}
+\label{sect_proofs_ip}
+
+\begin{proof}[Proof of \cref{cond_gauss}]
+	A straightforward computation yields
+	\begin{equation}
+	\label{gauss_diff}
+	\begin{split}
+		\Phi(u_1,y) - \Phi(u_2,y) &= \frac12\norm{Q^{-\frac12}F(u_1) - Q^{-\frac12}F(u_2)}_Y^2 \\
+		&\quad+ \scalprod{Q^{-1}F(u_1) - Q^{-1}F(u_2), F(u_2) - y}_Y \\
+		&= \frac12\scalprod{Q^{-1}F(u_1) - Q^{-1}F(u_2), F(u_1) - F(u_2)}_Y \\
+		&\quad+ \scalprod{Q^{-1}F(u_1) - Q^{-1}F(u_2), F(u_2) - F(0)}_Y \\
+		&\quad+ \scalprod{Q^{-1}F(u_1) - Q^{-1}F(u_2), F(0) - y}_Y
+	\end{split}
+	\end{equation}
+	for all $u_1,u_2 \in X$.
+	By the boundedness of $Q$, $F$ is Lipschitz contiuous on bounded sets as well, so that
+	\begin{align*}
+		\abs{\Phi(u_1,y) - \Phi(u_2,y)} &\le \frac{L_1 L_2}{2}\norm{u_1 - u_2}_X^2 + L_1 L_2 \norm{u_1 - u_2}_X \norm{u_2}_X \\
+		&\quad+ L_1 \norm{u_1 - u_2}_X \norm{F(0) - y}_Y \\
+		&\le L_1\norm{u_1 - u_2}_X \left(L_2 r + L_2 r + \norm{F(0) - y}_Y\right)
+	\end{align*}
+	for all $u_1,u_2 \in B_r(0)$, where $L_1$ denotes the Lipschitz constant of $Q^{-1} \circ F$ on $B_r(0)$, and $L_2$ that of $F$.
+
+	Setting $u_1 = u$ and $u_2 = 0$ in \eqref{gauss_diff} moreover yields
+	\[ \Phi(u,y) - \Phi(0,y) = \frac12\norm{Q^{-\frac12}F(u) - Q^{-\frac12}F(0)}_Y^2 + \scalprod{Q^{-1}F(u) - Q^{-1}F(0), F(0) - y}_Y \]
+	for all $u \in X$.
+	By assumption, we thus have
+	\[ \Phi(u,y) - \Phi(0,y) \ge 0 -\norm{Q^{-1}F(u) - Q^{-1}F(0)}_Y \norm{F(0) - y}_Y \ge -L_0 \norm{u}_X \norm{F(0) - y}_Y \]
+	for all $u \in X$.
+\end{proof}
+
+% Admissible shifts and density for Laplacian noise
+\begin{proof}[Proof of \cref{thmLaplaceAlt}]
+We prove this alternative by applying Kakutani's theorem \cite{Kakutani:1948} to the product measures $\mu = \bigotimes_{k=1}^\infty \mu_k$ and $\nu = \bigotimes_{k=1}^\infty \nu_k$ on $\R^\infty$ with $\mu_k := \Laplace_{\lambda_k}$ and $\nu_k := \Laplace_{a_k,\lambda_k}$ for all $k \in \N$. It tells us that $\mu$ and $\nu$ are equivalent if the Hellinger integral
+\[ H(\mu,\nu) = \prod_{k=1}^\infty H(\mu_k,\nu_k) = \prod_{k=1}^\infty \int_\R \sqrt{\frac{\di\nu}{\di\mu}} \di\mu \]
+is positive, and singular otherwise.
+We compute the Hellinger integrals of the marginals of $\Laplace_Q$ and $\Laplace_{a,Q}$.
+For each $k \in \N$, we have
+\begin{equation}
+	\label{dens_comp}
+	\frac{\di\Laplace_{a_k,\lambda_k}}{\di\Laplace_{\lambda_k}}(x_k) = e^{ -\sqrt{2}\frac{\left|x_k-a_k\right|-\left|x_k\right|}{\sqrt{\lambda_k}} },
+\end{equation}
+and a straightforward computation yields
+\begin{equation}
+	\label{hell_int_comp}
+	H(\Laplace_{\lambda_k},\Laplace_{a_k,\lambda_k}) = \int_\R e^{ -\frac{\left|x_k-a_k\right|-\left|x_k\right|}{\sqrt{2\lambda_k}} } \Laplace_{\lambda_k}(dx_k) = \left(1 + \frac{\abs{a_k}}{\sqrt{2\lambda_k}}\right) e^{ -\frac{\abs{a_k}}{\sqrt{2\lambda_k}} } > 0.
+\end{equation}
+This yields
+\[ H(\mu,\nu) = \prod_{k=1}^\infty H(\mu_k,\nu_k) = \prod_{k=1}^\infty \left(\left(1 + \frac{\left|a_k\right|}{\sqrt{2\lambda_k}}\right) e^{ -\frac{\left|a_k\right|}{\sqrt{2\lambda_k}} }\right). \]
+We consider
+\begin{equation}
+	\label{eq:minuslnH}
+	-\ln H(\mu,\nu) = \sum_{k=1}^\infty \left( \frac{\left|a_k\right|}{\sqrt{2\lambda_k}} - \ln\left(1 + \frac{\left|a_k\right|}{\sqrt{2\lambda_k}}\right) \right)
+\end{equation}
+and note that $H(\mu,\nu) > 0$ if and only if this series converges.
+By the alternating series test, the first partial sum $S_1 = t$ of the Mercator series
+	\[ \ln(1 + t) = \sum_{k = 1}^\infty (-1)^{k+1} \frac{t^k}{k} \quad \forall t \in (-1,1] \]
+satisfies the error bound
+	\[ t - \ln(1 + t) \leq \frac{t^2}{2} \quad \forall t \in [0,1). \]
+Also, we can show that
+	\[ t - \ln(1 + t) \geq \frac{t^2}{2} - \frac{t^3}{3} \geq \frac{t^2}{6} \quad \forall t \in [0,1). \]
+To this end, we note that we have equality for $t = 0$ and that the derivative computes as
+	\[ \left(t - \ln(1 + t) - \frac{t^2}{2} + \frac{t^3}{3}\right)' = \frac{t^3}{1 + t} \geq 0 \quad \forall t \in [0,1). \]
+From these two estimates we obtain
+\begin{equation}
+	\label{eq:lnH_order_comp}
+	\frac{a_k^2}{12\lambda_k} \le \frac{\left|a_k\right|}{\sqrt{2\lambda_k}} - \ln\left(1 + \frac{\left|a_k\right|}{\sqrt{2\lambda_k}}\right) \le \frac{a_k^2}{4\lambda_k}
+\end{equation}
+for all $k \in \N$.
+
+For $a \in \ran(Q^{1/2})$ we have $\sum_{k = 1}^\infty \frac{a_k^2}{\lambda_j} < \infty$ and thus in particular $\frac{a_k^2}{2\lambda_k} \to 0$ as $k \to \infty$. Now we can choose $N \in \N$ such that $\frac{\left|a_k\right|}{\sqrt{2\lambda_k}} < 1$ for all $k \geq N$. This yields
+	\[ -\ln H(\mu,\nu) \leq \sum_{k=1}^{N-1} \left( \frac{\left|a_k\right|}{\sqrt{2\lambda_k}} - \ln\left(1 + \frac{\left|a_k\right|}{\sqrt{2\lambda_k}}\right) \right) + \frac14 \sum_{k=N}^\infty \frac{a_k^2}{\lambda_k} < \infty, \]
+which implies $H(\mu,\nu) > 0$. Now Kakutani's theorem guarantees equivalence of $\mu$ and $\nu$ in case that $a \in \ran(Q^{1/2})$ and, together with \eqref{dens_comp}, states that the density of $\nu$ with respect to $\mu$ is given by
+ 	\[ \frac{\di\nu}{\di\mu}(x) = \prod_{k=1}^\infty \frac{\di\nu_k}{\di\mu_k}(x_k)
+	= \prod_{k=1}^\infty e^{-\sqrt{2} \frac{\abs{x_k - a_k} - \abs{x_k}}{\sqrt{\lambda_k}}}
+	= e^{-\sqrt{2} \sum_{k=1}^\infty \frac{\abs{x_k - a_k} - \abs{x_k}}{\sqrt{\lambda_k}}}. \]
+	
+If, on the other hand, we assume that $-\ln H(\mu,\nu) < \infty$ for $a \notin \ran(Q^\frac12)$, we have
+	\[  \frac{\left|a_k\right|}{\sqrt{2\lambda_k}} - \ln\left(1 + \frac{\left|a_k\right|}{\sqrt{2\lambda_k}}\right) \to 0 \]
+as $k \to \infty$ by \eqref{eq:minuslnH}. Using \eqref{eq:lnH_order_comp}, we obtain that $\frac{a_k^2}{12\lambda_k} \to 0$ as well, which again allows us to choose $N \in \N$ such that $\frac{\left|a_k\right|}{\sqrt{2\lambda_k}} < 1$ for all $k \geq N$. However, since $a \notin \ran(Q^\frac12)$ we have
+	\[ -\ln H(\mu,\nu) \geq \sum_{k=1}^{N-1} \left( \frac{\left|a_k\right|}{\sqrt{2\lambda_k}} - \ln\left(1 + \frac{\left|a_k\right|}{\sqrt{2\lambda_k}}\right) \right) + \frac{1}{12} \sum_{k=N}^\infty \frac{a_k^2}{\lambda_k} = \infty, \]
+which is a contradiction. So $H(\mu,\nu) = 0$, which implies that $\mu$ and $\nu$ are singular by Kakutani's theorem.
+
+Both $\mu$ and $\nu$ are concentrated on $\ell^2$ because the operator $Q$ is trace class.
+Therefore, the equivalence or singularity of $\mu$ and $\nu$ on $\R^\infty$ transfers to their restrictions to $\ell^2$, and we have $\Laplace_{a,Q} = \nu \circ \gamma^{-1}$ and $\Laplace_Q = \mu \circ \gamma^{-1}$, where $\gamma(z) := \sum_{k=1}^\infty z_k e_k \in X$ for all $z \in \ell^2$.
+In a last step, we show that the equivalence or singularity of $\mu$ and $\nu$ on $\ell^2$ transfers to that of $\Laplace_{Q}$ and $\Laplace_{a,Q}$.
+Assume that $\nu \ll \mu$. Then for every $A \in \Borel(H)$ we have
+\begin{align*}
+	\Laplace_{a,Q}(A) 
+	&= (\nu \circ \gamma^{-1})(A) 
+	= \int_{\gamma^{-1}(A)} \frac{\di\nu}{\di\mu}(x) \mu(\di x)
+	= \int_A \frac{\di\nu}{\di\mu}\big(\gamma^{-1}(\tilde{x})\big) \Laplace_Q(\di\tilde{x}) \\
+	&= \int_A \exp\left( -\sqrt{2} \sum_{k=1}^\infty \frac{\abs{\scalprod{\tilde{x}, e_k} - \scalprod{a, e_k}} - \abs{\scalprod{\tilde{x}, e_k}}}{\sqrt{\lambda_k}} \right) \Laplace_Q(\di\tilde{x}).
+\end{align*}
+This shows that $\Laplace_{a,Q}$ is absolutely continuous with respect to $\Laplace_Q$ and has the stated density. A similar computation shows that $\mu \ll \nu$ implies $\Laplace_{Q} \ll \Laplace_{a,Q}$.
+
+Finally, assume that $\mu$ and $\nu$ are singular and let $A \in \Borel(\ell^2)$ such that $\mu(A) = 0$ and $\nu(\ell^2 \setminus A) = 0$. Then $\Laplace_{Q}$ and $\Laplace_{a,Q}$ are singular as well, because
+	\[ \Laplace_Q(\gamma(A)) = (\mu \circ \gamma^{-1})(\gamma(A)) = \mu(A) = 0 \]
+and
+	\[ \Laplace_{a,Q}(H \setminus \gamma(A)) = \Laplace_{a,Q}(\gamma(\ell^2) \setminus \gamma(A)) = \Laplace_{a,Q}(\gamma(\ell^2 \setminus A)) = \nu(\ell^2 \setminus A) = 0 \]
+by the surjectivity of $\gamma$.
+\end{proof}
+
+% Conditions on nonlinear forward mapping for Lipschitz continuity
+\begin{proof}[Proof of \cref{cond_nonlin_op}]
+By the triangle inequality, we have
+\begin{align*}
+	\abs{\Psi(F(x_1),z) - \Psi(F(x_2),z)}
+	&\le \sqrt{2} \sum_{k=1}^\infty \lambda_k^{-\frac12} \Big\lvert\abs{\scalprod{y,e_k}_Y - \scalprod{F(x_1),e_k}_Y} - \abs{\scalprod{y,e_k}_Y - \scalprod{F(x_2),e_k}_Y}\Big\rvert \\
+	&\le \sqrt{2} \sum_{k=1}^\infty \lambda_k^{-\frac12} \abs{\scalprod{F(x_1) - F(x_2), e_k}_Y}
+\end{align*}
+for all $x_1, x_2 \in X$. If condition (i) holds, then the proof is finished.
+If, on the other hand, condition (ii) holds, we estimate
+\begin{align*}
+	\abs{\scalprod{F(x_1) - F(x_2), e_k}_Y} &= \bigabs{\bigscalprod{\int_0^1 F'(x_2 + t(x_1 - x_2))(x_1 - x_2) \di t, e_k}_X} \\
+	&\le \int_0^1 \abs{\scalprod{x_1 - x_2, F'(x_2 + t(x_1 - x_2))^*e_k}_X} \di t \\
+	&\le \norm{x_1 - x_2}_X \int_0^1 \norm{F'(x_2 + t(x_1 - x_2))^*e_k}_X \di t
+\end{align*}
+for all $x_1, x_2 \in X$ using the Fréchet differentiability of $F$.
+Now, \eqref{cond_F} implies that
+\begin{align*}
+	\abs{\Psi(F(x_1),z) - \Psi(F(x_2),z)}
+	&\le \bigg(\sqrt{2} \int_0^1 \sum_{k=1}^\infty \lambda_k^{-\frac12} \norm{F'(x_2 + t(x_1 - x_2))^*e_k}_X \di t\bigg) \norm{x_1 - x_2}_X \\
+	&\le \sqrt{2}C\norm{x_1 - x_2}_X
+\end{align*}
+for all $x_1, x_2 \in X$.
+\end{proof}
+
+% Condition of compact linear forward mapping for Lipschitz continuity
+\begin{proof}[Proof of \cref{cond_lin_op}]
+By the triangle inequality and the Cauchy--Schwarz inequality, we have
+\begin{align*}
+	\abs{\Psi(Kx_1,z) - \Psi(Kx_2,z)} &\le \sqrt{2} \sum_{k=1}^\infty \lambda_k^{-\frac12} \Big\lvert\abs{\scalprod{y,e_k}_Y - \scalprod{Kx_1,e_k}_Y} - \abs{\scalprod{y,e_k}_Y - \scalprod{Kx_2,e_k}_Y}\Big\rvert \\
+	&\le \sqrt{2} \sum_{k=1}^\infty \lambda_k^{-\frac12} \abs{\scalprod{x_1 - x_2,K^* e_k}_X}
+	\le \sqrt{2} \sum_{k=1}^\infty \norm{x_1 - x_2} \norm{K^*Q^{-\frac12}e_k}_X \\
+	&= \sqrt{2} \norm{x_1 - x_2} \sum_{k=1}^\infty \scalprod{e_k,Q^{-\frac12}KK^*Q^{-\frac12}e_k}_X^\frac12 \\
+	&= \sqrt{2} \norm{x_1 - x_2}_X \sum_{k=1}^\infty (\kappa_k^2 \lambda_k^{-1})^\frac12
+	\le \sqrt{2}C \norm{x_1 - x_2}_X
+\end{align*}
+for all $x_1,x_2 \in X$.
+\end{proof}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Proofs of section \ref{sect_lin_prob}}
+\label{sect_proofs_lin_prob}
+
+% Lipschitz continuity of log-likelihood resulting from Laplacian noise and heat equation
+\begin{proof}[Proof of \cref{prop:phi_cont}]
+	We first show the Lipschitz continuity of $\Phi(\cdot,y)$ with Lipschitz constant 
+		\[ L := \frac{\sqrt{2}}{b} \beta^\beta e^{-\beta} (\Tr A^{-\beta})^\frac12 \]
+	independent of $y \in X$. 
+	Here we use the notation $x_k \coloneqq \scalprod{x,\varphi_k}_X$ for all $k \in \N$ and $x \in X$.
+	For $u, v \in X$ we estimate 
+	\begin{align*}
+		\abs{\Phi(u,y) - \Phi(v,y)}
+		&\le \frac{\sqrt{2}}{b} \sum_{k=1}^\infty \alpha_k^\frac{\beta}{2} \big|\abs{y_k - e^{-\alpha_k}u_k} - \abs{y_k - e^{-\alpha_k}v_k}\big| \\
+		&\le \frac{\sqrt{2}}{b} \sum_{k=1}^\infty \alpha_k^{-\frac{\beta}{2}}\alpha_k^\beta e^{-\alpha_k} \abs{u_k - v_k}
+	\end{align*}
+	using the triangle inequality.
+	The sequence $\{\alpha_k^\beta e^{-\alpha_k}\}_{k\in\N}$ is bounded from above by $\beta^\beta e^{-\beta}$, see \cite[Lem.~5.14]{Kretschmann:2019}, and the operator $A^{-\beta}$ is trace class by \eqref{eq:pow_A_trace_class}. We further estimate
+	\begin{align*}
+		\abs{\Phi(u,y) - \Phi(v,y)}
+		&\le \frac{\sqrt{2}}{b} \beta^\beta e^{-\beta} \left(\sum_{k=1}^\infty \alpha_k^{-\beta}\right)^\frac12 \left(\sum_{k=1}^\infty \abs{u_k - v_k}^2\right)^\frac12 \\
+		&= \frac{\sqrt{2}}{b} \beta^\beta e^{-\beta} (\Tr A^{-\beta})^\frac12 \norm{u - v}_X
+		= L \norm{u - v}_X
+	\end{align*}
+	using the Cauchy--Schwarz inequality.
+
+	Now we show the continuity in $y$.
+	Let $u \in X$ and $\varepsilon > 0$. Here, we estimate
+	\begin{align*}
+		\abs{\Phi(u,y) - \Phi(u,z)}
+		&= \left| \frac{\sqrt{2}}{b} \sum_{k=1}^\infty \alpha_k^\frac{\beta}{2} \left( \abs{y_k - e^{-\alpha_k}u_k} - \abs{y_k} - \abs{z_k - e^{-\alpha_k}u_k} + \abs{z_k} \right) \right| \\
+		&\le \frac{\sqrt{2}}{b} \sum_{k=1}^N 2\alpha_k^\frac{\beta}{2} \abs{y_k - z_k} 
+		+ \frac{\sqrt{2}}{b} \sum_{k=N+1}^\infty 2\alpha_k^\frac{\beta}{2} \abs{e^{-\alpha_k}u_k}
+	\end{align*}
+	for all $y,z \in X$ and $N \in \N$.
+	As the series $\sum_{k=1}^\infty \alpha_k^\frac{\beta}{2} e^{-\alpha_k} \abs{u_k}$ converges, we can choose $N = N(u)$ such that
+		\[ \frac{\sqrt{2}}{b} \sum_{k=N+1}^\infty 2\alpha_k^\frac{\beta}{2}e^{-\alpha_k}\abs{u_k} \le \frac{\varepsilon}{2}. \]
+	Next, we choose
+		\[ \delta \coloneqq \frac{b}{2\sqrt{2}}\left(\sum_{k=1}^N \alpha_k^{\beta}\right)^{-\frac12}\frac{\varepsilon}{2}. \]
+	This way, we have
+	\begin{equation*}
+		\frac{\sqrt{2}}{b} \sum_{k=1}^N 2\alpha_k^\frac{\beta}{2} \abs{y_k - z_k}
+		\le \frac{2\sqrt{2}}{b} \left(\sum_{k=1}^N \alpha_k^{\beta}\right)^\frac12 
+		\left(\sum_{k=1}^N \abs{y_k - z_k}^2\right)^\frac12
+		\le \frac{\varepsilon}{2\delta} \norm{y - z}_{X}
+		\le \frac{\varepsilon}{2}
+	\end{equation*}
+	for all $y,z \in X$ with $\norm{y - z}_{X} \le \delta$, and consequently
+		\[ \left|\Phi(u,y) - \Phi(u,z)\right| \le \frac{\varepsilon}{2} + \frac{\varepsilon}{2} = \varepsilon. \]
+	The continuity of $\Phi$ now follows from the continuity in $u$ and $y$ and the triangle inequality.
+\end{proof}
+
+% Normalizability exp(-Phi(u,y))
+\begin{lemma}
+	\label{lemExpNormInt}
+	Let $\mu_0$ be a centered Gaussian meausure on $X$.
+	Then for every $C > 0$, the function $u \mapsto \exp(C\norm{u}_X)$ defined on $X$ is $\mu_0$-integrable.
+\end{lemma}
+\begin{proof}
+	By Fernique's theorem \cite[Thm~2.8.5]{Bogachev:1998}, there exists $\alpha > 0$ such that the integral $\int_X \exp(\alpha\norm{u}_X^2) \mu_0(\di u)$ is finite. Set $R \coloneqq \frac{C}{\alpha}$. Then the integral
+	\begin{equation*}
+		\int_X \exp\left(C\norm{u}_X\right) \mu_0(\di u)
+		\le \int_{B_R(0)} \exp\left(\frac{C^2}{\alpha}\right) \mu_0(\di u)
+		+ \int_{X \setminus B_R(0)} \exp\left(\alpha\norm{u}_X^2\right) \mu_0(\di u)
+	\end{equation*}
+	is finite as well.
+\end{proof}
+
+\begin{proof}[Proof of \cref{prop:Z_pos_fin}]
+	We first show the integrability.
+	Let $y \in X$ be arbitrary.
+	We use the Lipschitz continuity of $\Phi(\cdot,y)$, which holds by Proposition \ref{prop:phi_cont}, to estimate
+	\begin{equation*}
+		\int_X \exp(-\Phi(u,y)) \Normal_{r^2 A^{-\tau}}(\di u)
+		\le \exp(-\Phi(0,y)) \int_X \exp(L\norm{u}_X) \Normal_{r^2 A^{-\tau}}(\di u).
+	\end{equation*}
+	Now $\Phi(0,y) = 0$ for all $y \in X$ by definition of $\Phi$ and the integral on the right hand side is finite by Lemma \ref{lemExpNormInt}.
+
+	Now, we address the lower bound.
+	By the Lipschitz continuity of $\Phi$ in $u$, the estimate
+	\begin{align*}
+		\int_X \exp(-\Phi(u,y)) \Normal_{r^2 A^{-\tau}}(\di u)
+		&\ge \int_X \exp(-L\norm{u}_X) \Normal_{r^2 A^{-\tau}}(\di u) \\
+		&\ge \int_{B_1(0)} e^{-L} \Normal_{r^2 A^{-\tau}}(\di u)
+		= e^{-L} \Normal_{r^2 A^{-\tau}}(B_1(0)) =: C_Z
+	\end{align*}
+	holds for all $y \in X$.
+	By Theorem 3.6.1 in \cite{Bogachev:1998}, the topological support of the Gaussian measure $\Normal_{r^2 A^{-\tau}}$ is given by the closure of its Cameron--Martin space $\ran(A^{-\tau/2})$. Since $\ran(A^{-\tau/2})$ is dense in $X$, the topological support is the whole space $X$. As a consequence, all balls in $X$ have positive measure under $\Normal_{r^2 A^{-\tau}}$, which in turn implies that the constant $C_Z$ is positive.
+\end{proof}
+
+% Form and uniqueness of minimizer of I^y
+\begin{proof}[Proof of \cref{lemCompMAP}]
+	For all $k \in \N$ and $u_k \in \R$, we define
+	\begin{align*}
+		f_k(u_k) = \frac{1}{2r^2} \alpha_k^\tau \abs{u_k}^2
+		+ \frac{\sqrt{2}}{b} \alpha_k^\frac{\beta}{2} \left(\left|e^{-\alpha_k} u_k - \scalprod{y,\varphi_k}_X\right| - \left|\scalprod{y,\varphi_k}_X\right|\right).
+	\end{align*}
+	This way, $I^y(u) = \sum_{k=1}^\infty f_k(\scalprod{u,\varphi_k}_X)$.
+	As a minimizer of $I^y$, $\bar u$ satisfies
+	\begin{equation*}
+		0 \le I^y(\bar{u} + t\varphi_k) - I^y(\bar{u})
+		= f_k(\scalprod{\bar{u},\varphi_k}_X + t) - f_k(\scalprod{\bar{u},\varphi_k}_X)
+	\end{equation*}
+	for all $t \in \R$ and $k \in \N$.
+	Hence $\bar{u}_k := \scalprod{\bar{u},\varphi_k}_X$ minimizes $f_k$ for every $k \in \N$.
+
+	Consider an arbitrary, fixed $k \in \N$.
+	The function $f_k$ is continuous on $\R$ and continuously differentiable on $\R \setminus \{e^{\alpha_k}\scalprod{y,\varphi_k}_X\}$ with
+	\begin{equation*}
+		f_k^\prime(u_k) = \begin{cases}
+			\frac{1}{r^2}\alpha_k^\tau u_k - \frac{\sqrt{2}}{b}\alpha_k^\frac{\beta}{2}e^{-\alpha_k} & \text{if }u_k < e^{\alpha_k}\scalprod{y,\varphi_k}_X, \\
+			\frac{1}{r^2}\alpha_k^\tau u_k + \frac{\sqrt{2}}{b}\alpha_k^\frac{\beta}{2}e^{-\alpha_k} & \text{if }u_k > e^{\alpha_k}\scalprod{y,\varphi_k}_X.
+		\end{cases}
+	\end{equation*}
+	Set 
+		\[ S_k := \frac{r^2}{b}R_k = \frac{r^2}{b}\sqrt{2}\alpha_k^{\beta/2 - \tau}e^{-\alpha_k}. \]
+	In case $e^{\alpha_k}\scalprod{y,\varphi_k}_X > S_k$, $\bar{u}_k = S_k$ is the unique minimizer of $f_k$, because $f_k^\prime(S_k) = 0$,
+	\begin{align*}
+		f_k^\prime(u_k) &< 0 & &\text{for }u_k \in (-\infty,S_k), \text{ and} \\
+		f_k^\prime(u_k) &> 0 & &\text{for }u_k \in (S_k,\infty) \setminus \{e^{\alpha_k}\scalprod{y,\varphi_k}\}.
+	\end{align*}
+	In case $e^{\alpha_k}\scalprod{y,\varphi_k}_X < -S_k$, $\bar{u}_k = -S_k$ is the unique minimizer of $f_k$, because $f_k^\prime(-S_k) = 0$, 
+	\begin{align*}
+		f_k^\prime(u_k) &< 0 & &\text{for }u_k \in (-\infty,-S_k) \setminus \{e^{\alpha_k}\scalprod{y,\varphi_k}\}, \text{ and} \\
+		f_k^\prime(u_k) &> 0 & &\text{for }u_k \in (-S_k,\infty).
+	\end{align*}
+	Finally, in case $e^{\alpha_k}\scalprod{y,\varphi_k} \in [-S_k,S_k]$,
+	\begin{align*}
+		f_k^\prime(u_k) &< 0 & &\text{if }u_k < e^{\alpha_k}\scalprod{y,\varphi_k}_X, \text{ and} \\
+		f_k^\prime(u_k) &> 0 & &\text{if }u_k > e^{\alpha_k}\scalprod{y,\varphi_k}_X,
+	\end{align*}
+	so that the unique minimizer of $f_k$ is given by $\bar{u}_k = e^{\alpha_k}\scalprod{y,\varphi_k}_X$.
+\end{proof}
+
+\begin{proof}[Proof of \cref{thmConvRateVar}]
+Since the components of $\umap$ are independent by \cref{lemCompMAP}, we have
+\begin{equation*}
+	\E\left[ \norm{\umap - u^\dagger}_{X}^2 \right]
+	= \E\left[ \sum_{k=1}^\infty \left|\scalprod{\umap - u^\dagger, \varphi_k}_{X}\right|^2 \right]
+	= \sum_{k=1}^\infty \E\left[ \left|\scalprod{\umap - u^\dagger, \varphi_k}_{X}\right|^2 \right].
+\end{equation*}
+By Lemma 5.49 in \cite{Kretschmann:2019}, the componentwise mean squared error is given by
+\begin{align}
+	\nonumber &\E\left[\left|\scalprod{\umap(y) - u^\dagger, \varphi_k}_X\right|^2\right] \\
+	\label{componentwise_MSE} &= \frac{b^2}{c_k^2} f\left(\frac{c_k}{b} \left| r^2 \frac{c_k}{b} \alpha_k^{-\tau} + \left|\scalprod{u^\dagger, \varphi_k}_{X}\right| \right| \right)
+	+ \frac{b^2}{c_k^2} f\left(\frac{c_k}{b} \left| r^2 \frac{c_k}{b} \alpha_k^{-\tau} - \left|\scalprod{u^\dagger, \varphi_k}_{X}\right|\right| \right) \\
+	\nonumber &\qquad+ \chi_{(-\infty, \abs{\scalprod{u^\dagger,\varphi_k}_{X}})} \left( r^2\frac{c_k}{b}\alpha_k^{-\tau} \right)
+	\frac{b^2}{c_k^2} g\left( \frac{c_k}{b} \left| r^2 \frac{c_k}{b} \alpha_k^{-\tau} - \left|\scalprod{u^\dagger, \varphi_k}_{X}\right|\right| \right)
+\end{align}
+for all $k \in \N$, where $c_k := \sqrt{2}\alpha_k^{\beta/2}e^{-\alpha_k}$ and $f(t) := 1 - e^{-t} - t e^{-t}$ for all $t \ge 0$. 
+The conditions on $u^\dagger$ and $r$ ensure
+\begin{align*}
+	\left|\scalprod{u^\dagger, \varphi_k}_{X}\right|
+	&= \left|\left(A^{\frac{\beta}{2} - \tau}e^{-A}w, \varphi_k\right)_{X}\right|
+	= \left|\left(w, e^{-A}A^{\frac{\beta}{2} - \tau}\varphi_k\right)_{X}\right| \\
+	&= e^{-\alpha_k}\alpha_k^{\frac{\beta}{2} - \tau} \left|\left(w,\varphi_k\right)_{X}\right|
+	\le \alpha_k^{\frac{\beta}{2} - \tau}e^{-\alpha_k} \rho
+	\le \frac{r^2}{b}\sqrt{2}\alpha_k^{\frac{\beta}{2} - \tau}e^{-\alpha_k}
+\end{align*}
+for all $k \in \N$ and $n \ge N$.
+Thus, the last term on the right hand side of \eqref{componentwise_MSE} is equal to zero.
+We use the estimate 
+	\[ f(t) \le 1 - e^{-t} \le t, \]
+that holds for all $t \ge 0$, to obtain
+	\[ \E\left[\left|\scalprod{\umap - u^\dagger, \varphi_k}_{X}\right|^2\right] \le 2 r^2 \alpha_k^{-\tau}. \]
+Consequently, we have
+	\[ \E\left[ \norm{\umap - u^\dagger}_{X}^2 \right] \le 2 r^2 \sum_{k=1}^\infty \alpha_k^{-\tau} = 2 \left(\Tr A^{-\tau}\right) r^2 \le 2C \left(\Tr A^{-\tau}\right) b \]
+by the choice of $r$.
+\end{proof}
+
+
+\begin{thebibliography}{10}
+
+\bibitem{agapiou2018}
+S{.\nobreak\kern 0.33333em}Agapiou, M{.\nobreak\kern 0.33333em}Burger,
+  M{.\nobreak\kern 0.33333em}Dashti, and T{.\nobreak\kern 0.33333em}Helin,
+  Sparsity-promoting and edge-preserving maximum a posteriori estimators in
+  non-parametric Bayesian inverse problems, \emph{Inverse Problems} 34 (2018),
+  045002,
+  \href{https://dx.doi.org/10.1088/1361-6420/aaacac}{\nolinkurl{doi:10.1088/1361-6420/aaacac}}.
+
+\bibitem{Ayanbayev_2022a}
+B{.\nobreak\kern 0.33333em}Ayanbayev, I{.\nobreak\kern 0.33333em}Klebanov,
+  H.\,C{.\nobreak\kern 0.33333em}Lie, and T.\,J{.\nobreak\kern
+  0.33333em}Sullivan, $\Gamma$-convergence of Onsager–Machlup functionals: I.
+  With applications to maximum a posteriori estimation in Bayesian inverse
+  problems, \emph{Inverse Problems} 38 (2021),  025005,
+  \href{https://dx.doi.org/10.1088/1361-6420/ac3f81}{\nolinkurl{doi:10.1088/1361-6420/ac3f81}}.
+
+\bibitem{Ayanbayev_2022b}
+B{.\nobreak\kern 0.33333em}Ayanbayev, I{.\nobreak\kern 0.33333em}Klebanov,
+  H.\,C{.\nobreak\kern 0.33333em}Lie, and T.\,J{.\nobreak\kern
+  0.33333em}Sullivan, $\Gamma$-convergence of Onsager–Machlup functionals:
+  II. Infinite product measures on Banach spaces, \emph{Inverse Problems} 38
+  (2021),  025006,
+  \href{https://dx.doi.org/10.1088/1361-6420/ac3f82}{\nolinkurl{doi:10.1088/1361-6420/ac3f82}}.
+
+\bibitem{Bogachev:1998}
+V.\,I{.\nobreak\kern 0.33333em}Bogachev, \emph{Gaussian Measures}, volume~62 of
+  Mathematical Surveys and Monographs, American Mathematical Society,
+  Providence, RI, 1998,
+  \href{https://dx.doi.org/10.1090/surv/062}{\nolinkurl{doi:10.1090/surv/062}}.
+
+\bibitem{DaPrato:2001}
+G{.\nobreak\kern 0.33333em}Da~Prato, \emph{An Introduction to
+  Infinite-Dimensional Analysis}, Appunti/Scuola normale superiore, Pisa:
+  Scuola Normale Superiore, 2001.
+
+\bibitem{Dashti:2013}
+M{.\nobreak\kern 0.33333em}{Dashti}, K.\,J.\,H{.\nobreak\kern 0.33333em}{Law},
+  A.\,M{.\nobreak\kern 0.33333em}{Stuart}, and J{.\nobreak\kern
+  0.33333em}{Voss}, {MAP estimators and their consistency in Bayesian
+  nonparametric inverse problems}, \emph{Inverse Problems} 29 (2013),  095017,
+  \href{https://dx.doi.org/10.1088/0266-5611/29/9/095017}{\nolinkurl{doi:10.1088/0266-5611/29/9/095017}}.
+
+\bibitem{DingMathe:2017}
+L{.\nobreak\kern 0.33333em}{Ding} and P{.\nobreak\kern 0.33333em}{Math{\'e}},
+  {Minimax rates for statistical inverse problems under general source
+  conditions}, \emph{Computational Methods in Applied Mathematics}  (2017),
+  \href{https://dx.doi.org/10.1515/cmam-2017-0055}{\nolinkurl{doi:10.1515/cmam-2017-0055}}.
+
+\bibitem{helin2015}
+T{.\nobreak\kern 0.33333em}Helin and M{.\nobreak\kern 0.33333em}Burger, Maximum
+  a posteriori probability estimates in infinite-dimensional {B}ayesian inverse
+  problems, \emph{Inverse Problems} 31 (2015),
+  \href{https://dx.doi.org/10.1088/0266-5611/31/8/085009}{\nolinkurl{doi:10.1088/0266-5611/31/8/085009}}.
+
+\bibitem{Kakutani:1948}
+S{.\nobreak\kern 0.33333em}Kakutani, On equivalence of infinite product
+  measures, \emph{Annals of Mathematics} 49 (1948),  214--224,
+  \url{http://www.jstor.org/stable/1969123}.
+
+\bibitem{klebanov2022}
+I{.\nobreak\kern 0.33333em}Klebanov and P{.\nobreak\kern 0.33333em}Wacker,
+  Maximum a posteriori estimators in $\ell^p$ are well-defined for diagonal
+  {G}aussian priors.  (2022),
+  \href{https://arxiv.org/abs/2207.00640}{\nolinkurl{arXiv:2207.00640}}.
+\newblock Preprint.
+
+\bibitem{Klenke:2014}
+A{.\nobreak\kern 0.33333em}Klenke, \emph{Probability Theory}, Universitext,
+  Springer, London, 2 edition, 2014,
+  \href{https://dx.doi.org/10.1007/978-1-4471-5361-0}{\nolinkurl{doi:10.1007/978-1-4471-5361-0}}.
+
+\bibitem{Kretschmann:2019}
+R{.\nobreak\kern 0.33333em}Kretschmann, \emph{Nonparametric {B}ayesian inverse
+  problems with {L}aplacian noise}, PhD thesis, Universität Duisburg-Essen,
+  2019,
+  \href{https://dx.doi.org/10.17185/duepublico/70452}{\nolinkurl{doi:10.17185/duepublico/70452}}.
+
+\bibitem{Lie_Sul_2018}
+H.\,C{.\nobreak\kern 0.33333em}Lie and T.\,J{.\nobreak\kern 0.33333em}Sullivan,
+  Equivalence of weak and strong modes of measures on topological vector
+  spaces, \emph{Inverse Problems} 34 (2018),  115013,
+  \href{https://dx.doi.org/10.1088/1361-6420/aadef2}{\nolinkurl{doi:10.1088/1361-6420/aadef2}}.
+
+\bibitem{Lifshits:1995}
+M.\,A{.\nobreak\kern 0.33333em}Lifšic, \emph{Gaussian Random Functions},
+  Kluwer Academic Publishers, Dordrecht [u.a.], 1995.
+
+\bibitem{stuart_2010}
+A.\,M{.\nobreak\kern 0.33333em}Stuart, Inverse problems: A {B}ayesian
+  perspective, \emph{Acta Numerica} 19 (2010),  451–559,
+  \href{https://dx.doi.org/10.1017/S0962492910000061}{\nolinkurl{doi:10.1017/s0962492910000061}}.
+
+\bibitem{wacker2020map}
+P{.\nobreak\kern 0.33333em}Wacker, {MAP} estimators for nonparametric
+  {B}ayesian inverse problems in {B}anach spaces  (2020),
+  \href{https://arxiv.org/abs/2007.12760}{\nolinkurl{arXiv:2007.12760}}.
+\newblock Preprint.
+
+\end{thebibliography}

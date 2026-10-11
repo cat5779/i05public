@@ -1,0 +1,1402 @@
+\documentclass[twoside]{article}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{amsmath}
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\def\RR{\mathbb{R}}
+\def\EE{\mathbb{E}}
+\def\PP{\mathbb{P}}
+\def\II{\mathcal{I}}
+\def\OO{\mathcal{O}}
+\def\BB{\mathcal{B}}
+\def\FF{\mathcal{F}}
+\def\GG{\mathcal{G}}
+
+
+\newtheorem{assumption}{Assumption}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{remark}{Remark}
+\newtheorem{corollary}{Corollary}
+\newcommand{\minew}[1]{ {\color{red}{#1}}}
+
+%\usepackage{aistats2023}
+% If your paper is accepted, change the options for the package
+% aistats2023 as follows:
+%
+\usepackage[accepted]{aistats2023}
+%
+% This option will print headings for the title of your paper and
+% headings for the authors names, plus a copyright note at the end of
+% the first column of the first page.
+
+% If you set papersize explicitly, activate the following three lines:
+%\special{papersize = 8.5in, 11in}
+%\setlength{\pdfpageheight}{11in}
+%\setlength{\pdfpagewidth}{8.5in}
+
+% If you use natbib package, activate the following three lines:
+%\usepackage[round]{natbib}
+%\renewcommand{\bibname}{References}
+%\renewcommand{\bibsection}{\subsubsection*{\bibname}}
+
+% If you use BibTeX in apalike style, activate the following line:
+\bibliographystyle{apalike}
+
+\begin{document}
+
+% If your paper is accepted and the title of your paper is very long,
+% the style will print as headings an error message. Use the following
+% command to supply a shorter title of your paper so that it can be
+% used as headings.
+%
+%\runningtitle{I use this title instead because the last one was very long}
+
+% If your paper is accepted and the number of authors is large, the
+% style will print as headings an error message. Use the following
+% command to supply a shorter version of the authors names so that
+% they can be used as headings (for example, use only the surnames)
+%
+%\runningauthor{Surname 1, Surname 2, Surname 3, ...., Surname n}
+
+\twocolumn[
+
+\aistatstitle{Divergence Results and Convergence of a Variance Reduced Version of ADAM}
+
+\aistatsauthor{ Ruiqi Wang \And 
+Diego Klabjan}
+
+\aistatsaddress{ Northwestern University \And Northwestern University } ]
+
+\begin{abstract}
+Stochastic optimization algorithms using exponential moving averages of the past gradients, such as ADAM, RMSProp and AdaGrad, have been having great successes in many applications, especially in training deep neural networks. ADAM in particular stands out as efficient and robust. Despite of its outstanding performance, ADAM has been proved to be divergent for some specific problems. We revisit the divergent question and provide divergent examples under stronger conditions such as in expectation or high probability. Under a variance reduction assumption, we show that an ADAM-type algorithm converges, which means that it is the variance of gradients that causes the divergence of original ADAM. To this end, we propose a variance reduced version of ADAM and provide a convergent analysis of the algorithm. Numerical experiments show that the proposed algorithm has as good performance as ADAM. Our work suggests a new direction for fixing the convergence issues.
+\end{abstract}
+
+\section{Introduction}
+Stochastic optimization based on mini-batch is a common training procedure in machine learning. Suppose we have finitely many differentiable objectives $\{f_{n}(w)\}_{n=1}^{N}$ defined on $\RR^d$ with $N$ being the size of the training set. In each iteration, a random index set $\BB_t$ is selected from $\{1,\ldots,N\}$ and the update is made based on the mini-batch loss $F^{\BB_t}(w) = \frac{1}{b}\sum_{n\in\BB_t} f_n(w)$, where $b=|\BB_t|$ is the batch size. The goal is to minimize the empirical risk $\min_{w\in\RR^d} F(w) := \frac{1}{N}\sum_{n=1}^N f_{n}(w).$
+
+First order methods, which make updates based on the information of the gradient of mini-batch loss functions, prevail in practice, \cite{Goodfellow-et-al-2016}. A simple method is stochastic gradient descent (SGD), where the model parameters are updated at the negative direction of the mini-batch loss gradient in each iteration. Although SGD is straightforward and is proved to be convergent, the steps of SGD near the minima are very noisy and take longer to converge. Several adaptive variants of SGD, such as AdaGrad \cite{duchi2011adaptive}, RMSProp \cite{hinton2012neural} and ADAM \cite{kingma2014adam}, are proved to converge faster than SGD in practice. These methods take the historical gradients into account. Specifically, instead of using a predefined learning rate schema, they adjust the step size automatically based on the information from the past mini-batch losses. AdaGrad is the earliest algorithm in the adaptive method family and performs better than SGD when gradients are sparse. Although AdaGrad has great theoretical properties for convex loss, it does not work well practically in training. RMSProp replaces the sum of square scaling in AdaGrad with exponential moving average and fixes the rapid decay of the learning rate in AdaGrad. ADAM-type algorithms combine the exponential moving average of both first and second order moments. The original ADAM enjoys the advantages of AdaGrad in sparse problems and RMSProp in non-stationary problems and became one of the most popular optimization methods in practice.
+
+Yet, ADAM may fail to solve some problems. Reddi et al. \cite{reddi2019convergence} found a flaw in the proof of convergence in \cite{kingma2014adam} and proposed a divergent example for online ADAM. Based on the divergent example, they pointed out that when some large, informative but rare gradients occur, the exponential moving average would make them decay quickly and hence would lead to the failure of convergence. To this end, Reddi et al. proposed two variants of ADAM to fix this problem. The first proposal, known as AMSGrad, suggests taking the historical maximum of the ADAM state $v_t$ in order to obtain `long-term memories' and prevent the large and informative gradients from being forgotten. Although this helps keeping the information of large gradients, it hurts the adaptability of ADAM. If the algorithm is exposed to a large gradient at early iterations, the $v_t$ parameter will stay constant, hence the algorithm will not automatically adapt the step size, and it will degenerate to a momentum method. Another intuitive criticism is that keeping $v_t$ increasing is against what one expects, since if the algorithm converges, the norm of gradients should decrease and $v_{t+1} - v_t = (1-\beta_2) (g_t^2-v_t)$ is more likely to be negative, where $g_t$ is the stochastic gradient in step $t$ and $\beta_2$ is a hyper parameter.
+
+Several other proposals tried to fix the divergent problem of ADAM. The second variant proposed in \cite{reddi2019convergence}, called ADAMNC, requires the second order moment hyper-parameter $\beta_2$ to increase and to satisfy several conditions. However the conditions are hard to check. Although they claim that $\beta_{2,t}=1-1/t$ satisfies the conditions, this case is actually AdaGrad, which is already well-known for its convergence. Zhou et al. \cite{zhou2018adashift} analyzed the divergent example in \cite{reddi2019convergence}, and pointed out that the correlation of $v_t$ and $g_t$ causes divergence of ADAM, and proposed a decorrelated variant of ADAM. The theoretical analysis in \cite{zhou2018adashift} is based on complex assumptions and they do not provide a convergence analysis of their algorithm. Several other works, such as \cite{guo2021novel, shi2020rmsprop, wang2019sadam, zou2019sufficient} suggested properly tuning the hyper-parameters of ADAM-type algorithms had helped with convergence in practice.
+
+It is empirically well-known that larger batch size reduces the variance of the loss of a stochastic optimization algorithm. \cite{qian2020impact} gave a theoretical proof that the variance of the stochastic gradient is proportional to $1/b$. Although several works connected the convergence of ADAM with the mini-batch size, the direct connection between convergence and variance is wanted. For the full-batch case (i.e., where there is no variance), \cite{de2018convergence} showed that ADAM converges under some specific scheduling of learning rates. \cite{shi2020rmsprop} showed the convergence of full gradient ADAM and RMSProp with the learning rate schedule $\alpha_t = \alpha / \sqrt{t}$ and constants $\beta_1$ and $\beta_2$ satisifying $\beta_1<\sqrt{\beta_2}$. For the stochastic setting with a fixed batch size, Zaheer et al. \cite{zaheer2018adaptive} proved that the expected norm of the gradient can be bounded into a neighborhood of 0, whose size is proportional to $1/b$. They suggested to increase the batch size with the number of iterations in order to establish convergence. One question is that whether there exists a threshold of batch size $b^*<N$, such that any batch size larger than $b^*$ guarantees convergence. We show that even when $b=N-1$, there still exist divergent examples of ADAM. This means that although large batch size helps tighten the optimality gap, the convergence issue is not solved as long as the variance exists. Another possible convergent result is to analyze the convergence in expectation or high probability under a stochastic starting point. However our divergent result holds for any initial point, which rules out this possibility.
+
+Without relying on the mini-batch size, we make a direct analysis of variance and the convergence of ADAM. We first show a motivating result which points out that the convergence of an ADAM-type algorithm can be implied by reducing the variance. Motivated by this, we propose a variance reduced version of ADAM, called VRADAM, and show that VRADAM converges. We provide two options regarding to resetting of ADAM states during the full gradient steps, and recommend the resetting option based on a theoretical analysis herein and computational experiments. Finally, we conduct several computational experiments, and show that our algorithm performs as well as the original version of ADAM.
+
+In Section 3, we show a divergent example. Using contradiction by assuming the algorithm converges, we show that the expected update of iterates is larger than a positive constant, which means that it is impossible for the algorithm to converge to an optimal solution, which contradicts with the assumption. In Section 5, we prove the convergence of VRADAM. The main proof technique applied is to properly bound the difference between the estimated gradients and the true value of gradients. By bounding the update of the objective function in each iterate, we can further employ the strong convexity assumption and conclude convergence.
+
+Our contributions are as follows.
+\begin{enumerate}
+    \item We provide an unconstrained and strongly convex stochastic optimization problem on which the original ADAM diverges. We show that the divergence holds for any initial point, which rules out all of the possible weaker convergent results under stochastic starting point.
+    \item We construct a divergent mini-batch problem with $b=N-1$, and conclude that there does not exist a convergent threshold for the mini-batch size.
+    \item We propose a variance reduced version of ADAM. We provide convergence results of the variance reduced version for strongly convex objectives to optimality or non-convex objectives. We show by experiments that the variance reduction does not harm the numerical performance of ADAM.
+\end{enumerate}
+
+In Section 2, we review the literature on the topics of the convergence/divergence issue of ADAM and variance reduction optimization methods. In Section 3 we provide divergent examples for stochastic ADAM. We show that the example is divergent for large batch sizes, which disproves the existence of a convergence threshold of mini-batch size. In Section 4 we start from a reducing variance condition and prove the convergence of an ADAM-type algorithm under this condition. In Section 5 we propose a variance reduced version of ADAM. We show that resetting the states in the algorithm helps with the performance. We also provide a convergence result of our variance reduced ADAM. In Section 6 we conduct several numerical experiments and show the convergence and sensitivity of the proposed algorithm.
+\section{Literature Review}
+\textbf{Convergence of ADAM:} Reddi et al. \cite{reddi2019convergence} firstly pointed out the convergence issue of ADAM and proposed two convergent variants: (a) AMSGrad takes the historical maximum value of $v_t$ to keep the step size decreasing and (b) ADAMNC requires the hyper-parameters to satisfy specific conditions. Both of the approaches require that $\beta_1$ varies with time, which is inconsistent with practice. Fang and Klabjan \cite{fang2019convergence} gave a convergence proof for AMSGrad with constant $\beta_1$ and \cite{alacaoglu2020new} provided a tighter bound. Enlarging the mini-batch size is another direction. \cite{de2018convergence} and \cite{shi2020rmsprop} proved the convergence of ADAM for full batch gradients and \cite{zaheer2018adaptive} showed the convergence of ADAM as long as the batch size is of the same order as the maximum number of iterations, but one criticism is that such a setting for the batch size is very inefficient in practice since the calculation of a large batch gradient is expensive. Several works, such as \cite{guo2021novel, zou2019sufficient, wang2019sadam} proposed guidelines on setting hyper-parameters in order to obtain convergent results.  \cite{guo2021novel} showed that as long as $\beta_1$ is close enough to 1, in particular, $1-\beta_{1, t}\propto{1/\sqrt{t}}$, ADAM establishes a convergent rate of $\OO(1/\sqrt{T})$. However, since \cite{reddi2019convergence} proposed the divergent example for any fixed $\beta_1$ and $\beta_2$ such that $\beta_1<\sqrt{\beta_2}$, there is no hope to extend the results of \cite{guo2021novel} to constant momentum parameters. \cite{zou2019sufficient} also provided a series of conditions under which ADAM could converge. Specifically, they require the quantity $\alpha_t/\sqrt{1-\beta_{2, t}}$ to be `almost' non-increasing. \cite{wang2019sadam} proposed to set the denominator hyper-parameter $\epsilon$ to be $1/t$, and showed the convergence of ADAM for strongly convex objectives. The aforementioned works focus on setting the hyper-parameters in ADAM. On contrary, our work proposes a new algorithm that only requires basic and common conditions. We show a $\OO(T^{-p})$ convergence rate for $0<p<1$ where $p$ is dependent on hyper-parameters.
+
+\textbf{Variance reduction:} The computational efficiency issues of full gradient descent methods get more severe with a large data size, but employing stochastic gradient descent may cause divergence because of the issue of variance. One classic method for variance reduction is to use mini-batch losses with a larger batch size, which however does not guarantee the variance to converge to zero. As an estimation of the full gradient, the stochastic average gradient (SAG) method \cite{le2013stochastic} uses an average of $\nabla f_i(x_{k_i})$, where $k_i$ is the most recent step index when sample $i$ is picked. Although the convergence analysis of SAG provided in \cite{schmidt2017minimizing} showed its remarkable linear convergence, the estimator of the descent direction is biased and the analysis of SAG is complicated. SAGA \cite{defazio2014saga}, an unbiased variant to SAG introduced a concept called `covariates' and guarantees linear convergence as well. Both SAG and SAGA require the memory of $\OO(Nd)$, which is expensive when the data set is large. SVRG \cite{johnson2013accelerating} constructs two layers of iterations and calculates the full gradient as an auxiliary vector for variance reduction before starting each inner loop. It only requires a memory of $\OO(d)$. Most of the literature on variance reduction focus on the convergence rate and memory requirement on the plain SGD algorithm. Recently, \cite{dubois2021svrg} combined AdaGrad with SVRG for robustness in the learning rate. Our work introduces the idea of variance reduction to the convergence analysis of ADAM. It initiates the idea of the dynamic learning rate to SVRG.
+
+\section{Divergent examples for stochastic ADAM with large batch size}
+\label{sec:divergent}
+Several recent works \cite{shi2020rmsprop, zaheer2018adaptive, de2018convergence} have suggested increasing the mini-batch size may help with convergence of ADAM. In particular, vanilla ADAM is convergent if the mini-batch size $b$ is equal to the size of the training set, or it increases in the same order as training iterates. An interesting question is whether there exists a threshold of the batch size $b^*=b(N)$, which is smaller than $N$, such that $b>b^*$ implies convergence of ADAM. If such a threshold exists, the convergence can be guaranteed by a sufficiently large, but neither increasing nor as large as the training set size, batch size. Unfortunately, such a threshold does not exist. In fact, we show in this section that as long as the algorithm is not full batch, one can find a divergent example of ADAM.
+
+Another aspect of interest is if ADAM converges on average or with high probability. Our example establishes non-convergence for any initial data point (even starting with an optimal one). We conclude that a probabilistic statement is impossible if stochasticity comes from either sampling or the initial point.
+
+Reddi et al. firstly proposed a divergent example for ADAM in \cite{reddi2019convergence}. The example, which is under the population loss minimization framework, consists of two linear functions defined on a finite interval. One drawback of this example is that the optimization problem is constrained, yet training in machine learning is usually an unconstrained problem. Under the unconstrained framework, the example proposed in \cite{reddi2019convergence} does not have a minimum solution, hence it does not satisfy the basic requirements. We firstly propose an unconstrained problem under the population loss minimization framework.
+
+Let a random variable $\xi$ take discrete value from the set $\{1,2\}$, and set $\PP(\xi = 1) = \frac{1+\delta}{1+\delta^4}$ for some $\delta>1$. Furthermore, we define the estimation of gradients by
+\begin{equation}
+    \GG(w;1)= \frac{w}{\delta} + \delta^4 \;\;\text{and}\;\;\GG(w;2)= \frac{w}{\delta} - 1,\nonumber
+\end{equation}
+which implies the stochastic optimization problem with the loss functions
+\begin{equation}
+    f_1(w) = \frac{w^2}{2\delta} + \delta^4 w\;\;\text{and}\;\;    f_2(w) = \frac{w^2}{2\delta} - w\nonumber
+\end{equation}
+with the corresponded probability distribution with respect to $\xi$. The population loss is given as $F(w) = \EE_{\xi}\left[ f_\xi(w)\right]$.
+We call this stochastic optimization problem the \textbf{Original Problem}($\delta$), or \textbf{OP}($\delta$) for short. We should note that OP($\delta$) is defined on $\RR$, thus it is unconstrained. In addition, it is a strongly convex problem. As a divergent property of OP($\delta$), we show the following result.
+\begin{theorem}
+\label{thm:DivOP}
+There exists a $\delta^*>2$ such that for any $\delta>\delta^*$ and any initial point $w_1$, ADAM diverges in expectation on OP($\delta$), i.e., $\EE[F(w_t)]\not \to F^*$ where $F^*$ is the optimal value of $F(w)$.
+\end{theorem}
+The proof of Theorem\ref{thm:DivOP} is given in the appendix, where we show that for large enough $\delta$, the expectation of the ADAM update between two consequential iterates is always positive. As a  consequence, the iterates keep drifting from the optimal solution. The divergent example also tells us that strong convexity and the relaxation of constraints cannot help with the convergence of ADAM.
+
+Based on the construction of OP($\delta$), we can give the divergent examples for any fixed mini-batch size.
+\begin{theorem}
+\label{thm:DivFixb}
+For any fixed $b$, there exists an $N^*_b$, such that for any $N>N^*_b$, there exists a mini-batch problem with sample size $N$ and batch size $b$ where ADAM diverges for any initial point.
+\end{theorem}
+Even if the batch size is unreasonably large, say $b=N-1$, we can still construct the divergent example based on OP($\delta$) as stated next.
+\begin{theorem}
+\label{thm:DivLargeb}
+There exists an $N^*$ such that for any $N>N^*$, there exists a mini-batch problem with sample size $N$ and batch size $b=N-1$ where ADAM diverges for any initial point.
+\end{theorem}
+In conclusion, Theorem \ref{thm:DivFixb} and Theorem \ref{thm:DivLargeb} extinguish the hope of finding a large enough batch size for stochastic ADAM to converge. Among the related works regarding the convergence of ADAM and batch size, larger batch size is always suggested, but the results in this section have enlightened the limitations of such approaches.
+
+\section{Motivation}
+\label{sec:motivate}
+\begin{algorithm}
+\caption{General ADAM}\label{alg:ADAM}
+\begin{algorithmic}
+\Require Gradient estimation $\GG(\cdot;\cdot)$, seed generation rule $\PP_\xi$, initial point $w_1$, mini-batch size $b$, learning rate $\alpha_t$, exponential decay rates $\beta_1, \beta_2\in[0,1)$, denominator hyper-parameter $\epsilon>0$.
+\State $m_0\gets 0$, $v_0\gets 0$
+\For{$t\in 1,\ldots T$}
+\State Sample $\xi_t\sim\PP_\xi$
+\State $g_t \gets \GG(w_t;\xi_t)$
+\State $m_t \gets \beta_1 m_{t-1} + (1-\beta_1) g_t$
+\State $v_t \gets \beta_2 v_{t-1} + (1-\beta_2) g_t \odot g_t$
+\State $V_t \gets \mathrm{diag}(v_t) + \epsilon I_d$
+\State $w_{t+1} \gets w_t - \alpha_t V_t^{-1/2} m_t$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+In this section, we stick with the general ADAM algorithm described in Algorithm \ref{alg:ADAM}. To analyze, we make several assumptions on the gradient estimator and objective.
+\begin{assumption}
+\label{assmpt:Basic}
+The gradient estimator $\GG:\RR^d\times \Omega\to\RR^d$ and objective $F:\RR^d \to \RR$ satisfy the following:
+\begin{enumerate}
+    \item $\GG$ is unbiased, i.e., for any $w\in \RR^d$, $\EE_\xi\left[\GG(w;\xi)\right] = \nabla F(w)$.
+    \item There exists a constant $0<L<+\infty$, such that for any $\xi\in \Omega$ and $w,\bar{w}\in \RR^d$, we have $\| \GG( w;\xi) - \GG(\bar w;\xi)\|_2\leq L \|w-\bar w\|_2$ and $\|\nabla F(w)- \nabla F(\bar w)\|_2\leq L\|w-\bar w\|_2$.
+    \item There exists a constant $0<G<+\infty$, such that for any $\xi\in\Omega$ and $w\in\RR^d$, we have $\|\GG(w;\xi)\|_2\leq G$ and $\|F(w)\|_2\leq G$.
+\end{enumerate}
+
+\end{assumption}
+As this point convexity is not needed. We mainly focus on the variance of the gradient estimator. The common assumptions in the literature are that the variance is bounded by a constant, \cite{zaheer2018adaptive}, or a linear function of the square of the norm of the objective  $\mathrm{Var}(\GG_i(w;\xi)) \leq C_1 + C_2 \|\nabla F(w)\|_2^2$, \cite{bottou2018optimization}. Another assumption made in \cite{shi2020rmsprop, vaswani2019fast} is called the `strongly growth condition' which is $\sum_{n=1}^N \|\nabla f_n(w)\|_2^2\leq C \|\nabla F(w)\|_2^2$ for some $C>0$. Note that for vanilla ADAM where $\GG(w;\xi)=\nabla F^{\BB}(w)$ the strongly growth condition implies that $\nabla F^{\BB}(w^*) = 0$ if and only if $\nabla F(w^*)=0$. As a result the strongly growth condition implies that $\mathrm{Var}(\GG(w;\xi))\leq 2L \EE[\|w-w^*\|_2^2]$,
+given Lipshitz smooth gradients for full-batch and mini-batch losses. For those iterates close to a saddle point, the variance is automatically reduced, because $\|w-w^*\|_2^2$ is small. However, the strongly growth condition is so strong that the majority of practical problems do not satisfy it. In fact, one observation of OP($\delta$) is that the variance is a constant, which also breaks the strongly growth condition. 
+
+In this section, as a motivative result, let us assume the variance of the gradient estimator is reduced a priori.
+Let us denote a series of positive constants $\{\lambda_t\}_{t= 1}^T$ such that for any $t=1,\ldots, T$, we have $\mathrm{Var}(\GG (w_t; \xi_t))\leq \lambda_t.\nonumber$
+For the objective with a finite lower bound, we have the following result.
+\begin{theorem}
+\label{thm:MtvNonCvx}
+Let Assumption \ref{assmpt:Basic} be satisfied, and assume that $F(w)$ is lower bounded by $F_{\mathrm{inf}}>-\infty$. Then for any initial point $w_1$, ADAM satisfies
+\begin{equation}
+    \min_{1\leq t \leq T} \EE\left[\left\|\nabla F(w_t)\right\|_2^2\right] \leq \OO\left( \frac{\sum_{t=1}^T \alpha_t^2}{\sum_{t=1}^T \alpha_t} + \frac{\sum_{t=1}^{T} \alpha_t\lambda_t}{\sum_{t=1}^T{\alpha_t}}\right).\nonumber
+\end{equation}
+\end{theorem}
+The proof is in the appendix. Let us assume that the two common conditions $\sum_{t=1}^\infty \alpha_t = \infty$ and $\sum_{t=1}^\infty \alpha_t^2 <\infty$ are satisfied. Theorem \ref{thm:MtvNonCvx} shows that ADAM converges if $\sum_{t=1}^{\infty} \alpha_t\lambda_t<+\infty$. In fact, $\lambda_t \to 0 $ as $t\to\infty$ implies that $\sum_{t=1}^{T}\alpha_t \lambda_t / \sum_{t=1}^T \alpha_t \to 0$, and hence it leads to convergence of the algorithm.
+
+We emphasize that since the assumption on variance is made on the algorithmic iterates $\{w_t\}_{t=1}^T$, it is very difficult to be checked for a specific problem in advance. However, we showed that if the variance is convergent, an ADAM-type algorithm converges. We show next that the algorithm we propose has convergent variance and furthermore is convergent.
+\section{Variance Reduced ADAM}
+\label{sec:VRADAM}
+\begin{algorithm}[h]
+\caption{Variance Reduced ADAM}\label{alg:VRADAM}
+\begin{algorithmic}
+\Require Loss functions $\{f_n(w)\}_{n=1}^N$, initial point $\widetilde w_1$, learning rate $\alpha_t$, exponential decay rates $\beta_1, \beta_2\in[0,1)$, denominator hyper-parameter $\epsilon>0$, inner iteration size $m$. Initialize $m_m^{(0)}\gets 0$, $v_m^{(0)}\gets 0$. 
+\For{$t= 1,\ldots, T$}
+\State Compute full-batch gradient $\nabla F(\widetilde w_t)$
+\State $w_1^{(t)}\gets \tilde  w_t$
+\State \textbf{Option A:} (Resetting) $m_0^{(t)}\gets 0$, $v_0^{(t)}\gets 0$
+\State \textbf{Option B:} (No Resetting) $m_0^{(t)}\gets m_{m}^{(t-1)}$ and $v_0^{(t)}\gets v_{m}^{t-1}$
+\For{$k=1,\ldots,m$}
+\State Sample $\BB_k^{(t)}$ from $\{1,\ldots,N\}$ with $\left|\BB_k^{(t)}\right|=b$.
+\State $g_k^{(t)}\gets \nabla F^{\BB_k^{(t)}}\left(w_k^{(t)}\right) - \nabla F^{\BB_k^{(t)}}(\widetilde w_t) + \nabla F(\widetilde w_t)$
+\State $m_k^{(t)} \gets \beta_1 m_{k-1}^{(t)} + (1-\beta_1)g_k^{(t)}$
+\State $v_k^{(t)} \gets \beta_2 v_{k-1}^{(t)} + (1-\beta_2)g_k^{(t)}\odot g_k^{(t)}$
+\State  \textbf{Option A}: $\widetilde m^{(t)}_k \gets \frac{m^{(t)}_k}{1-\beta_1^k}$, $\widetilde v^{(t)}_k \gets \frac{v^{(t)}_k}{1-\beta_2^{k}}$
+\State  \textbf{Option B}: $\widetilde m^{(t)}_k \gets \frac{m^{(t)}_k} {1-\beta_1^{k+(t-1)m}}$, $\widetilde v^{(t)}_k \gets \frac{v^{(t)}_k}{1-\beta_2^{k+(t-1)m}}$
+\State $V_k^{(t)}\gets \mathrm{diag}\left(\widetilde v_k^{(t)} + \epsilon\right)$
+\State $w^{(t)}_{k+1} \gets w^{(t)}_k - \alpha_t \left(V_k^{(t)}\right)^{-1/2}\widetilde m_k^{(t)}$
+\EndFor
+\State $\widetilde w_{t+1}\gets w_{m+1}^{(t)}$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+Variance reduction for random variables is a common topic in many fields. In general, an unbiased variance reduction of a random variable $X$ is $\tilde X = X - Y + \EE Y$, which establishes the variance $\mathrm{Var}(\tilde X) = \mathrm{Var}(X) + \mathrm{Var}(Y) - 2\mathrm{Cov}(X,Y)<\mathrm{Var}(X)\nonumber$ given $\mathrm{Cov}(X,Y)>\mathrm{Var}(Y)/2$, i.e., $X$ and $Y$ are positively correlated at a sufficient level. In the context of stochastic gradient descent, the random variable for variance reduction is $\GG(w_t;\xi_t)$, the gradient of mini-batch loss $\nabla F^{\BB_t}(w_t)$. Johnson and Zhang \cite{johnson2013accelerating} proposed a solution for SGD. They suggested the associate random variable to be the gradient of the same mini-batch loss at a previous iterate $\tilde w$. Since the expectation of a mini-batch gradient is the full-batch gradient, the descent direction becomes $g_t = \nabla F^{\BB_t}(w_t) - \nabla F^{\BB_t}(\tilde w) + \nabla F(\tilde w)$. Vector $\tilde w$ is known as the snapshot model. Since calculation of the full batch gradient at $\tilde w$ is required, \cite{johnson2013accelerating} proposed to save the snapshot model every $m$ iterations, which is known as the SVRG algorithm. Inspired by SVRG and motivated by the result in Section \ref{sec:motivate}, we propose the combination of the variance reduce method and ADAM, called VRADAM (Algorithm \ref{alg:VRADAM}).
+
+
+An intuitive analysis of variance of the update direction \begin{eqnarray}
+    \mathrm{Var}\left(g_{k,i}^{(t)}\right) &=& \mathrm{Var}\left( \nabla_i F ^{\BB_k^{(t)}}\left(w_k^{(t)}\right) -\nabla_i F^{\BB_k^{(t)}}\left(\tilde w_t\right) \right)\nonumber\\
+    &\leq& \EE \left[\left(\nabla_i F ^{\BB_k^{(t)}}\left(w_k^{(t)}\right) -\nabla_i F^{\BB_k^{(t)}}\left(\tilde w_t\right)\right)^2\right]\nonumber\\
+    &\leq& L^2 \EE\left[\left\|w_k^{(t)}-\tilde w_t\right\|_2^2\right]\nonumber.
+\end{eqnarray}
+is that as the iterates become close to the optimal point, the variance is reduced simultaneously, which guarantees a similar condition of variance as the strongly growth condition.
+\subsection{Resetting/No resetting options}
+We provide two options with regard to the update of ADAM states. In one option, we reinitialize the ADAM states at the beginning of each outer iteration, while the other option keeps the state through the whole training process. Although for the original ADAM, resetting the states harms the performance of the algorithm, we computationally found that the resetting option works better in VRADAM. Intuitively, this is because in each inner loop, the first step $g_1^{(t)}$ is always the full gradient direction, which makes a more efficient update than the direction adapted by previous ADAM states. In order to support our argument, we provide a theoretical analysis of an example. If we fix the initial point $w_1\in\RR$ and the mini-batch losses $F^{\BB_1^{(1)}}, F^{\BB_2^{(1)}},\ldots, F^{\BB_m^{(1)}}$, the iterates are identical between the two options through the $t=1$ iteration. We consider the objective values after the first update in the second outer iteration, i.e. $F\left(w_2^{(2)}\right)$. At the end of $t=1$ iteration, we obtain $w_{m+1}^{(1)} = w_1^{(2)}=\tilde w_2$ and the ADAM states $m_{m+1}^{(1)}$ and $v_{m+1}^{(1)}$. Then while $t=2$, the algorithm makes the first update as follows.
+\begin{equation*}
+\hspace{-1.5cm}
+    \begin{split}
+    &\textbf{Option A:}\\
+        m^{(2)}_1 &= (1-\beta_1) g^{(2)}_1\\
+        \widetilde m^{(2)}_1 &= g^{(2)}_1\\
+        v^{(2)}_1 &= (1-\beta_2) \left(g^{(2)}_1\right)^2\\ \widetilde v^{(2)}_1 &= \left(g^{(2)}_1\right)^2\\
+        w^{(2)}_2 &= w^{(2)}_1 - \alpha_2 \frac{\widetilde m^{(2)}_1}{\sqrt{\widetilde v^{(2)}_1 + \epsilon}}
+    \end{split}
+    \hspace{0.3cm}
+    \begin{split}
+    &\textbf{Option B:}\\
+        \hat m^{(2)}_1 &=\beta_1 m^{(1)}_{m+1} + (1-\beta_1) g^{(2)}_1\\
+        \hat{ \widetilde m}^{(2)}_1 &= \hat m^{(2)}_1 / (1-\beta_1^{m+1}) \\
+        \hat v^{(2)}_1&= \beta_2 v^{(1)}_{m+1} + (1-\beta_2)\left( g^{(2)}_1\right)^2\\
+        \hat{ \widetilde v}_1^{(2)} &= \hat v_1^{(2)}/(1-\beta_2^{m+1}) \\
+        \hat w_2^{(2)} &=  w^{(2)}_1 - \alpha_2 \frac{ \hat{\widetilde m}^{(2)}_1}{\sqrt{\hat{\widetilde v}_1^{(2)}+\epsilon}}
+    \end{split}
+\end{equation*}
+ We make the following assumptions.
+\begin{assumption} The framework described in this section satisfies:
+\begin{enumerate}
+\label{assmpt:Noreset}
+    \item $F(w)$ is $c-$strongly convex, and its gradient is $L-smooth$. Each one of $\left|g_1^{(1)}\right|,\ldots,\left|g_m^{(1)}\right|$ and $\left|g_1^{(2)}\right|$ is bounded above by $G>0$.
+    \item The algorithm makes progress in the $t=1$ iteration, specifically, $\left|m^{(1)}_{m+1}\right| \geq \left|F'\left(w^{(2)}_{1}\right)\right|$.
+    \item The hyper-parameters satisfy 
+    \begin{equation*}
+       L\alpha_2\geq 2\sqrt{G^2 + \epsilon} \;\;\text{and} \;\; \frac{L}{c} \leq \frac{2\beta_1-1}{1-\beta_1^{m+1}}\sqrt{\frac{\epsilon}{G^2 + \epsilon}}.
+    \end{equation*}
+\end{enumerate}
+\end{assumption}
+Notice that the second assumption assumes that the exponential moving average of the steps in the first loop is larger than the full gradient at the beginning of the second loop, which reflects that the algorithm makes progress in the first iteration. The third assumption can be satisfied by $\beta_1$ that is close enough to $1$ and appropriately selected $\alpha_2$. Our concern is to compare the objective values $F\left(w^{(2)}_2 \right)$ and $F\left( \hat w^{(2)}_2\right)$ of the two options. The following theorem shows that option A, i.e., the option where the states of ADAM are reset at the beginning of each outer iteration, makes more efficient descent, hence works better.
+\begin{theorem}
+\label{thm:ResetBetter}
+Given Assumption \ref{assmpt:Noreset}, we have $F\left(\hat w^{(2)}_2\right) \geq F\left(w^{(2)}_2 \right)$.
+\end{theorem}
+While Theorem \ref{thm:ResetBetter} allows the preference of option A within the two outer iterations, the computational experiments confirm this choice in general.
+
+\subsection{Convergence results for VRADAM with resetting}
+In the previous section we show the advantage of resetting of the ADAM states every outer iteration over not doing so by comparing the values of the objectives in the two options. In this section, we provide a convergence proof of the resetting option of VRADAM. Similar to Assumption \ref{assmpt:Basic} we make under the general ADAM framework, we make the following specific assumptions for the convergence proof of VRADAM.
+\begin{assumption}
+\label{assmpt:VRADAM}
+The loss functions $f_1(w),\ldots,f_N(w)$ satisfy the following conditions.
+\begin{enumerate}
+    \item There exists a constant $0<L<+\infty$, such that for any $n=1,\ldots,N$ and $w,\bar w\in\RR^d$, we have $\|\nabla f_n(w) -\nabla f_n(\bar w)\|_2 \leq L\|w-\bar w\|_2$.
+    \item There exists a constant $0<G<+\infty$, such that for any $n=1,\ldots,N$ and $w\in\RR^d$, we have $\|\nabla f_n(w)\|_2\leq G$.
+\end{enumerate}
+\end{assumption}
+We show the convergence result of VRADAM for strongly convex functions first.
+\begin{theorem}
+\label{thm:VRStrCvx}
+Let Assumption \ref{assmpt:VRADAM} be satisfied and assume that $F(w)$ is strongly convex with parameter $c$, and let $F^*$ be the unique minimum of $F$. Let $\alpha_t = \alpha/t$ and we require $C_2 = 2c(1-\beta_1)/\sqrt{9G^2 + \epsilon}< 1/\alpha m$. Then for any initial point $w_1$, Algorithm \ref{alg:VRADAM} with Option A satisfies $ F(\widetilde w_T) - F^* \leq \OO\left( T^{-C_2m\alpha}\right)$ almost surely.
+\end{theorem}
+We remark that the requirement $C_2 m \alpha < 1$ can be satisfied by properly selected $\alpha$ and $\beta_1$. Specifically, when $\beta_1$ is close to $1$ and $\alpha$ is small, the assumption is more likely to be satisfied. The proof starts by bounding the update of the objective function in one iterate and then applies strong convexity.
+
+As for objectives that are not necessarily convex, we exhibit the following result.
+\begin{theorem}
+\label{thm:VRNonCvx}
+Let Assumption \ref{assmpt:VRADAM} be satisfied and assume that $F(w)$ is lower bounded by $F_\mathrm{inf}>-\infty$. We require $\sum_{t=1}^\infty \alpha_t^2 < +\infty$ and $\sum_{t=1}^\infty \alpha_t = +\infty$. Then for any initial point $w_1$, Algorithm \ref{alg:VRADAM} with Option A satisfies $\liminf_{t\to\infty} \left\|\nabla F(\tilde w_t)\right\|_2 =0$ almost surely.
+\end{theorem}
+
+Under the general objective setting, as a corollary of Theorem \ref{thm:VRNonCvx}, we can bound the variance of the norm of the gradient.
+\begin{corollary}
+\label{cor:ConvVar}
+Given the same conditions as in Theorem \ref{thm:VRNonCvx} , we have $\liminf_{t\to\infty} \mathrm{Var}\left(\|\nabla F(\widetilde w_t)\|_2\right) = 0.\nonumber$
+\end{corollary}
+The proof of the corollary simply comes from 
+\begin{eqnarray}
+\liminf_{t\to\infty} \mathrm{Var}(\left\|\nabla F(\widetilde w_t)\right\|_2) \leq \liminf_{t\to\infty} \EE(\left\|\nabla F(\widetilde w_t)\right\|_2^2)\nonumber
+\end{eqnarray}
+where the right hand side is $0$ because almost sure convergence implies L2 convergence. 
+\section{Numerical Experiments}
+\subsection{Divergent example}
+In Section \ref{sec:divergent}, we provide an unconstrained stochastic optimization problem where ADAM diverges for any initial point. The goal of this section is to numerically show that ADAM diverges on this problem. Since the construction of the mini-batch problem can be equivalently transformed into a stochastic optimization problem with population loss, we stick to the experiments of OP($\delta$) defined in Section 3. Letting $\delta=10$, the optimal solution of OP($\delta$) is $w^*=-\delta^2=-100$. We consider two cases: when the algorithms start from the optimal solution , i.e., $w_0=-100$ and when they start from somewhere far from the optimal solution, in the experiments we set $w_0=-80$. We simulate 1,000 trials for each case and plot the expected L2 error $\EE[(w_t-w^*)^2]$ of $w$.
+\begin{figure}
+     \centering
+     \begin{subfigure}[b]{0.45\textwidth}
+         \centering
+         \includegraphics[width=0.7\textwidth]{div_example_100.png}
+         \label{fig:div100}
+     \end{subfigure}
+     \hfill
+     \begin{subfigure}[b]{0.45\textwidth}
+         \centering
+         \includegraphics[width=0.7\textwidth]{div_example_80.png}       
+         \label{fig:div0}
+     \end{subfigure}
+
+        \caption{The numerical experiments of OP($\delta$)}
+        \label{fig:div}
+\end{figure}
+We notice from Figure\ref{fig:div} that even starting from the optimal point, ADAM still diverges, while VRADAM converges well. When $w_0=-80$, VRADAM eventually converges to the optimal solution while ADAM diverges. This result rules out all of the possible temptations of solving the divergence problem of ADAM by using a stochastic initial point.
+\begin{figure*}[h]
+     \centering
+     \begin{subfigure}[t]{0.24\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{FFN_CovType_final.png}
+        \caption{}
+         \label{fig:FFN_CovType}
+
+     \end{subfigure}
+     \hfill
+     \begin{subfigure}[t]{0.24\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{Log_CovType_final.png}
+         \caption{}
+         \label{fig:Log_CovType}
+     \end{subfigure}
+     \hfill
+     \begin{subfigure}[t]{0.24\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{Log_MNIST_final.png}
+         \caption{}
+         \label{fig:Log_MNIST}
+     \end{subfigure}
+     \hfill
+     \begin{subfigure}[t]{0.24\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{Log_NI_final.png}
+         \caption{}
+         \label{fig:Log_NI}
+     \end{subfigure}
+     \vfill
+     \begin{subfigure}[b]{0.24\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{FFN_MNIST_Reset_final.png}
+         \caption{}
+         \label{fig:Reset_FFN_MNIST}
+     \end{subfigure}
+     \begin{subfigure}[b]{0.24\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{Log_CovType_Reset_final.png}
+         \caption{}
+         \label{fig:Reset_Log_CovType}
+     \end{subfigure}
+     \begin{subfigure}[b]{0.24\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{FFN_CovType_total_final.png}
+         \caption{}
+         \label{fig:sensitivity_total}
+     \end{subfigure}
+     \begin{subfigure}[b]{0.24\textwidth}
+         \centering
+         \includegraphics[width=\textwidth]{FFN_CovType_init_final.png}
+         \caption{}
+         \label{fig:sensitivity_init}
+     \end{subfigure}
+        \caption{Top: Relative differences of loss function of VRADAM over ADAM on classification tasks of (a) CovType dataset with a feedforward network and (b) CovType with logistic regression (c) MNIST with logistic regression (d) NSL-KDD with logistic regression. Bottom left: Relative differences of loss function of VRADAM without reset over VRADAM with reset on classification tasks of CovType dataset with (e) a feedforward network and (f) logistic regression. Bottom right: Deviation of loss. The shaded areas mark the maximal and minimal losses among the three seeds.}
+        \label{}
+\end{figure*}
+\subsection{Experiments on machine learning problems}
+\subsubsection{Datasets and implementation}
+In this section, we compare the numerical performances of VRADAM and ADAM on several real-world classification tasks. The experiments are conducted on the following data sets.
+\begin{itemize}
+    \item \textbf{Coverage Type} \cite{Blackard1998CoverType}: A dataset predicting forest cover type from 54 cartographic variables. The dataset contains 581,012 data points and assigns them into 7 different categories.
+    \item \textbf{MNIST} \cite{deng2012mnist}: A handwritten digit dataset containing 60,000 grey level images with size 28$\times$28 pixels.  
+    \item \textbf{NSL-KDD} \cite{tavallaee2009detailed}: A selected subset of the KDD CUP 99 dataset, which is a public dataset used to train a network intrusion detection system. The subset eliminates repeated data samples and avoids several shortcomings in the original dataset.
+    \item \textbf{Embedded CIFAR-10}: CIFAR-10 \cite{krizhevsky2009learning} consists of 60,000 color images in 10 classes. We feed each sample to a pretrained ResNet model \cite{he2016deep} and obtain a 1,000 dimensional embedding vector for each image. 
+\end{itemize}
+We use logistic regression on the four previously mentioned data sets and non-convex deep neural networks on MNIST and Coverage Type datasets. The structures of the deep neural networks used in this section are explained in the appendix. Cross entropy is the underlying loss. While training these models, we fix the batch size $|\BB_t|=64$ and the ADAM hyper-parameters $\beta_1=0.9,\beta_2=0.999$, which are commonly recommended values in the literature and fine tune the learning rate schedules among $\alpha_t = \alpha_0$, $\alpha_t=\alpha_0/t$ and $\alpha_t = \alpha_0 \gamma ^t$, i.e., the constant learning rate, inverse-proportional learning rate and the exponentially decaying learning rate. We perform a grid search among $\alpha_0 \in \{0.0005, 0.001, 0.005, 0.01, 0.05\}$ and $\gamma \in\{0.6,0.8,0.95\}$.
+
+In order to eliminate luck from randomness, we ran each experiment setting with 3 different random seeds. We report the average loss of each experiment. We train each setting for 15 epochs for VRADAM and 50 epochs for ADAM. While comparing the performances, we display the loss functions up to convergence. The experiments were conducted in PyTorch 1.12.1 on the Google Colab cloud service.
+\subsubsection{Main results}
+As for VRADAM, the number of inner loop iterations $m$ in Algorithm \ref{alg:VRADAM} is also a hyper parameter to decide. If $m$ is too large, the variance reduce procedure does not make a real difference, while an improperly small $m$ would lead to a very frequent computation of the full gradients, which is computationally expensive. We recommend that the length of the inner loop should be about the size of an epoch. In other word, $m \approx N/b$, where $N$ is the number of samples and $b$ is the mini-batch size. In our experiments, we test the performance of VRADAM with $m \in \{N/2b, N/b, 2N/b, 4N/b\}$.
+
+It is unfair to compare the convergence of the training loss with regard to the number of epochs, since the time VRADAM spends on training one epoch is longer than ADAM. Instead, we compare the convergence rate with regard to the computational time. 
+
+Figures \ref{fig:FFN_CovType}, \ref{fig:Log_CovType}, \ref{fig:Log_MNIST} and \ref{fig:Log_NI} show the relative difference of the loss of VRADAM with regard to ADAM. It shows that our approach of variance reduction has as good convergence rate as ADAM. Although VRADAM converges slower than ADAM in a few starting iterations, due to the first full gradient computation, the variance reduction approach can catch up and reach a similar convergence rate as ADAM. Specifically, we observe that VRADAM works better on large datasets, such as CovType and NSL-KDD. We also find that VRADAM works better on convex  problems by comparing Figures \ref{fig:FFN_CovType} and \ref{fig:Log_CovType}.
+
+As we mentioned in Section \ref{sec:VRADAM}, we recommend resetting the optimizer states every inner loop. Figures \ref{fig:Reset_FFN_MNIST} and \ref{fig:Reset_Log_CovType} display the performance of the resetting option in a few experiments and show that the resetting option helps with the convergence of VRADAM. Additional experiments are shown in the appendix.
+
+In conclusion, we observe that VRADAM outperforms ADAM on large datasets, such as CovType. Such datasets may contain extreme values, which may harm the convergence of ADAM. We find that the computational cost when calculating the full gradients can be compensated by the benefits of quick convergence of VRADAM. We recommend VRADAM over ADAM for tasks with large datasets, in particular if loss is convex.
+
+\subsubsection{Sensitivity}
+We consider the CovType classification task with the FFN model as an example to analyze the sensitivity of our algorithm. As we stated previously, our algorithm fixes the convergence issue of ADAM by reducing the variance. Our experiments take three different seeds and the deviation of the results reflects the variance of the algorithm.  Figure \ref{fig:sensitivity_total} shows that VRADAM reduces the noise comparing with ADAM. We also studied the sensitivity of VRADAM over the different initial points, which is shown in Figure \ref{fig:sensitivity_init}.
+
+\section{Conclusions}
+We started from an analysis of the divergence of the original ADAM algorithm and concluded that even strong convexity can not help with the convergence of ADAM. We then gave a convergence analysis under a high-level variance reduction assumption, and concluded that an ADAM-type algorithm converges if its variance is reduced. Inspired by this motivating result and the idea of SVRG, we proposed a variance reduced approach which fixes the original convergence issue of ADAM. We finally showed with numerical experiments that even though our approach requires more gradient computation than ADAM, VRADAM converges as quickly as ADAM after several initial iterations. The motivating results we provided can also lead to other variance reduction approaches, which are possible future research directions on the convergence issue of ADAM.
+
+% \bibliographystyle{plain}
+\bibliography{main}
+\newpage
+\appendix
+\onecolumn
+\aistatstitle{Divergence Results and Convergence of a Variance Reduced Version of ADAM: Supplementary Materials}
+\section{Proofs}
+\subsection{Technical Lemmas}
+\begin{lemma}
+\label{lem:Jensen}
+In a probability space $(\Omega, \FF, \PP)$, let there be an $\FF$-measurable random variable $X(w)$ and an event $A\in\FF$ such that $\PP\{A\}>0$. For a convex function $\phi(x)$, we have
+$$\frac{\EE \left[ \phi(X)\mathbf{1}\{A\}\right]}{\PP\{A\}}\geq  \phi\left( \frac{\EE\left[X \mathbf{1}\{A\}\right]}{\PP\{A\}} \right).$$
+\end{lemma}
+
+\textbf{Proof:}
+Let 
+$$x_0 = \frac{\EE\left[X\mathbf{1}\{A\}\right]}{\PP\{A\}} = \frac{1}{\PP\{A\}}\int_A X(w) d\PP(w).$$
+
+Since $\phi$ is convex, there exists a sub-gradient of $\phi$ at $x_0$, i.e., there exists an $a$ such that
+$$\phi(x) \geq \phi(x_0) + a(x-x_0)$$
+for any $x\in\RR$. Then we have
+\begin{eqnarray}
+\frac{\EE\left[\phi(X) \mathbf{1}\{A\}\right]}{\PP\{A\}} &=& \frac{1}{\PP\{A\}}\int_A \phi(X(w))d\PP(w) \nonumber\\
+&\geq& \frac{1}{\PP\{A\}}\int_A a (X(w) - x_0) + \phi(x_0) d\PP(w) \nonumber\\
+&=& \frac{a}{\PP\{A\}} \int_A X(w) d\PP(w) + \frac{\phi(x_0) - ax_0}{\PP\{A\}} \int_A 1d\PP(w)\nonumber\\
+&=& ax_0 +\phi(x_0) - ax_0\nonumber \\
+&=& \phi(x_0)\nonumber,
+\end{eqnarray}
+which finishes the proof.
+
+\begin{lemma}
+\label{lem:simplecalculus}
+For any $x,y >0$, 
+$$(x+y)^{3} \leq 4(x^3 + y^3).$$
+\end{lemma}
+
+\textbf{Proof}:
+For $t\geq 0$, let
+\begin{eqnarray}
+h(t):=\frac{(1+t)^3}{1+t^3} = 1 + 3 \frac{t + t^2}{1 + t^3}.\nonumber
+\end{eqnarray}
+
+The derivative of $h(t)$ reads
+\begin{eqnarray}
+h'(t) &=& 3\frac{(1+2t)(1+t^3) - 3t^2(t+t^2)}{(1+t^3)^2} = -3\frac{(t-1)(t+1)^3}{(t^3+1)^2}.\nonumber
+\end{eqnarray}
+
+Apparently $h(t)$ achieves the maximum at $t=1$, thus $h(x/y)\leq h(1)=4$, and we have
+\begin{equation*}
+    \frac{(x+y)^3}{x^3 + y^3}\leq 4.
+\end{equation*}
+\newpage
+\begin{lemma}
+\label{lem:sumbetaalpha}
+Given $\alpha_t = \alpha/t$ and $\beta_1\in[0,1)$, there exists a constant $\bar C>0$, such that for any $t\geq 2$ we have 
+$$\sum_{j=1}^{t-1}\alpha_j \beta_1^{t-j}\leq \bar C\alpha_t .$$
+\end{lemma}
+
+\textbf{Proof:} Letting $t^* =\left \lfloor\frac{t-1}{2}\right\rfloor$, we have
+\begin{eqnarray}
+\sum_{j=1}^{t-1} \alpha_j \beta_1^{t-j} &=& \sum_{j=1}^{t^*} \alpha_j \beta_1^{t-j} + \sum_{j=t^*+1}^{t-1} \alpha_j \beta_1^{t-j} \nonumber\\
+&\leq& \alpha \sum_{j=1}^{t^*} \beta_1^{t-j} + \frac{\alpha}{t^* + 1} \sum_{j=t^*+1}^{t-1} \beta_1^{t-j} \nonumber \\
+&\leq&  \frac{\alpha\beta_1^{t-t^*}}{1-\beta_1} + \frac{\alpha}{t^* + 1} \frac{\beta_1}{1-\beta_1} \nonumber\\
+&\leq& \frac{\alpha \beta_1^{(t+1)/2}}{1-\beta_1} + \frac{2\alpha\beta_1}{(1-\beta_1)} \frac{1}{t-1} = \OO(t^{-1}).\nonumber
+\end{eqnarray}
+Thus there exists a positive constant $\bar C$ such that for any $t\geq 2$, 
+$$\sum_{j=1}^{t-1} \alpha_j\beta_1^{t-j} \leq \bar C \alpha_t.$$
+
+\begin{lemma}
+\label{lem:Recursive}
+Consider $0<A<1$ and $T\geq 2$, and let 
+\begin{eqnarray}
+\lambda_{T-1} &=& \prod_{t=1}^{T-1} \left(1-\frac{A}{t}\right),\nonumber\\
+\nu_{T-1} &=& \sum_{t=1}^{T-1} \frac{1}{t^2} \prod_{j=t+1}^{T-1}\left(1-\frac{A}{t}\right).\nonumber
+\end{eqnarray}
+Then we have
+\begin{eqnarray}
+\lambda_{T-1} \leq \OO(T^{-A})\nonumber
+\end{eqnarray}
+and
+\begin{eqnarray}
+\nu_{T-1} \leq \OO(T^{-A}).\nonumber
+\end{eqnarray}
+\end{lemma}
+\textbf{Proof:} Notice that
+\begin{eqnarray}
+\log \lambda_{T-1} = \sum_{t=1}^{T-1} \log\left(1-\frac{A}{t}\right)\leq -A\sum_{t=1}^{T-1}\frac{1}{t}\leq -A\log T,\nonumber
+\end{eqnarray}
+where the first inequality comes from $\log(1-x)\leq-x$ for $x\geq0$ and the second inequality uses the integral approximation
+$$\sum_{t=1}^{T-1}\frac{1}{t} \geq \sum_{t=1}^{T-1}\int_{t}^{t+1} \frac{1}{s}\;ds =\int_{1}^T \frac{1}{s}\;ds=\log T.$$
+Thus $
+\lambda_{T-1} \leq T^{-A}. $
+Similarly, we have
+\begin{eqnarray}
+\log \frac{\lambda_{T-1}}{\lambda_t} = \sum_{k={t+1}}^{T-1} \log\left( 1- \frac{A}{t}\right)\leq - A\log\frac{T}{t+1},\nonumber
+\end{eqnarray}
+and then,
+\begin{eqnarray}
+\nu_{T-1} \leq \sum_{t=1}^{T-1} \frac{1}{t^2} \left(\frac{T}{t+1}\right)^{-A} \leq  T^{-A}\sum_{t=1}^{T-1} \frac{(t+1)^{A}}{t^2}\leq  2^{A} T^{-A} \sum_{t=1}^{T-1} t^{-2+A} .\nonumber
+\end{eqnarray}
+Again, applying the integral approximation yields
+\begin{eqnarray}
+\sum_{t=1}^{T-1} t^{-2+A} \leq 1 + \sum_{t=2}^{T-1}\int_{t-1}^t s^{-2+A}\;ds = 1+\int_{1}^{T-1} s^{-2+A}\;ds\leq 1 + \frac{1}{1-A} = \frac{2-A}{1-A}<\infty.\nonumber
+\end{eqnarray}
+Then we have $\nu_{T-1} \leq \OO( T^{-A}).$
+
+\subsection{Proof of Theorem \ref{thm:DivOP}}
+
+Let $p = \PP(\xi=1)$. In each step, the update value is
+\begin{eqnarray}
+\Delta_t &=& -\frac{\alpha g_t}{\sqrt{\beta_2v_{t-1} + (1-\beta_2)g_t^2 }}\nonumber\\
+&=&\begin{cases}
+-\frac{\alpha(w_t/\delta + \delta^4) }{\sqrt{\beta_2 v_{t-1} + (1-\beta_2) (w_t/\delta + \delta^4)^2 }} & \text{with probability }\; p \\
+\frac{\alpha(1-w_t/\delta)}{\sqrt{\beta_2 v_{t-1} + (1-\beta_2)(1-w_t/\delta)^2}} & \text{with probability }\; 1-p.
+\end{cases}\nonumber
+\end{eqnarray}
+Apparently, 
+\begin{equation*}
+F(w) =  \frac{w^2}{2\delta} + \delta w,
+\end{equation*}
+and 
+\begin{equation*}
+w^*=-\delta^2.
+\end{equation*}
+
+We use contradiction to prove the theorem. Assume that $\EE[F(w_t)-F(w^*)]\to 0$. Notice that
+\begin{equation*}
+F(w_t) - F(w^*) = \frac{1}{2\delta} (w_t-w^*)^2\nonumber,
+\end{equation*}
+which means that $\EE[F(w_t)-F(w^*)]\to 0$ is equivalent to  $\EE\left[\left(w_t-w^*\right)^2\right]\to 0$. Let us select $0 < \epsilon < 1/2$, and we choose $T_\epsilon$ such that $t>T_\epsilon$ implies $\EE\left[\left(w_t-w^*\right)^2\right]<\epsilon$. The following discussion is based on $w_t$ such that $t>T_\epsilon$.
+
+We have\begin{equation}
+\label{stplth}
+|\Delta_t|= \frac{\alpha |g_t|}{\sqrt{\beta_2 v_{t-1} +(1-\beta_2) g_t^2}} \leq\frac{\alpha |g_t|}{\sqrt{(1-\beta_2) g_t^2}} = \frac{\alpha}{\sqrt{1-\beta_2}},
+\end{equation}
+where the inequality is due to $v_k$ being non-negative for any $k$.
+
+Let $\FF_t$ be the filtration including all the information obtained until the update of $w_t$, including $w_t$. We define the following event
+\begin{eqnarray}
+E := \left\{|w_t - w^*|< \delta^2 \right\}\nonumber
+\end{eqnarray}
+which is known given $\FF_t$. We have
+$$\PP\{E^c\} = \PP\left\{ |w_t-w^*|\geq\delta^2\right\} \leq\frac{\EE\left[(w_t-w^*)^2\right]}{\delta^4} < \frac{\epsilon}{\delta^4}.$$
+Given $E^c$, we simply bound the step size with the lower bound
+\begin{eqnarray}
+\EE\left[ \Delta_t \mathbf{1}\{E^c\}\right] \geq -\frac{\alpha}{\sqrt{1-\beta_2}} \EE\left[ \mathbf{1}\{E^c\}\right] \geq -\frac{\epsilon}{\delta^4}\frac{\alpha}{\sqrt{1-\beta_2}}.\nonumber
+\end{eqnarray}
+For the samples in $E$, we have
+\begin{eqnarray}
+\EE\left[ \Delta_t \mathbf{1}\{E\}\right] &=& \EE\left[\EE\left[\Delta_t \mathbf{1}\{E\} \left|\FF_t\right.\right]\right] 
+=  \EE\left[\EE\left[\Delta_t  \left|\FF_t\right.\right]\mathbf{1}\{E\}\right] \nonumber\\
+&=& \EE\left[ \mathbf{1}\{E\} \left\{ (1-p) \frac{\alpha(1-w_t/\delta) }{\sqrt{\beta_2 v_{t-1} + (1-\beta_2) (1-w_t/\delta)^2}}\right\}\right]\nonumber\\
+&&- \EE\left[ \left\{ p \frac{\alpha(w_t/\delta + \delta^4)}{\sqrt{\beta_2 v_{t-1} +(1-\beta_2) (w_t/\delta+\delta^4)^2}}\right\}\right]\nonumber\\
+&\geq &\EE \left[\mathbf{1}\{E\} (1-p)\frac{\alpha}{\sqrt{\beta_2 v_{t-1} + (1-\beta_2)(1+2\delta)^2}}\right] \nonumber\\
+&&- p \frac{\alpha}{\sqrt{1-\beta_2}}\PP\{E\} .\label{Eq3}
+\end{eqnarray}
+In the inequality, the first term is bounded because $-2\delta<w_t/\delta<0$ by the definition of $E$ and the second term is bounded by the bound of the step length in (\ref{stplth}). 
+
+By applying Lemma \ref{lem:Jensen} to (\ref{Eq3}), we have
+\begin{eqnarray}
+\EE[\Delta_t\mathbf{1}\{E\}] \geq (1-p)\PP(E)\frac{\alpha}{\sqrt{\beta_2 \EE[v_{t-1} \mathbf{1}\{E\}]/\PP\{E\} +(1-\beta_2)(1+2\delta)^2 }} - p\PP(E)\frac{\alpha}{\sqrt{1-\beta_2}}.\nonumber
+\end{eqnarray}
+We next focus on the conditional expectation
+\begin{eqnarray}
+\EE\left[v_{t-1}\mathbf{1}\{E\}\right]
+&=&  (1-\beta_2)\sum_{k=1}^{t-1}\beta_2^{t-1-k}\EE\left[\mathbf{1}\{E\} g_k^2\right]. \nonumber
+\end{eqnarray}
+We claim that for any trajectory in $E$ and for any $k<t$, we have
+$$\left|w_t-w_k\right| = \left|\sum_{j=k}^{t-1}\Delta_j \right| \leq \sum_{j=k}^{t-1}\left|\Delta_j\right| \leq \frac{\alpha(t-k)}{\sqrt{1-\beta_2}}.  $$
+The last inequality comes from the bound of the step length in (\ref{stplth}). Then we have
+$$ w_t - \frac{\alpha(t-k)}{\sqrt{1-\beta_2}}\leq w_k \leq w_t + \frac{\alpha(t-k)}{\sqrt{1-\beta_2}}.$$
+Let us recall that given $E$, we have $-2\delta ^2 < w_k < 0$, and hence
+\begin{equation}
+\label{wkbd}
+    -2\delta^2 - \frac{\alpha(t-k)}{\sqrt{1-\beta_2}}\leq w_k \leq  \frac{\alpha(t-k)}{\sqrt{1-\beta_2}}.
+\end{equation} 
+Then for each $k=1,\ldots,t-1$, we obtain
+\begin{eqnarray}
+\EE \left[g_k ^2 \mathbf{1}\{E\}\right] &=&  \EE\left[\EE[g_k^2\mathbf{1}\{E\} \left|\FF_k\right.]\right]\nonumber\\
+&\leq& \EE\left[\left(\EE\left[ g_k^{2(1+\mu)}|\FF_k \right]\right)^{1/(1+\mu)}\left(\EE \left[ \mathbf{1}\{E\}\right]\right)^{\mu/(1+\mu)} \right]\nonumber\\
+&\leq& \EE\left[\left(\EE\left[ g_k^{2(1+\mu)}|\FF_k \right]\right)^{1/(1+\mu)} \right]\nonumber
+\end{eqnarray}
+where the inequality holds for any $\mu$ according to the Holder inequality. Let $0<\mu<1/2$. According to the bound given previously in (\ref{wkbd}) and $\delta \geq 2$, we have
+\begin{eqnarray}
+\left( \frac{w_k}{\delta} + \delta^4 \right)^2 &\leq& \left( \frac{\alpha(t-k)}{\delta \sqrt{1-\beta_2}} + 2 \delta + \delta^4\right)^2\nonumber\\
+\left( 1- \frac{w_k}{\delta}\right)^2 &\leq& \left( \frac{\alpha(t-k)}{\delta \sqrt{1-\beta_2}} + 2\delta + 1\right)^2.\nonumber
+\end{eqnarray} 
+Then we derive, 
+\begin{eqnarray}
+\EE\left[ g_k^{2(1+\mu)}|\FF_k \right] &=& p \left( \frac{w_k}{\delta} + \delta ^4 \right)^{2(1+\mu)} + (1-p) \left( \frac{w_k}{\delta} -1\right)^{2(1+\mu)}\nonumber \\
+&\leq& \frac{1+\delta}{\delta ^4 }\left( \frac{\alpha(t-k)}{\delta \sqrt{1-\beta_2}} + 2\delta + \delta ^ 4\right)^{2(1+\mu)} + \left( \frac{\alpha(t-k)}{\delta \sqrt{1-\beta_2}} + 2\delta + 1\right)^{2(1+\mu)} \nonumber\\
+&=& (1+\delta) \left(\frac{\alpha(t-k)}{\delta^5 \sqrt{1-\beta_2}} +\frac{2}{\delta ^ 3}+1\right)^{2(1+\mu)} \delta^{4+8\mu}+\left( \frac{\alpha(t-k)}{\delta \sqrt{1-\beta_2}} + 2\delta + 1\right)^{2(1+\mu)}\nonumber\\
+&\leq& 2\delta \cdot \left(\frac{\alpha(t-k)}{\delta^5 \sqrt{1-\beta_2}} +\frac{2}{\delta ^ 3}+1\right)^{3}\cdot \delta ^{4 + 8\mu}+\left( \frac{\alpha(t-k)}{\delta \sqrt{1-\beta_2}} + 2\delta + 1\right)^3\nonumber \\
+&\leq& 2\left(\frac{\alpha(t-k)}{\sqrt{1-\beta_2}} + 2\right)^3 \delta ^{5+8\mu} + \left( \frac{\alpha(t-k)}{\sqrt{1-\beta_2}} +3\delta\right)^3  \nonumber \\
+&\leq& \left(\frac{8\alpha^3 (t-k)^3}{(1-\beta_2)^{3/2}} + 64\right) \delta ^{5+8\mu} + \frac{4\alpha^3 (t-k)^3}{(1-\beta_2)^{3/2}} + 108 \delta^3.\nonumber
+\end{eqnarray}
+We have used $\delta>2$ and $0<\mu<1/2$. The last inequality holds because of Lemma \ref{lem:simplecalculus}. Then we obtain
+\begin{eqnarray}
+\left(\EE\left[ g_k^{2(1+\mu)}|\FF_k \right]\right)^{1/(1+\mu)} &\leq& \left[\left(\frac{8\alpha^3 (t-k)^3}{(1-\beta_2)^{3/2}} + 64\right) \delta ^{5+8\mu} + \frac{4\alpha^3 (t-k)^3}{(1-\beta_2)^{3/2}} + 108 \delta^3\right]^{1/(1+\mu)}\nonumber \\
+&=& \left(\frac{8\alpha^3 (t-k)^3}{(1-\beta_2)^{3/2}} + 64  + \frac{4\alpha^3 (t-k)^3}{(1-\beta_2)^{3/2}}\delta ^{-5-8\mu} + 108 \delta^{-2-8\mu}\right)^{1/(1+\mu)} \delta ^{(5 + 8\mu)/(1+\mu)}\nonumber \\
+&\leq& \left( \frac{12 \alpha ^3(t-k)^3}{(1-\beta_2)^{3/2}} + 172\right)^{1/(1+\mu)} \delta ^{(5+8\mu)/(1+\mu)} \nonumber\\
+&\leq& \left( \frac{12 \alpha ^3(t-k)^3}{(1-\beta_2)^{3/2}} + 172\right) \delta ^{(5+8\mu)/(1+\mu)}.\nonumber
+\end{eqnarray}
+The third inequality uses $\delta>1$ and thus
+\begin{eqnarray}
+\EE[v_{t-1}\mathbf{1}\{E\}] &\leq&  (1-\beta_2)\sum_{k=1}^{t-1}\beta_2^{t-1-k}\left( \frac{12 \alpha ^3(t-k)^3}{(1-\beta_2)^{3/2}} + 172\right) \delta ^{(5+8\mu)/(1+\mu)} \nonumber \\
+&\leq& \delta^{(5+8\mu)/(1+\mu)} \left\{ \frac{12\alpha^3}{\sqrt{1-\beta_2}}\sum_{k=1}^\infty \beta_2^{k-1}k^3 + 172 \right\}\nonumber\\
+&\leq& \delta^{(5+8\mu)/(1+\mu)} \left\{ \frac{72\alpha^3}{(1-\beta_2)^{9/2}} + 172 \right\}:= M_1 \delta^{(5+8\mu)/(1+\mu)}\nonumber
+\end{eqnarray}
+where the last inequality is because $\sum_{k=1}^\infty \beta_2^{k-1}k^3 = (1+4\beta_2+\beta_2^2)/(1-\beta_2)^4<6/(1-\beta_2)^4$. Thus, we have
+\begin{eqnarray}
+\EE\left[\Delta_t\mathbf{1}\{E\}\right]&\geq& \PP\{E\}\left\{ \left(1-\frac{1+\delta}{1+\delta^4}\right)\frac{\alpha}{\sqrt{\beta_2M_1 \delta ^{(5+8\mu)/(1+\mu)}/\PP\{E\}+ (1-\beta_2)(1+2\delta)^2}}\right.\nonumber\\
+&&\left.- \frac{1+\delta}{1+\delta^4}\frac{\alpha}{\sqrt{1-\beta_2}}\right\}\nonumber\\
+&\geq& \frac{1}{2}\left\{ \left(1-\frac{1+\delta}{1+\delta^4}\right)\frac{\alpha}{\sqrt{2\beta_2M_1 \delta ^{(5+8\mu)/(1+\mu)}+ (1-\beta_2)(1+2\delta)^2}}\right.\nonumber\\
+&&\left.- \frac{1+\delta}{1+\delta^4}\frac{\alpha}{\sqrt{1-\beta_2}}\right\},\nonumber
+\end{eqnarray}
+where the second inequality follows from
+$$\PP\{E\} >1-\frac{\epsilon}{\delta^4} >1 - \epsilon > \frac{1}{2}.$$
+Then the full expectation of $\Delta_t$ is
+\begin{eqnarray}
+\EE\left[\Delta_t\right]&\geq& \frac{1}{2}\left\{ \left(1-\frac{1+\delta}{1+\delta^4}\right)\underbrace{\frac{\alpha}{\sqrt{2\beta_2 M_1 \delta ^{(5+8\mu)/(1+\mu)}+ (1-\beta_2)(1+2\delta)^2}}}_{T_1}\right.\nonumber\\
+&&\left.- \underbrace{\frac{1+\delta}{1+\delta^4}\frac{\alpha}{\sqrt{1-\beta_2}}}_{T_2}\right\} - \underbrace{\frac{1}{2\delta^4} \frac{\alpha}{\sqrt{1-\beta_2}}}_{T_3}.\nonumber
+\end{eqnarray}
+Notice that $T_1 =\Omega(\delta^{-(5+8\mu)/(2+2\mu)})$, $T_2=\OO(\delta^{-3})$ and $T_3=\OO(\delta^{-4})$. As long as we set $\mu<1/2$, we have $(5+8\mu)/(2+2\mu) < 3 < 4$, thus the right hand side can be positive for sufficiently large $\delta$, only dependent on $\alpha$ and $\beta_2$. We conclude that we can assume $\EE[\Delta_t]>c_0>0$. This means $w_t$ keeps drifting in the positive direction. Then for any $k\geq 1$ and $t>T_\epsilon$, we have
+\begin{eqnarray}
+\EE\left[(w_{t+k}-w^*)^2\right] &=& \EE\left[(w_{t+k}-w_t)^2\right] + 2\EE\left[(w_{t+k}-w_t)(w_t-w^*)\right] + \EE\left[(w_t-w^*)^2\right]\nonumber \\
+&\geq& \EE\left[(w_{t+k}-w_t)^2\right] - 2 \sqrt{\EE\left[(w_{t+k}-w_t)^2  \right]\EE\left[(w_t-w^*)^2\right]} + \EE\left[ (w_t-w^*)^2\right]\nonumber\\
+&=& \left(\sqrt{\EE\left[(w_{t+k}-w_t)^2\right]} - \sqrt{\EE\left[(w_t-w^*)^2\right]}\right)^2 ,\label{Thm1Last}
+\end{eqnarray}
+where the inequality is the Cauchy-Schwartz inequality for random variables. If we select $k$ large enough such that $k>3\sqrt{\epsilon}/c_0$, which implies $kc_0-\sqrt{\epsilon}>2\sqrt{\epsilon}$, then $\EE[(w_{t+k} - w_t)^2]\geq (\EE[w_{t+k}-w_t])^2\geq k^2c_0^2$, and thus from (\ref{Thm1Last}) we have
+\begin{equation*}
+\EE\left[(w_{t+k}-w^*)^2\right] \geq (kc_0-\sqrt{\epsilon})^2 \geq 4\epsilon >\epsilon,
+\end{equation*} 
+which contradicts the convergence assumption. Thus, ADAM diverges for this unconstrained stochastic optimization problem. This completes the proof of Theorem \ref{thm:DivOP}.
+
+\subsection{Proof of Theorem \ref{thm:DivFixb}}
+Consider function $\pi(\delta) = (1+\delta)/(1+\delta^4)$. We notice that $\pi(1)=1$, $\pi(\delta)\leq 1$ for $\delta\geq 1$, and $\pi(+\infty)=0$. Since $\pi$ has only a finite number of stationary points, there exists a $\bar \delta$ such that $\pi$ is decreasing on $[\bar\delta,\infty)$. Thus for any $b$, there exists an $N^*_b$ such that for any $N\geq N^*_b, N>b$ there exists a $\delta_{N,b}>\max(\delta^*,\bar\delta)>\delta^*$ with 
+\begin{equation*}
+    \frac{b}{N} = \pi(\delta_{N,b}).
+\end{equation*}
+Let us consider the following mini-batch problem with sample size $N>N^*_b$.
+\begin{eqnarray}
+    f_n(w) &=& \frac{w^2}{2\delta_{N,b}} - w\;\;\;\;\text{for}\;n=1,\ldots, N-1,\nonumber\\
+    f_N(w) &=& \frac{w^2}{2\delta_{N,b}} + (b\delta_{N,b}^4 + b-1)w.\nonumber
+\end{eqnarray}
+Apparently, the selection of mini-batch $\BB_t$ satisfies
+$$\PP\{N\in\BB_t\} = \frac{\binom{N-1}{b-1}}{ \binom{N}{b} } = \frac{b}{N} = \frac{1+\delta_{N,b}}{1+\delta_{N,b}^4}:=p.$$
+If $M\in\BB_t$, we have
+\begin{eqnarray}
+F^{\BB_t}(w) = \frac{1}{b}\left( f_{N}(w) + (b-1)f_{1}(w)\right) = \frac{w^2}{2\delta_{N,b}} +\delta_{N,b}^b w. \nonumber
+\end{eqnarray}
+Otherwise, it is clear that
+$$F^{\BB_t}(w) = f_1(w) = \frac{w^2}{2\delta_{N,b}} - w.$$
+To summarize, the mini-batch loss reads
+\begin{eqnarray}
+F^{\BB_t}(w) = \begin{cases}\frac{w^2}{2\delta_{N,b}} + \delta_{N,b}^4 w & \text{with probability } \;p\\
+\frac{w^2}{2\delta_{N,b}} - w & \text{with probability }\; 1-p
+\end{cases}\nonumber
+\end{eqnarray}
+which is an $\mathrm{OP}(\delta_{N,b})$, since $\delta_{N,b}>\delta^*$. By Theorem \ref{thm:DivOP}, ADAM diverges on this problem.
+
+\subsection{Proof of Theorem \ref{thm:DivLargeb}}
+Similarly to the proof of Theorem \ref{thm:DivFixb}, there exists $N^*$ such that for each $N>N^*$, there exists a $\delta_N>\delta^*$ such that 
+\begin{equation*}
+    \frac{1}{N} = \frac{1+\delta_{N}}{1+\delta_{N}^{4}}.
+\end{equation*}
+We let 
+\begin{eqnarray}
+f_n(w) &=& \frac{w^2}{2\delta_N} + \delta_N^4 w\;\;\text{for } n=1,\ldots, N-1\nonumber\\
+f_N(w) &=& \frac{w^2}{2\delta_N} -((N-1) + (N-2)\delta_N^4) w.\nonumber
+\end{eqnarray}
+The selection of mini-batch $\BB_t$ satisfies
+\begin{eqnarray}
+\PP\{N\not \in \BB_t\} = \frac{1}{N}. \nonumber
+\end{eqnarray}
+If $N\not \in \BB_t$, we have
+\begin{equation*}
+    F^{\BB_t}(w) = f_1(w) = \frac{w^2}{2\delta_{N}} + \delta_N^4 w,
+\end{equation*}
+and otherwise
+\begin{equation*}
+    F^{\BB_t}(w) = \frac{N-2}{N-1}f_1(w)+\frac{1}{N-1}f_N(w) = \frac{w^2}{2\delta_N} - w.
+\end{equation*}
+This is an OP($\delta_N$), which is divergent according to Theorem \ref{thm:DivOP}.
+
+\subsection{Proof of Theorem \ref{thm:MtvNonCvx}}
+We first introduce the following lemma.
+\begin{lemma}
+\label{lem:BoundStepMotiv}
+Given Assumption \ref{assmpt:Basic} is satisfied,  there exist positive constants $Q_1$ and $Q_2$ such that for any $t$, 
+\begin{equation*}
+    \EE[F(w_{t+1})] - \EE[F(w_t)] \leq -\frac{\alpha_t}{4\sqrt{G^2 + \epsilon}} \EE\left[\|\nabla F(w_t)\|_2^2\right] + Q_1 \alpha_t\lambda_t + Q_2 \alpha_t \sum_{k=1}^{t-1}\beta_1^{t-k}\lambda_k +Q_3 \alpha_t^2.
+\end{equation*}
+\end{lemma}
+\textbf{Proof:}
+Let us start from the application of $L$-smoothness of gradient of $F(w)$ as follows.
+\begin{eqnarray}
+\label{main}
+F(w_{t+1}) &\leq& F(w_t) + \nabla F(w_t) ^{\top} (w_{t+1} - w_t) + \frac{L}{2}\left\|w_{t+1} - w_t\right\|_2^2  \nonumber\\
+&=& F(w_t) -\frac{\alpha_t}{1-\beta_1^{t}} \nabla F(w_t) ^{\top} V_t^{-1/2} m_t + \frac{\alpha_t^2L}{2(1-\beta_1^t)^2} \left\|V_t^{-1/2} m_t \right\|_2^2 \nonumber\\
+&=& F(w_t) - \frac{\alpha_t(1-\beta_1)}{1-\beta_1^t} \nabla F(w_t)^{\top} V_t^{-1/2} \sum_{k=1}^t \beta_1^{t-k} g_k + \frac{\alpha_t^2 L}{2(1-\beta_1^t)^2}\left\| V_t^{-1/2} m_t\right\|_2^2 \nonumber\\
+&=& F(w_t) -  \alpha_t \nabla F(w_t)^{\top} V_t^{-1/2} g_t- \frac{\alpha_t (1-\beta_1)}{1-\beta_1^t}  \sum_{k=1}^{t-1} \beta_1^{t-k}\nabla F(w_t)^\top V_t^{-1/2}(g_k-g_t) \nonumber\\
+&& +  \frac{\alpha_t^2 L}{2(1-\beta_1^t)^2} \left\| V_t^{-1/2} m_t\right\|_2^2\nonumber\\
+&=& F(w_t) - \alpha_t\underbrace{ \nabla F(w_t)^{\top} V_t^{-1/2}\GG(w_t;\xi_t)}_{T_1}\nonumber\\
+&& -\frac{\alpha_t(1-\beta_1)}{1-\beta_1^t}\underbrace{ \sum_{k=1}^{t-1}\beta_1^{t-k} \nabla F(w_t)^{\top} V_t^{-1/2}\left(\GG(w_k;\xi_k) - \GG(w_k;\xi_t)\right)}_{T_2}\nonumber\\
+&&- \frac{\alpha_t(1-\beta_1)}{1-\beta_1^t} \underbrace{\sum_{k=1}^{t-1}\beta_1^{t-k} \nabla F(w_t)^{\top} V_t^{-1/2}\left(\GG(w_k;\xi_t) - \GG(w_t;\xi_t)\right) }_{T_3}\nonumber\\
+&&+ \frac{\alpha_t^2 L}{2(1-\beta_1^t)^2}\underbrace{\left\|V_t^{-1/2}m_t\right\|_2^2}_{T_4}.\nonumber
+\end{eqnarray}
+
+\textbf{\emph{Bounding $T_1$:}} We start from
+\begin{eqnarray}
+\EE[T_1] &=&  \EE\left[\left\| V_t^{-1/4} \nabla F(w_t)\right\|_2^2 \right] + \EE\left[ \nabla F(w_t) ^\top V_t^{-1/2}(\GG(w_t;\xi_t) - \nabla F(w_t))\right]\nonumber\\
+&\geq&  \frac{1}{2}\EE\left[\left\| V_t^{-1/4} \nabla F(w_t)\right\|_2^2 \right]-\frac{1}{2}\EE\left[ \left\| V_t^{-1/4} (\GG(w_t;\xi_t) - \nabla F(w_t))\right\|_2^2\right]\nonumber \\
+&\geq& \frac{1}{2\sqrt{G^2+\epsilon}} \EE\left[\left\|\nabla F(w_t)\right\|_2^2\right] - \frac{1}{2\sqrt{\epsilon}} \EE\left[\left\|\GG(w_t;\xi_t) - \nabla F(w_t) \right\|_2^2 \right],\nonumber
+\end{eqnarray}
+where the first inequality applies the Cauchy-Schwartz inequality and the second inequality is due to
+\begin{equation*}
+\left\| V_t^{-1/4} \nabla F(w_t)\right\|_2^2 = \sum_{i=1}^d \frac{\left(\nabla_i F(w_t)\right)^2}{\sqrt{\tilde v_{t,i} + \epsilon}} \geq \frac{1}{\sqrt{G^2+\epsilon}} \sum_{i=1}^d \left(\nabla_i F(w_t)\right)^2 = \frac{1}{\sqrt{G^2 + \epsilon}} \left\| \nabla F(w_t)\right\|_2^2
+\end{equation*}
+and
+\begin{eqnarray}
+\left\| V_t^{-1/4} (\GG(w_t;\xi_t) - \nabla F(w_t))\right\|_2^2 &=& \sum_{i=1}^d \frac{\left( \nabla_i F(w_t) - \GG_i(w_t;\xi_t)\right)^2}{\sqrt{\tilde v_{t,i} + \epsilon}} \nonumber\\
+&\leq& \frac{1}{\sqrt{\epsilon}}\sum_{i=1}^d\left( \nabla_i F(w_t) - \GG_i(w_t;\xi_t)\right)^2 \nonumber\\
+&=& \frac{1}{\sqrt{\epsilon}}\left\| \GG(w_t;\xi_t) - \nabla F(w_t)\right\|_2^2.\nonumber
+\end{eqnarray}
+According to the unbiased assumption, we have
+\begin{equation}
+\label{BdNorm}
+\EE\left[\left\|\GG(w_t;\xi_t) - \nabla F(w_t) \right\|_2^2 \right] = \sum_{i=1}^d \EE\left[(\GG_i(w_t;\xi_t) - \nabla_i F(w_t))^2\right] = \sum_{i=1}^d \mathrm{Var}(\GG_i(w_t;\xi_t)) \leq d\lambda_t.
+\end{equation}
+Then we can lower bound the expectation of $T_1$ as
+\begin{equation}
+    \label{MtvT1}
+    \EE[T_1] \geq \frac{1}{2\sqrt{G^2+\epsilon}} \EE\left[\left\|\nabla F(w_t)\right\|_2^2\right] - \frac{d}{2\sqrt{\epsilon}}\lambda_t.
+\end{equation}
+
+\textbf{\emph{Bounding $T_2$:}}
+Notice that for two random vectors $X$ and $Y$, and a constant $a$ we have
+$$\left\|aX+\frac{1}{a}Y\right\|_2^2 = a^2\|X\|_2^2 + \frac{1}{a^2}\|Y\|_2^2 + 2 Y^\top X,$$
+and thus
+$$\EE\left[Y^\top X\right] \geq -\frac{a^2}{2}\EE[\|X\|_2^2] - \frac{1}{2a^2}\EE[\|Y\|_2^2].$$
+If $\FF_k = \{\xi_1,\ldots,\xi_{k-1}\}$, then $w_k$ is known given $\FF_k$. We then have
+\begin{eqnarray}
+\EE\left[T_2\right] &=& \sum_{k=1}^{t-1} \beta_1^{t-k} \EE\left[\nabla F(w_t)^{\top} V_{t}^{-1/2}\left(\GG(w_k;\xi_k)-\GG(w_k;\xi_t) \right)\right]\nonumber\\
+&=& \sum_{k=1}^{t-1} \beta_1^{t-k}\EE\left[ \EE\left[\nabla F(w_t)^{\top} V_{t}^{-1/2}\left(\GG(w_k;\xi_k)-\GG(w_k;\xi_t) \right)\left|\FF_k\right.\right]\right]\nonumber\\
+&\geq& -\frac{1}{2}\sum_{k=1}^{t-1} \beta_1^{t-k} \EE\left[ a^2\EE\left[\|V_t^{-1/2}\nabla F(w_t) \|_2^2\left|\FF_k\right.\right] + \frac{1}{a^2}\EE\left[\left\|\GG(w_k;\xi_k)-\GG(w_k;\xi_t)\right\|_2^2\left|\FF_k\right.\right] \right]\nonumber\\
+&\geq& -\frac{1}{2}\sum_{k=1}^{t-1} \beta_1^{t-k}\left\{\frac{a^2}{\epsilon} \EE\left[ \left\|\nabla F(w_t)\right\|_2^2\right] + \frac{1}{a^2}\EE\left[ \EE\left[ \left\|\GG(w_k;\xi_k)-\GG(w_k;\xi_t)\right\|_2^2\left|\FF_k\right.\right]\right] \right\}\nonumber\\
+&=& -\frac{1}{2} \sum_{k=1}^{t-1} \beta_1^{t-k}\left\{\frac{a^2}{\epsilon} \EE\left[ \left\|\nabla F(w_t)\right\|_2^2\right] + \frac{2}{a^2}\EE\left[ \EE\left[ \left\|\nabla \GG(w_k;\xi_k) - \nabla F(w_k)\right\|_2^2\left|\FF_k\right.\right]\right] \right\}\nonumber\\
+&\geq& -\frac{a^2}{2\epsilon} \frac{1}{1-\beta_1} \EE\left[ \left\|\nabla F(w_t)\right\|_2^2\right] - \frac{1}{a^2} \sum_{k=1}^{t-1} \beta_1^{t-k} \EE\left[ \left\|\nabla \GG(w_k;\xi_k) - \nabla F(w_k)\right\|_2^2\right]\nonumber\\
+&\geq& -\frac{a^2}{2\epsilon} \frac{1}{1-\beta_1} \EE\left[ \left\|\nabla F(w_t)\right\|_2^2\right] - \frac{d}{a^2} \sum_{k=1}^{t-1} \beta_1^{t-k}\lambda_k\nonumber
+\end{eqnarray}
+for any positive constant $a$, where the third equality holds because $\GG(w_k;\xi_k)$ and $\GG(w_k;\xi_t)$ are i.i.d. given $\FF_k$, and thus
+\begin{eqnarray}
+    \EE\left[\left\|\GG(w_k;\xi_k)-\GG(w_k;\xi_t)\right\|_2^2\left|\FF_k\right.\right] &=& \EE\left[\left\|\GG(w_k;\xi_k)-\nabla F(w_k)\right\|_2^2\left|\FF_k\right.\right] +  \EE\left[\left\|\GG(w_k;\xi_t)-\nabla F(w_k)\right\|_2^2\left|\FF_k\right.\right]\nonumber\\
+    && - 2  \EE\left[\left(\GG(w_k;\xi_k)-\nabla F(w_k)\right)\left|\FF_k\right.\right]^{\top} \EE\left[\left(\GG(w_k;\xi_t)-\nabla F(w_k)\right)\left|\FF_k\right.\right]\nonumber\\
+    &=& 2 \EE\left[\left\|\GG(w_k;\xi_k)-\nabla F(w_k)\right\|_2^2\left|\FF_k\right.\right].\nonumber
+\end{eqnarray}
+The last inequality applies (\ref{BdNorm}).
+
+
+ If $a = \sqrt{\epsilon(1-\beta_1)/2\sqrt{G^2+\epsilon}}$, then we have
+\begin{eqnarray}
+\label{MtvT2}
+\EE[T_2] \geq -\frac{1}{4\sqrt{G^2+\epsilon}}\EE\left[\left\|\nabla F(w_t)\right\|_2^2\right] - \frac{2d\sqrt{G^2+\epsilon}}{\epsilon (1-\beta_1)}\sum_{k=1}^{t-1} \beta_1^{t-k}\lambda_k.
+\end{eqnarray}
+
+\textbf{\emph{Bounding $T_3$:}} We derive
+\begin{eqnarray}
+T_3 
+&=& \sum_{k=1}^{t-1} \beta_1^{t-k} \nabla F(w_t) V_{t}^{-1/2} \left(\GG(w_k;\xi_t)-\GG(w_t;\xi_t) \right) \nonumber \\
+&\geq& -\sum_{k=1}^{t-1} \beta_1^{t-k} \left\|\nabla F(w_t) V_{t}^{-1/2}\right\|_2 \left\|\GG(w_k;\xi_t)-\GG(w_t;\xi_t)  \right\|_2 \nonumber \\
+&\geq& - \frac{LG}{\sqrt{\epsilon}}\sum_{k=1}^{t-1} \beta_1^{t-k}\|w_{t}-w_k\|\nonumber\\
+&=& - \frac{LG}{\sqrt{\epsilon}}\sum_{k=1}^{t-1} \beta_1^{t-k}\left\|\sum_{j=k}^{t-1} \alpha_j V_{j}^{-1/2}\tilde m_j\right\|_2\nonumber\\
+&\geq& -\frac{LG}{\sqrt{\epsilon}} \sum_{k=1}^{t-1} \beta_1^{t-k}\sum_{j=k}^{t-1} \alpha_j\left\| V_j^{-1/2} \tilde m_j\right\|_2\nonumber\\
+&\geq& - \frac{LG^2}{\epsilon\sqrt{1-\beta_1}} \sum_{k=1}^{t-1}\sum_{j=k}^{t-1} \beta_1^{t-k}\alpha_j\nonumber\\
+&=& -\frac{LG^2}{\epsilon\sqrt{1-\beta_1}} \sum_{j=1}^{t-1} \alpha_j \sum_{k=1}^{j} \beta_1^{t-k}\nonumber\\
+&\geq& -\frac{LG^2}{\epsilon(1-\beta_1)^{3/2}}\sum_{j=1}^{t-1} \alpha_j \beta_1^{t-j}\nonumber \\
+&\geq& -\frac{LG^2\bar C}{\epsilon(1-\beta_1)^{3/2}}\alpha_t,\label{MtvT3}
+\end{eqnarray}
+where the first inequality is the Cauchy-Schwartz inequality, the second inequality applies $L$ smoothness of $G(\cdot;\xi)$ for any $\xi$, the forth inequality holds because
+\begin{eqnarray}
+\left\|V_j^{-1/2} \tilde m_j\right\|_2 = \sqrt{\frac{1}{1-\beta_1^j} \sum_{i=1}^d  \frac{m_{j,i}^2}{v_{j,i} + \epsilon}}\leq \frac{G}{\sqrt{\epsilon(1-\beta_1)}}\nonumber
+\end{eqnarray}
+and the last inequality comes from Lemma \ref{lem:sumbetaalpha}.
+
+\textbf{\emph{Bounding $T_4$:}}
+It is easy to show that
+\begin{eqnarray}
+\label{MtvT4}
+T_4 = \sum_{i=1}^d \frac{m_{t,i}^2}{v_{t,i} + \epsilon} \leq \frac{G^2 }{\epsilon }.
+\end{eqnarray}
+
+According to the bounds in (\ref{MtvT1}), (\ref{MtvT2}), (\ref{MtvT3}) and (\ref{MtvT4}),we get
+\begin{eqnarray}
+\EE[F(w_{t+1})] - \EE[F(w_t)] &\leq& -\alpha_t  \left\{\frac{1}{2\sqrt{G^2+\epsilon}} \EE\left[\left\|\nabla F(w_t)\right\|_2^2\right] - \frac{d}{2\sqrt{\epsilon}}\lambda_t \right\} \nonumber\\
+&&-\frac{\alpha_t(1-\beta_1)}{1-\beta_1^t}\left\{ -\frac{1}{4\sqrt{G^2+\epsilon}}\EE\left[\left\|\nabla F(w_t)\right\|_2^2\right] - \frac{2d\sqrt{G^2+\epsilon}}{\epsilon (1-\beta_1)}\sum_{k=1}^{t-1} \beta_1^{t-k}\lambda_k\right\} \nonumber\\
+&& + \frac{LG^2\bar C}{\epsilon\sqrt{1-\beta_1}(1-\beta_1^t)}\alpha_t^2 + \frac{LG^2}{2\epsilon(1-\beta_1^t)^2} \alpha_t^2\nonumber\\
+&\leq& -\alpha_t \frac{1}{4\sqrt{G^2+\epsilon}}\EE\left[\left\|\nabla F(w_t)\right\|^2_2\right] + \frac{d}{2\sqrt{\epsilon}} \alpha_t\lambda_t + \frac{2d\sqrt{G^2+\epsilon}}{\epsilon(1-\beta_1)}\alpha_t\sum_{k=1}^{t-1}\beta_1^{t-k}\lambda_k\nonumber\\
+&&+\left\{\frac{LG^2\bar C}{\epsilon(1-\beta_1)^{3/2}} + \frac{LG^2}{2\epsilon(1-\beta_1)^2} \right\}\alpha_t^2.\nonumber
+\end{eqnarray}
+Letting
+\begin{eqnarray}
+Q_1&=& \frac{d}{2\sqrt{\epsilon}}\nonumber\\
+Q_2&=& \frac{2d\sqrt{G^2+\epsilon}}{\epsilon(1-\beta_1)}\nonumber\\
+Q_3 &=& \frac{LG^2\bar C}{\epsilon(1-\beta_1)^{3/2}} + \frac{LG^2}{2\epsilon(1-\beta_1)^2} \nonumber
+\end{eqnarray}
+completes the proof.
+
+\textbf{Proof of Theorem \ref{thm:MtvNonCvx}:} According to Lemma \ref{lem:BoundStepMotiv}, we have
+\begin{eqnarray}
+F_{\mathrm{inf}} - F(w_1) &\leq& \EE[F(w_{T+1})] - F(w_1) \nonumber\\
+&=& \sum_{t=1}^T \EE[F(w_{t+1})] - \EE[F(w_t)]\nonumber\\
+&\leq& -\frac{1}{4\sqrt{G^2 + \epsilon}} \sum_{i=1}^T \alpha_t \EE\left[\|\nabla F(w_t)\|_2^2\right] + Q_1\sum_{i=1}^T \alpha_t\lambda_t + Q_2 \sum_{i=1}^T \alpha_t \sum_{k=1}^{t-1}\beta_1^{t-k}\lambda_k\nonumber\\
+&& +Q_3 \sum_{i=1}^{T}\alpha_t^2.\nonumber
+\end{eqnarray}
+Then we obtain
+\begin{eqnarray}
+\frac{1}{4\sqrt{G^2+\epsilon}}\sum_{t=1}^T \alpha_t \EE\left[\|\nabla F(w_t)\|_2^2\right] &\leq& F(w_1) - F_{\mathrm{inf}} +Q_1 \sum_{t=1}^T \alpha_t\lambda_t \nonumber\\
+&&+Q_2 \sum_{t=1}^T \alpha_t \sum_{k=1}^{t-1}\beta_1^{t-k}\lambda_k + Q_3\sum_{t=1}^T \alpha_t^2\nonumber\\
+&\leq&F(w_1) - F_{\mathrm{inf}} +Q_1 \sum_{t=1}^T \alpha_t\lambda_t \nonumber\\
+&&+Q_2 \sum_{k=1}^T \lambda_k \sum_{t=k}^{T}\beta_1^{t-k}\alpha_t +  Q_3\sum_{t=1}^T \alpha_t^2 \nonumber\\
+&\leq &F(w_1) - F_{\mathrm{inf}} +Q_1 \sum_{t=1}^T \alpha_t\lambda_t \nonumber\\
+&&+\frac{Q_2}{1-\beta_1} \sum_{k=1}^T \lambda_k \alpha_k +  Q_3\sum_{t=1}^T \alpha_t^2 .\nonumber
+\end{eqnarray}
+Noticing that the left-hand side can be bounded as
+\begin{equation}
+    \sum_{t=1}^T \alpha_t \EE\left[\left\|\nabla F(w_t)\right\|_2^2\right] \geq \sum_{t=1}^T \alpha_t \min_{1\leq t\leq T} \EE\left[\left\|\nabla F(w_t)\right\|_2^2\right],\nonumber
+\end{equation}
+we obtain
+\begin{eqnarray}
+\min_{1\leq t \leq T} \EE\left[\left\|\nabla F(w_t)\right\|_2^2\right] &\leq& \frac{4\sqrt{G^2+\epsilon}}{\sum_{t=1}^T \alpha_t} + 4\sqrt{G^2+\epsilon}\left(Q_1 + \frac{Q_2}{1-\beta_2}\right)\frac{\sum_{t=1}^T \lambda_t\alpha_t}{\sum_{t=1}^T\alpha_t}\nonumber\\
+&&+ 4\sqrt{G^2+\epsilon} Q_3 \frac{\sum_{t=1}^T \alpha_t^2}{\sum_{t=1}^T \alpha_t}\nonumber.
+\end{eqnarray}
+
+\subsection{Proof of Theorem \ref{thm:ResetBetter}}
+ Applying L-smoothness of gradients of $F$ and strong convexity of $F$, we have
+\begin{eqnarray}
+F\left(\hat w^{(2)}_2\right) &\geq& F\left(w^{(2)}_1\right) + F'\left(w^{(2)}_1\right)\left(\hat w^{(2)}_2 - w^{(2)}_1\right) + \frac{c}{2}\left(\hat w^{(2)}_2 - w^{(2)}_1\right)^2\nonumber\\
+F\left( w^{(2)}_2\right) &\leq& F\left(w^{(2)}_1\right) + F'\left(w^{(2)}_1\right)\left( w^{(2)}_2 - w^{(2)}_1\right) + \frac{L}{2}\left( w^{(2)}_2 - w^{(2)}_1\right)^2.\nonumber
+\end{eqnarray}
+By definition, we have
+\begin{eqnarray}
+F\left(\hat w^{(2)}_2\right) - F\left( w^{(2)}_2\right) &\geq& F'\left(w^{(2)}_1\right)\left(\hat w^{(2)}_2 - w^{(2)}_2\right) + \frac{c}{2}\left(\hat w^{(2)}_2 - w^{(2)}_1\right)^2 - \frac{L}{2}\left( w^{(2)}_2 - w^{(2)}_1\right)^2\nonumber\\
+&=& F'\left(w^{(2)}_1\right) \left( \alpha_2\frac{\widetilde m^{(2)}_1}{\sqrt{\widetilde v^{(2)}_1 + \epsilon}} - \alpha_2\frac{\hat{\widetilde m}^{(2)}_1}{\sqrt{\hat{\widetilde v}^{(2)}_1 + \epsilon}}\right) + \frac{c\alpha_2^2}{2} \frac{\hat{\widetilde m}^{(2)}_1}{\hat{\widetilde v}^{(2)}_1 + \epsilon} - \frac{L\alpha_2^2}{2} \frac{{\widetilde m}^{(2)}_1}{{\widetilde v}^{(2)}_1 + \epsilon}\nonumber\\
+&=& \alpha_2  F'\left(w^{(2)}_1\right) \left( \frac{ F'\left(w^{(2)}_1\right)}{\sqrt{Q_3}} -\gamma \frac{ (1-\beta_1)F'\left(w^{(2)}_1\right) + \beta_1 m^{(1)}_{m+1} }{\sqrt{Q_4}}\right) \nonumber\\
+&& + \frac{c\alpha_2^2\gamma^2}{2}\frac{ \left( (1-\beta_1)F'\left(w^{(2)}_1\right) + \beta_1 m^{(1)}_2 \right)^2}{Q_4} - \frac{L\alpha_2^2}{2}  \frac{ \left(F'\left(w^{(2)}_1\right)\right)^2}{Q_3} \nonumber
+\end{eqnarray}
+where
+\begin{eqnarray}
+Q_3 &=& \widetilde v^{(2)}_1 + \epsilon \nonumber\\
+Q_4 &=& \hat{\widetilde v}^{(2)}_1 + \epsilon \nonumber\\
+\gamma &=& \frac{1}{1-\beta_1^{m+1}}.\nonumber
+\end{eqnarray}
+Thus we have
+\begin{eqnarray}
+F\left(\hat w^{(2)}_2\right) - F\left( w^{(2)}_2\right)& \geq &  \left(F'\left(w^{(2)}_1\right)\right)^2 q\left( \frac{m^{(1)}_{m+1}}{F'\left(w^{(2)}_{1}\right)}\right)\nonumber
+\end{eqnarray}
+where $q(x) = Q_5 x^2 + Q_6 x + Q_7$ is a function with parameters
+\begin{eqnarray}
+Q_5 &=& \frac{c\alpha_2^2\gamma^2 \beta_1^2}{2Q_4} \nonumber\\
+Q_6 &=& \frac{c\alpha_2^2\gamma^2\beta_1(1-\beta_1)}{Q_4}  - \frac{\alpha_2 \gamma \beta_1}{\sqrt{Q_2}}\nonumber\\
+Q_7 &=& \frac{\alpha_2}{\sqrt{Q_3}} - \frac{\alpha_2\gamma(1-\beta_1)}{\sqrt{Q_4}} + \frac{c\alpha_2^2\gamma^2(1-\beta_1)^2}{2Q_4} - \frac{L\alpha_2^2}{2Q_3}.\nonumber
+\end{eqnarray}
+Apparently, from
+\begin{eqnarray}
+\widetilde v_1^{(2)} &=& \left(g_1^{(2)}\right)^2\leq G^2\nonumber\\
+\hat{\widetilde v}_1^{(2)} &=& \frac{1-\beta_1}{1-\beta_2^{m+1}} \left(\sum_{k=1}^m \beta_2^{m + 1 - k} \left(g_k^{(1)}\right)^2 + \left(g_1^{(2)}\right)^2\right) \leq \frac{1-\beta_1}{1-\beta_2^{m+1}} \left(\sum_{k=1}^m \beta_2^{m + 1 - k}  + 1\right)G^2 = G^2\nonumber,
+\end{eqnarray}
+we have
+\begin{eqnarray}
+\epsilon \leq &Q_3& \leq \epsilon + G^2\nonumber\\
+\epsilon \leq &Q_4& \leq \epsilon + G^2.\nonumber
+\end{eqnarray}
+
+Noticing that 
+\begin{eqnarray}
+\Delta &=& Q_6^2 - 4Q_5Q_7\nonumber\\
+&=& \frac{\alpha_2^2\gamma^2\beta_1^2}{Q_4}\left(1 - \frac{2c\alpha_2}{\sqrt{Q_3}} + \frac{cL\alpha_2^2}{Q_3}\right)\nonumber\\
+&>& \frac{\alpha_2^2\gamma^2 \beta_1^2}{Q_4}\left(1 - \frac{2c\alpha_2}{\sqrt{Q_3}} + \frac{c^2\alpha_2^2}{Q_3}\right)\nonumber\\
+&=&\frac{\alpha_2^2\gamma^2 \beta_1^2}{Q_4}\left(1-\frac{c\alpha_2}{\sqrt{Q_3}}\right)^2\geq 0, \nonumber
+\end{eqnarray}
+where the first inequality uses the property of the strong convexity parameter and the L-smoothness gradient parameter $c<L$, we have that there exists 
+\begin{eqnarray}
+x_1 &=& \frac{-Q_6 + \sqrt{\Delta}}{2Q_5}\nonumber\\
+x_2 &=& \frac{-Q_6 - \sqrt{\Delta}}{2Q_5} \nonumber
+\end{eqnarray}
+such that $q(x_1)=q(x_2)=0$. We claim that $|x_1|\leq 1$ and $|x_2|\leq 1$, which is implied by
+\begin{equation}
+\label{BdSqrtDelta}
+\sqrt{\Delta} \leq \min\{ 2Q_5 + Q_6, 2Q_5 - Q_6\}.
+\end{equation}
+We notice that
+\begin{eqnarray}
+2Q_5 + Q_6 &=& \frac{\alpha_2 \gamma \beta_1}{\sqrt{Q_4}}\left( \frac{c
+\alpha_2 \gamma}{\sqrt{Q_4}} -1\right)\nonumber\\
+2Q_5 - Q_6 &=&  \frac{\alpha_2 \gamma \beta_1}{\sqrt{Q_4}}
+\left(\frac{c\alpha_2\gamma(2\beta_1-1)}{\sqrt{Q_4}} +1\right)\nonumber
+\end{eqnarray}
+and
+\begin{eqnarray}
+\Delta &\leq& \frac{\alpha_2^2 \gamma^2 \beta_1^2}{Q_4}\left(1 - \frac{2L\alpha_2}{\sqrt{Q_3}} + \frac{L^2 \alpha_2^2}{Q_3}\right)\nonumber\\
+&=& \frac{\alpha_2^2 \gamma^2 \beta_1^2}{Q_4}\left(1-\frac{L\alpha_2}{\sqrt{Q_3}}\right)^2\nonumber
+\end{eqnarray}
+where the inequality holds according to Assumption \ref{assmpt:Noreset} 
+$
+    L\alpha_2 \geq 2\sqrt{G^2 + \epsilon} \geq 2 \sqrt{Q_3}.
+$
+Thus we have
+\begin{equation*}
+    \sqrt{\Delta} \leq \frac{\alpha_2\gamma\beta_1}{\sqrt{Q_4}} \left(\frac{L\alpha_2}{\sqrt{Q_3}} - 1\right)
+    \leq \frac{\alpha_2\gamma\beta_1}{\sqrt{Q_4}} \left(\frac{c\alpha_2\gamma(2\beta_1-1)}{\sqrt{Q_4}} - 1\right)
+    \leq \min\{2Q_5+Q_6, 2Q_5 - Q_6\},
+\end{equation*}
+where the second inequality holds according to Assumption \ref{assmpt:Noreset}, $
+\frac{L}{c} \leq \frac{2\beta_1-1}{1-\beta_1^{m+1}} \sqrt{\frac{\epsilon}{G+\epsilon}} \leq \frac{2\beta_1-1}{1-\beta_1^{m+1}} \sqrt{\frac{Q_3}{Q_4}}$.
+
+Hence we obtain (\ref{BdSqrtDelta}), which implies that $q(x)\geq 0$ where $|x|\geq1$. As we assume
+\begin{equation*}
+   \left|m^{(1)}_{m+1}\right| \geq \left|F'\left(w^{(2)}_{1}\right)\right|,
+\end{equation*}
+we have
+\begin{equation*}
+    F\left(\hat w^{(2)}_2\right) - F\left( w^{(2)}_2\right)\geq 0,
+\end{equation*}
+which finishes the proof.
+
+\subsection{Proof of Theorem \ref{thm:VRStrCvx} and Theorem \ref{thm:VRNonCvx}}
+We start proving the following lemmas.
+\begin{lemma}
+\label{lem:BdMV}
+Given Assumption \ref{assmpt:VRADAM}, we have that for any $1\leq k\leq m$ and $1\leq t\leq T$, the ADAM states in Algorithm \ref{alg:VRADAM} with option A satisfy
+\begin{eqnarray}
+\left\|m_k^{(t)}\right\|_2 &\leq& 3G,\nonumber\\
+\left\|v_k^{(t)}\right\|_2 &\leq& 9G^2.\nonumber
+\end{eqnarray}
+\end{lemma}
+
+\textbf{Proof:} By definition, we have
+\begin{eqnarray}
+m_k^{(t)} &=& (1-\beta_1) \sum_{j=1}^{k}\beta_1^{k-j} g_j^{(t)}\nonumber\\
+v_k ^{(t)} &=& (1-\beta_2) \sum_{j=1}^{k} \beta_2^{k-j} g_j^{(t)}\odot g_j^{(t)}.\nonumber
+\end{eqnarray}
+Applying the Cauchy-Schwartz inequality, we obtain
+\begin{eqnarray}
+\left\|m_k^{(t)}\right\|_2 &\leq& (1-\beta_1) \sum_{j=1}^k \beta_1^{k-j} \left\|g_j^{(t)}\right\|_2 \nonumber\\
+&\leq& (1-\beta_1) \sum_{j=1}^k \beta_1^{k-j} \left(\left\|\nabla F^{\BB_j^{(t)}}\left(w_j^{(t)}\right)\right\|_2 + \left\|\nabla F^{\BB_j^{(t)}}\left(\widetilde w_t\right)\right\|_2 + \left\|\nabla F\left(\widetilde w_t\right)\right\|_2\right)\nonumber\\
+&\leq& (1-\beta_1) \sum_{j=1}^k\beta_1^{k-j} 3G \leq 3G\nonumber
+\end{eqnarray}
+and
+\begin{eqnarray}
+\left\|v_k^{(t)}\right\|_2 &\leq& (1-\beta_2)\sum_{j=1}^k \beta_2^{k-j} \left\|g_j^{(t)}\odot g_j^{(t)}\right\|_2 \nonumber\\
+&=&  (1-\beta_2)\sum_{j=1}^k \beta_2^{k-j} \left\|g_j^{(t)}\right\|_2^2 \nonumber\\
+&\leq&(1-\beta_2) \sum_{j=1}^k \beta_2^{k-j} \left(\left\|\nabla F^{\BB_j^{(t)}}\left(w_j^{(t)}\right)\right\|_2 + \left\|\nabla F^{\BB_j^{(t)}}\left(\widetilde w_t\right)\right\|_2 + \left\|\nabla F\left(\widetilde w_t\right)\right\|_2\right)^2\nonumber\\
+&\leq&(1-\beta_2)\sum_{j=1}^k \beta_2^{k-j} 9G^2 \leq 9G^2.\nonumber
+\end{eqnarray}
+\begin{lemma}
+\label{lem:BoundStepVR}
+Given Assumption \ref{assmpt:VRADAM}, there exist positive constants $Q_8$ and $Q_9$ such that Algorithm \ref{alg:VRADAM} with option A satisfies that for any $t$, 
+\begin{equation*}
+F(\widetilde w_{t+1}) - F(\widetilde w_t) \leq - Q_8 \alpha_t m \left\|\nabla F(\widetilde w_t)\right\|_2^2 + Q_9 \alpha_t^2
+\end{equation*}
+holds almost surely.
+\end{lemma}
+\textbf{Proof:}
+We start from the application of $L$-smoothness of gradient of $F(w)$ as follows
+\begin{eqnarray}
+F(\widetilde{w}_{t+1}) &\leq& F(\widetilde{w}_t) + \nabla F(\widetilde{w}_t) ^\top (\widetilde{w}_{t+1} - \widetilde{w}_t) + \frac{L}{2}\left\|\widetilde{w}_{t+1} - \widetilde{w}_t\right\|_2^2 \nonumber\\
+&=& F(\widetilde{w}_t) + \nabla F(\widetilde{w}_t) ^\top \sum_{k=1}^{m} \left(w^{(t)}_{k+1} - w^{(t)}_{k}\right) + \frac{L}{2}\left\|\sum_{k=1}^{m} \left(w^{(t)}_{k+1} - w^{(t)}_{k}\right)\right\|_2^2\nonumber \\
+&=& F(\widetilde w_{t}) -\alpha_t \nabla F(\widetilde w_t)^\top\sum_{k=1}^{m} \left(V_k^{(t)}\right)^{-1/2} \widetilde m_k^{(t)} + \frac{\alpha_t^2L}{2}\left\|\sum_{k=1}^{m}\left(V_k^{(t)}\right)^{-1/2} \widetilde m_k^{(t)}\right\|_2^2.\nonumber
+\end{eqnarray}
+By definition and the resetting option, we have
+\begin{eqnarray}
+\widetilde m_k^{(t)} = \frac{1-\beta_1}{1-\beta_1^k} \left(V_k^{(t)}\right)^{-1/2} \sum_{j=1}^k \beta_1^{k-j} g_j^{(t)}\nonumber,
+\end{eqnarray}
+and thus
+\begin{eqnarray}
+F(\widetilde w_{t+1})&\leq& F(\widetilde w_t) - \alpha_t(1-\beta_1) \nabla F(\widetilde w_t)^{\top}\sum_{k=1}^{m}\frac{1}{1-\beta_1^{k}} \left(V_k^{(t)}\right)^{-1/2} \sum_{j=1}^k \beta_1^{k-j} g_j^{(t)}\nonumber\\
+&&+ \frac{\alpha_t^2L}{2}\left\|\sum_{k=1}^{m}\left(V_k^{(t)}\right)^{-1/2} \widetilde m_k^{(t)}\right\|_2^2\nonumber\\ 
+&=&  F(\widetilde w_t) - \alpha_t (1-\beta_1)\nabla F(\widetilde w_t)^{\top}\sum_{j=1}^{m} \left(\sum_{k=j}^{m} \frac{\beta_1^{k-j}}{1-\beta_1^k} \left(V_k^{(t)}\right)^{-1/2}\right) g_j^{(t)} 
+\nonumber\\
+&& +  \frac{\alpha_t^2L}{2}\left\|\sum_{k=1}^{m} \left(V_k^{(t)}\right)^{-1/2} \widetilde m_k^{(t)}\right\|_2^2\nonumber\\
+&=& F(\widetilde w_t) -\alpha_t (1-\beta_1)\nonumber\\
+&&\times \underbrace{\nabla F(\widetilde w_t)^{\top}\sum_{j=1}^{m} \left(\sum_{k=j}^{m} \frac{\beta_1^{k-j}}{1-\beta_1^k} \left(V_k^{(t)}\right)^{-1/2}\right) \left(\nabla F^{\BB^{(t)}_j}\left(w_j^{(t)}\right) - \nabla F^{\BB^{(t)}_j} \left(\widetilde w_t\right)\right)}_{T_1} \nonumber\\
+&& - \alpha_t(1-\beta_1) \underbrace{\nabla F(\widetilde w_t)^{\top}\left(\sum_{j=1}^{m} \sum_{k=j}^{m} \frac{\beta_1^{k-j}}{1-\beta_1^k} \left(V_k^{(t)}\right)^{-1/2}\right) \nabla F(\widetilde w_t)}_{T_2}\nonumber\\
+&& +  \frac{\alpha_t^2L}{2}\underbrace{\left\|\sum_{k=1}^{m} \left(V_k^{(t)}\right)^{-1/2} \widetilde m_k^{(t)}\right\|_2^2}_{T_3} .\nonumber
+\end{eqnarray}
+\textbf{\emph{Bounding $T_1$}}: We have
+\begin{eqnarray}
+\label{T10}
+T_1 &\geq& -  \sum_{j=1}^{m} \left\| \sum_{k=j}^{m} \frac{\beta_1^{k-j}}{1-\beta_1^k} \left(V_k^{(t)}\right)^{-1/2}\nabla F(\widetilde w_t)\right\|_2\left\|\nabla F^{\BB^{(t)}_j}\left(w_j^{(t)}\right) - F^{\BB^{(t)}_j}(\widetilde w_t)\right\|_2.
+\end{eqnarray}
+The first thing to notice is that 
+\begin{eqnarray}
+\label{T11}
+\left\| \sum_{k=j}^{m} \frac{\beta_1^{k-j}}{1-\beta_1^k} \left(V_k^{(t)}\right)^{-1/2}\nabla F(\widetilde w_t)\right\|_2&\leq& \sum_{k=j}^{m} \frac{\beta_1^{k-j}}{1-\beta_1^k}\left\| \left(V_k^{(t)}\right)^{-1/2}\nabla F(\widetilde w_t)\right\|_2\nonumber\\
+&=&\sum_{k=j}^{m} \frac{\beta_1^{k-j}}{1-\beta_1^k}\sqrt{\sum_{i=1}^d \frac{\nabla_i F(\widetilde w_t)^2 }{v_{k,i}^{(t)} +\epsilon}} \nonumber\\
+&\leq& \sum_{k=j}^{m} \frac{\beta_1^{k-j}}{1-\beta_1^k} \frac{\left\|\nabla F(\widetilde w_t)\right\|_2}{\sqrt{\epsilon}}\nonumber\\
+&\leq& \frac{G}{\sqrt{\epsilon}}\sum_{k=j}^{m}\frac{\beta_1^{k-j}}{1-\beta_1^k} \nonumber\\
+&\leq& \frac{G}{\sqrt{\epsilon}} \frac{1}{1-\beta_1}\sum_{k=j}^{m} \beta_1^{k-j}\leq \frac{G}{(1-\beta_1)^2\sqrt{\epsilon}} ,
+\end{eqnarray}
+where the second inequality employs the assumption that the gradients of $F$ are bounded. Secondly, according to $L$-smoothness of gradients of every loss function, we derive
+\begin{eqnarray}
+\label{T12}
+\left\|\nabla F^{\BB^{(t)}_j}\left(w_j^{(t)}\right) - \nabla F^{\BB^{(t)}_j}\left(\widetilde w_t\right)\right\|_2 &\leq& L\left\|w_{j}^{(t)} - w_1^{(t)}\right\|_2 \nonumber\\
+&=& L \left\| \sum_{l=1}^{j-1} \alpha_t \left(V_l^{(t)}\right)^{-1/2} \widetilde m_l^{(t)}\right\|_2\nonumber\\
+&\leq& \alpha_t L \sum_{l=1}^{j-1} \left\| \left(V_l^{(t)}\right)^{-1/2} \widetilde m_l^{(t)}\right\|_2 \nonumber\\
+&=& \alpha_t L \sum_{l=1}^{j-1} \frac{1}{1-\beta_1^l} \sqrt{\sum_{i=1}^d \frac{\left(m_{l,i}^{(t)}\right)^{2}}{v_{l,i}^{(t)}+\epsilon }}\nonumber\\
+&\leq& \frac{\alpha_t L}{1-\beta_1}\sum_{l=1}^{j-1} \frac{\left\|m_l^{(t)}\right\|_2}{\sqrt{\epsilon}}\leq \frac{3GL}{(1-\beta_1)\sqrt{\epsilon}} (j-1) \alpha_t ,
+\end{eqnarray}
+where the first inequality applies the Cauchy-Schwartz inequality and the last one applies Lemma \ref{lem:BdMV}. By plugging equations (\ref{T11}) and (\ref{T12}) into equation (\ref{T10}), we obtain
+\begin{eqnarray}
+\label{T1}
+T_1 &\geq& - \sum_{j=1}^{m} \frac{3G^2L}{(1-\beta_1)^3\epsilon} (j-1) \alpha_t =- \frac{3G^2L}{2(1-\beta_1)^3\epsilon} m(m-1) \alpha_t.
+\end{eqnarray}
+\textbf{\emph{Bounding $T_2$}}: We have
+\begin{eqnarray}
+\label{T2}
+T_2 &=& \sum_{j=1}^{m}\sum_{k=j}^{m} \frac{\beta_1^{k-j}}{1-\beta_1^k} \nabla F(\widetilde w_t)^{\top} \left(V_k^{(t)}\right)^{-1/2} \nabla F(\widetilde w_t)\nonumber\\
+&=&  \sum_{j=1}^{m}\sum_{k=j}^{m} \frac{\beta_1^{k-j}}{1-\beta_1^k} \sum_{i=1}^d \frac{\nabla_i F(\widetilde w_t)^2}{\sqrt{v_{k,i}^{(t)} + \epsilon}}\nonumber\\
+&\geq& \sum_{j=1}^{m}\sum_{k=j}^{m} \beta_1^{k-j} \sum_{i=1}^d \frac{\nabla_i F(\widetilde w_t)^2 }{\sqrt{9G^2+\epsilon}}\nonumber\\
+&=& \frac{\|\nabla F(\widetilde w_t)\|_2^2}{\sqrt{9G^2 + \epsilon}} \sum_{j=1}^{m}\sum_{k=j}^{m}\beta_1^{k-j}\nonumber\\
+&\geq& \frac{\|\nabla F(\widetilde w_t)\|_2^2}{\sqrt{9G^2 + \epsilon}} \sum_{j=1}^{m}1\nonumber\\
+&=& \frac{1}{\sqrt{9G^2 + \epsilon}} m \left\|\nabla F(\widetilde w_t)\right\|_2^2.
+\end{eqnarray}
+\textbf{\emph{Bounding $T_3$:}} We obtain
+\begin{eqnarray}
+\label{T3}
+T_3 &\leq& \left(\sum_{k=1}^{m} \left\|\left(V_k^{(t)}\right)^{-1/2} \widetilde m_k^{(t)}\right\|_2\right)^2 \nonumber\\
+&=&\left( \sum_{k=1}^{m}\frac{1}{1-\beta_1^k}\sqrt{\sum_{i=1}^d \frac{\left(m_{k,i}^{(t)}\right)^{2}}{v_{k,i}^{(t)}+\epsilon} }\right)^2\nonumber\\
+&\leq& \left( \sum_{k=1}^{m} \frac{1}{\sqrt{\epsilon}} \left\|m_k^{(t)}\right\|_2\right)^2 \leq \left( \sum_{k=1}^{m}\frac{3G}{\sqrt{\epsilon}}\right)^2 \leq \frac{9G^2m^2}{\epsilon}.
+\end{eqnarray}
+In summary, we get
+\begin{eqnarray}
+\label{BoundDifference}
+F(\widetilde w_{t+1}) &\leq &F(\widetilde w_t)- \alpha_t \frac{m(1-\beta_1)}{\sqrt{9G^2+\epsilon}} \left\|\nabla F(\widetilde w_t)\right\|_2^2 + \frac{3G^2Lm(m-1)/(1-\beta_1)^2+9G^2Lm^2}{2\epsilon} \alpha_t^2 \nonumber\\
+&=& F(\widetilde w_t) - Q_8\alpha_t m \left\|\nabla F(\widetilde w_t)\right\|_2^2 + Q_9 \alpha_t^2,\nonumber
+\end{eqnarray}
+where
+\begin{eqnarray}
+Q_8 &=& \frac{1-\beta_1}{\sqrt{9G^2+\epsilon}}\nonumber\\
+Q_9 &=& \frac{3G^2Lm(m-1)/(1-\beta_1)^2+9G^2Lm^2}{2\epsilon}.\nonumber
+\end{eqnarray}
+\textbf{Proof of Theorem \ref{thm:VRStrCvx}:} If $F(w)$ is $c$-strongly convex, we have
+\begin{eqnarray}
+\left\|\nabla F(w)\right\|_2^2 \geq 2c\left(F(w) - F^*\right),\nonumber
+\end{eqnarray}
+and thus according to Lemma \ref{lem:BoundStepVR}, we have
+\begin{eqnarray}
+F(\widetilde w_{t+1}) \leq F(\widetilde w_t) - 2cQ_8\alpha_t m \left(F(w_t)-F^*\right) + Q_9 \alpha_t^2\nonumber,
+\end{eqnarray}
+which is equivalent to
+\begin{eqnarray}
+F(\widetilde w_{t+1}) - F^* \leq \left( 1 - \frac{C_2 m \alpha}{t}\right)\left(F(\widetilde w_t) - F^*\right) + Q_9 \alpha_t^2 \nonumber.
+\end{eqnarray}
+We obtain recursively
+\begin{eqnarray}
+F(\widetilde w_T) - F^* \leq \prod_{t=1}^{T-1}\left(1-\frac{C_2m\alpha}{t}\right) (F(\widetilde w_1) - F^*) + \sum_{t=1}^{T-1}\alpha_t \prod_{j=t+1}^{T-1} \left(1-\frac{C_2m\alpha}{j}\right). \nonumber
+\end{eqnarray}
+By definition, we have $C_2m\alpha<1$, and thus we can use Lemma \ref{lem:Recursive} to obtain
+\begin{equation}
+    F(\widetilde w_T) - F^* \leq \OO\left(T^{-C_2m\alpha}\right).\nonumber
+\end{equation}
+
+\textbf{Proof of Theorem \ref{thm:VRNonCvx}:} 
+Let us consider the set of indices $A=\{t\in\mathbb{N}:\left\|\nabla F(\widetilde w_t)\right\|=0\}$. If the set is infinite, there exists a sequence $\{t_k\}_{k=1}^{+\infty}$ such that $\|\nabla F(\widetilde w_{t_k})\|=0$ for all $k$. Then we have 
+$$\liminf_{t\to\infty} \left\|\nabla F(\widetilde w_t)\right\|_2 = 0.$$ 
+
+Otherwise, $A$ is finite, and thus its maximum exists. For all $t>\tau:=\max A$, we have $\left\| \nabla F(\tilde w_{t})\right\|_2>0$.
+Applying Lemma \ref{lem:BoundStepVR}, we have
+\begin{eqnarray}
+F(\widetilde w_{t+1}) - F(\widetilde w_{t}) \leq - \alpha_t Q_8 m\left\|\nabla F(\tilde w_t)\right\|_2^2 + Q_9 \alpha_t^2.\nonumber
+\end{eqnarray}
+Then it follows
+\begin{eqnarray}
+F_{\inf} - F(\widetilde w_{\tau+1})&\leq& F(\widetilde w_{T+1}) - F(\widetilde w_{\tau+1}) \nonumber\\
+&\leq& \sum_{t=\tau+1}^{T} -Q_8 m \alpha_t \left\|\nabla F(\widetilde w_t)\right\|_2^2 + Q_9\sum_{t=\tau+1}^T \alpha_t^2,\nonumber
+\end{eqnarray}
+and thus
+\begin{eqnarray}
+\min_{\tau+1 \leq t \leq T} \left\|\nabla F(\widetilde w_t)\right\|_2^2 \sum_{t=\tau+1}^T\alpha_t \leq \sum_{t=\tau+1}^T \alpha_t \left\|\nabla F(\widetilde w_t)\right\|_2^2 \leq \frac{F(\widetilde w_{\tau+1}) - F_{\inf}}{Q_8m} + \frac{Q_9}{Q_8m}\sum_{t=\tau+1}^T\alpha_t^2.\nonumber
+\end{eqnarray}
+Then, we have
+\begin{eqnarray}
+\min_{\tau+1\leq t \leq T} \left\|\nabla F(\widetilde w_t)\right\|_2^2 \leq \frac{1}{\sum_{t=\tau+1}^T \alpha_t} \left\{\frac{F(\widetilde w_{\tau+1}) - F_{\inf}}{Q_8m} + \frac{Q_9}{Q_8m}\sum_{t=\tau+1}^T\alpha_t^2\right\},\nonumber
+\end{eqnarray}
+which yields 
+\begin{eqnarray}
+\label{limmin}
+\lim_{T\to+\infty}\min_{\tau+1\leq t\leq T} \left\|\nabla F(\widetilde w_{t})\right\|_2^2 = 0.
+\end{eqnarray}
+
+ For all $r>\tau$, there must exists an $s>r$ such that
+\begin{eqnarray}
+\left\|\nabla F(\widetilde w_s) \right\|_2 < \left\|\nabla F(\widetilde w_{r})\right\|_2.\nonumber
+\end{eqnarray}
+Otherwise, if there exists an $r_0>\tau$, such that for all $s>r_0$ we have
+\begin{eqnarray}
+\left\|\nabla F(\widetilde w_s)\right\|_2\geq \left\|\nabla F(\widetilde w_{r_0})\right\|_2,\nonumber
+\end{eqnarray}
+then for all $T\geq r_0$, we have 
+\begin{eqnarray}
+\min_{\tau+1\leq t\leq T}\left\|\nabla F(\widetilde w_{t}) \right\|_2^2 = \min_{\tau+1\leq t\leq r_0} \left\|\nabla F(\widetilde w_{t})\right\|_2^2=A>0,\nonumber
+\end{eqnarray}
+which contradicts (\ref{limmin}), since A is a positive constant.
+
+Let $t_1 = \tau+1$ and for all $k\in\mathbb{N}$, let 
+$
+t_{k+1} = \inf \left\{s > t_{k}: \left\|\nabla F(\widetilde w_s) \right\|_2 < \left\|\nabla F(\widetilde w_{t_k})\right\|_2 \right\}.\nonumber
+$
+This implies a sub-sequence $\left\{\left\|\nabla F(\widetilde w_{t_k})\right\|_2\right\}_k$ of sequence $\left\{\left\|\nabla F(\widetilde w_{t})\right\|_2 \right\}_t$. Since
+\begin{eqnarray}
+\left\| \nabla F(\widetilde w_{t_k})\right\|_2 = \min_{\tau+1\leq t \leq t_k} \left\|\nabla F(\widetilde w_t)\right\|_2,\nonumber
+\end{eqnarray}
+by employing (\ref{limmin}), we have
+\begin{eqnarray}
+\lim_{k\to\infty}\left\| \nabla F(\widetilde w_{t_k})\right\|_2 = 0,\nonumber
+\end{eqnarray}
+which implies that 
+\begin{eqnarray}
+\liminf_{t\to\infty} \left\|\nabla F(\widetilde w_t)\right\| = 0.\nonumber
+\end{eqnarray}
+This completes the proof.
+\section{Experiments}
+\subsection{Network Structure}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{c|c|c|c}
+    \hline
+      Dataset   & Input dimension & Hidden dimension & Output Dimension\\\hline
+        CovType & 98 & 100 & 7\\ 
+        MNIST & 784 & 100 & 10\\ \hline
+    \end{tabular}
+    \caption{Feedforward network structure}
+    \label{tab:FFNStructure}
+\end{table}
+The feedforward networks used in the experiments have two fully connected layers with the dimensions described in Table \ref{tab:FFNStructure}.
+
+The structure of the CNN used in the experiments is described as follows. The CNN is mainly composed of two convolution layers, two max pooling layers and one fully connected layer. The kernel size of the convolution layers is 4 and the kernel size of the pooling layers is 2. The numbers of channels of the two convolution layers are 16 and 32, respectively, and the dimensions of the fully connected layer are 32 for input and 10 for output.
+
+\subsection{Additional Results}
+
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.4\textwidth]{Log_Emb_append.png}
+    \caption{Relative difference of VRADAM in classifying Embedded CIFAR10 with Logistic regression}
+\end{figure}
+
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.4\textwidth]{CNN_MNIST_append.png}
+    \caption{Relative difference of VRADAM in classifying MNIST with CNN}
+\end{figure}
+
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.4\textwidth]{FFN_MNIST_append.png}
+    \caption{Relative difference of VRADAM in classifying MNIST with FFN}
+\end{figure}
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{dev_CNN_MNIST_append.png}
+    \caption{Deviation of VRADAM and ADAM for MNIST with CNN}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{dev_FFN_MNIST_append.png}
+    \caption{Deviation of VRADAM and ADAM for MNIST with FFN}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{dev_Log_CovType_append.png}
+    \caption{Deviation of VRADAM and ADAM for CovType with logistic regression}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{dev_Log_Emb_append.png}
+    \caption{Deviation of VRADAM and ADAM for Embedded CIFAR-10 with logistic regression}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{dev_Log_MNIST_append.png}
+    \caption{Deviation of VRADAM and ADAM for MNIST with logistic regression}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{dev_Log_NI_append.png}
+    \caption{Deviation of VRADAM and ADAM for NSL-KDD with logistic regression}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{init_CNN_MNIST_append.png}
+    \caption{Sensitivity on initial point for MNIST with CNN}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{init_FFN_MNIST_append.png}
+    \caption{Sensitivity on initial point for MNIST with FFN}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{init_Log_Emb_append.png}
+    \caption{Sensitivity on initial point for Embedded CIFAR-10 with logistic regression}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{init_FFN_CovType_append.png}
+    \caption{Sensitivity on initial point for CovType with logistic regression}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{init_Log_MNISt_append.png}
+    \caption{Sensitivity on initial point for MNIST with logistic regression}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{init_Log_NI_append.png}
+    \caption{Sensitivity on initial point for NSL-KDD with logistic regression}
+\end{figure}
+\end{document}
+
+\begin{thebibliography}{}
+
+\bibitem[Alacaoglu et~al., 2020]{alacaoglu2020new}
+Alacaoglu, A., Malitsky, Y., Mertikopoulos, P., and Cevher, V. (2020).
+\newblock A new regret analysis for {ADAM}-type algorithms.
+\newblock In {\em International Conference on Machine Learning}.
+
+\bibitem[Blackard et~al., 1998]{Blackard1998CoverType}
+Blackard, J.~A., Dean, D.~J., and Anderson, C.~W. (1998).
+\newblock {UCI} machine learning repository: Covertype data set.
+\newblock \url{https://archive.ics.uci.edu/ml/datasets/covertype}.
+
+\bibitem[Bottou et~al., 2018]{bottou2018optimization}
+Bottou, L., Curtis, F.~E., and Nocedal, J. (2018).
+\newblock Optimization methods for large-scale machine learning.
+\newblock {\em Siam Review}, 60(2):223--311.
+
+\bibitem[De et~al., 2018]{de2018convergence}
+De, S., Mukherjee, A., and Ullah, E. (2018).
+\newblock Convergence guarantees for {RMS}prop and {ADAM} in non-convex
+  optimization and an empirical comparison to {N}esterov acceleration.
+\newblock {\em arXiv preprint arXiv:1807.06766}.
+
+\bibitem[Defazio et~al., 2014]{defazio2014saga}
+Defazio, A., Bach, F., and Lacoste-Julien, S. (2014).
+\newblock {SAGA}: A fast incremental gradient method with support for
+  non-strongly convex composite objectives.
+\newblock {\em Advances in {N}eural {I}nformation {P}rocessing {S}ystems}.
+
+\bibitem[Deng, 2012]{deng2012mnist}
+Deng, L. (2012).
+\newblock The {MNIST} database of handwritten digit images for machine learning
+  research.
+\newblock {\em IEEE Signal Processing Magazine}, 29(6):141--142.
+
+\bibitem[Dubois-Taine et~al., 2021]{dubois2021svrg}
+Dubois-Taine, B., Vaswani, S., Babanezhad, R., Schmidt, M., and Lacoste-Julien,
+  S. (2021).
+\newblock {SVRG} meets {AdaGrad}: Painless variance reduction.
+\newblock {\em arXiv preprint arXiv:2102.09645}.
+
+\bibitem[Duchi et~al., 2011]{duchi2011adaptive}
+Duchi, J., Hazan, E., and Singer, Y. (2011).
+\newblock Adaptive subgradient methods for online learning and stochastic
+  optimization.
+\newblock {\em Journal of {M}achine {L}earning {R}esearch}, 12(7).
+
+\bibitem[Fang and Klabjan, 2019]{fang2019convergence}
+Fang, B. and Klabjan, D. (2019).
+\newblock Convergence analyses of online adam algorithm in convex setting and
+  two-layer relu neural network.
+\newblock {\em arXiv preprint arXiv:1905.09356}.
+
+\bibitem[Goodfellow et~al., 2016]{Goodfellow-et-al-2016}
+Goodfellow, I., Bengio, Y., and Courville, A. (2016).
+\newblock {\em Deep Learning}.
+\newblock MIT Press.
+\newblock \url{http://www.deeplearningbook.org}.
+
+\bibitem[Guo et~al., 2021]{guo2021novel}
+Guo, Z., Xu, Y., Yin, W., Jin, R., and Yang, T. (2021).
+\newblock A novel convergence analysis for algorithms of the {ADAM} family.
+\newblock {\em arXiv preprint arXiv:2112.03459}.
+
+\bibitem[He et~al., 2016]{he2016deep}
+He, K., Zhang, X., Ren, S., and Sun, J. (2016).
+\newblock Deep residual learning for image recognition.
+\newblock In {\em Proceedings of the IEEE conference on {C}omputer {V}ision and
+  {P}attern {R}ecognition}.
+
+\bibitem[Hinton et~al., 2012]{hinton2012neural}
+Hinton, G., Srivastava, N., and Swersky, K. (2012).
+\newblock Neural networks for machine learning: lecture 6a overview of
+  mini-batch gradient descent.
+\newblock
+  \url{https://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf}.
+
+\bibitem[Johnson and Zhang, 2013]{johnson2013accelerating}
+Johnson, R. and Zhang, T. (2013).
+\newblock Accelerating stochastic gradient descent using predictive variance
+  reduction.
+\newblock {\em Advances in {N}eural {I}nformation {P}rocessing {S}ystems}.
+
+\bibitem[Kingma and Ba, 2015]{kingma2014adam}
+Kingma, D.~P. and Ba, J. (2015).
+\newblock {ADAM}: A method for stochastic optimization.
+\newblock {\em International Conference on Learning Representations}.
+
+\bibitem[Krizhevsky and Hinton, 2009]{krizhevsky2009learning}
+Krizhevsky, A. and Hinton, G. (2009).
+\newblock Learning multiple layers of features from tiny images.
+\newblock
+  \url{https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.222.9220&rep=rep1&type=pdf}.
+
+\bibitem[Le~Roux et~al., 2012]{le2013stochastic}
+Le~Roux, N., Schmidt, M., and Bach, F. (2012).
+\newblock A stochastic gradient method with an exponential convergence rate for
+  finite training sets.
+\newblock {\em Advances in {N}eural {I}nformation {P}rocessing {S}ystems}.
+
+\bibitem[Qian and Klabjan, 2020]{qian2020impact}
+Qian, X. and Klabjan, D. (2020).
+\newblock The impact of the mini-batch size on the variance of gradients in
+  stochastic gradient descent.
+\newblock {\em arXiv preprint arXiv:2004.13146}.
+
+\bibitem[Reddi et~al., 2018]{reddi2019convergence}
+Reddi, S.~J., Kale, S., and Kumar, S. (2018).
+\newblock On the convergence of {ADAM} and beyond.
+\newblock {\em International Conference on Learning Representations}.
+
+\bibitem[Schmidt et~al., 2017]{schmidt2017minimizing}
+Schmidt, M., Le~Roux, N., and Bach, F. (2017).
+\newblock Minimizing finite sums with the stochastic average gradient.
+\newblock {\em Mathematical Programming}, 162(1):83--112.
+
+\bibitem[Shi et~al., 2020]{shi2020rmsprop}
+Shi, N., Li, D., Hong, M., and Sun, R. (2020).
+\newblock {RMS}prop converges with proper hyper-parameter.
+\newblock In {\em International Conference on Learning Representations}.
+
+\bibitem[Tavallaee et~al., 2009]{tavallaee2009detailed}
+Tavallaee, M., Bagheri, E., Lu, W., and Ghorbani, A.~A. (2009).
+\newblock A detailed analysis of the {KDD} cup 99 data set.
+\newblock In {\em 2009 IEEE symposium on {C}omputational {I}ntelligence for
+  {S}ecurity and {D}efense {A}pplications}.
+
+\bibitem[Vaswani et~al., 2019]{vaswani2019fast}
+Vaswani, S., Bach, F., and Schmidt, M. (2019).
+\newblock Fast and faster convergence of {SGD} for over-parameterized models
+  and an accelerated perceptron.
+\newblock In {\em The 22nd International Conference on Artificial Intelligence
+  and Statistics}.
+
+\bibitem[Wang et~al., 2019]{wang2019sadam}
+Wang, G., Lu, S., Tu, W., and Zhang, L. (2019).
+\newblock {SADAM}: A variant of {ADAM} for strongly convex functions.
+\newblock {\em arXiv preprint arXiv:1905.02957}.
+
+\bibitem[Zaheer et~al., 2018]{zaheer2018adaptive}
+Zaheer, M., Reddi, S., Sachan, D., Kale, S., and Kumar, S. (2018).
+\newblock Adaptive methods for nonconvex optimization.
+\newblock {\em Advances in {N}eural {I}nformation {P}rocessing {S}ystems}.
+
+\bibitem[Zhou et~al., 2019]{zhou2018adashift}
+Zhou, Z., Zhang, Q., Lu, G., Wang, H., Zhang, W., and Yu, Y. (2019).
+\newblock {ADA}shift: Decorrelation and convergence of adaptive learning rate
+  methods.
+\newblock {\em International Conference on Learning Representations}.
+
+\bibitem[Zou et~al., 2019]{zou2019sufficient}
+Zou, F., Shen, L., Jie, Z., Zhang, W., and Liu, W. (2019).
+\newblock A sufficient condition for convergences of {ADAM} and {RMS}prop.
+\newblock In {\em Proceedings of the IEEE/CVF Conference on Computer Vision and
+  Pattern Recognition}.
+
+\end{thebibliography}

@@ -1,0 +1,1993 @@
+\documentclass[hidelinks]{article}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath,amsfonts,amssymb,amsthm}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+
+\usepackage{amsmath}
+\usepackage[nottoc,notlof,notlot]{tocbibind} 
+\renewcommand{\thesection}{\arabic{section}}
+\makeatletter
+\let\l@section\l@chapter
+\makeatother
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{hyperref} 
+%\usepackage[hidelinks]{hyperref}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{tcolorbox}
+\usepackage{amsthm}
+\usepackage{xcolor}
+\usepackage{float}
+\floatstyle{boxed} 
+\usepackage{thm-restate}
+\restylefloat{figure}
+\usepackage{upgreek}
+\usepackage{authblk}
+% \graphicspath{{C:/Users/Besitzer/Desktop}}
+%\usepackage[margin=0.75in]{geometry}
+\setcounter{tocdepth}{2}
+\newtheorem{theorem}{Theorem}
+\newtheorem{Definition}[theorem]{Definition}
+\newtheorem*{remark}{Remark}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{Proposition}[theorem]{Proposition}
+\newtheorem{Assumption}[theorem]{Assumption}
+\newcommand{\bigO}{\mathcal{O}}
+\DeclareMathOperator{\Tr}{Tr}
+\DeclareMathOperator{\myspan}{span}
+\DeclareMathOperator{\Gr}{Gr}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\dist}{dist}
+\DeclareMathOperator{\grad}{grad}
+\DeclareMathOperator{\Hess}{Hess}
+\DeclareMathOperator{\Exp}{Exp}
+\DeclareMathOperator{\Log}{Log}
+\DeclareMathOperator{\atan}{atan}
+\DeclareMathOperator{\vecop}{vec}
+\DeclareMathSymbol{\Gamma}{\mathord}{operators}{"00}
+\DeclareMathSymbol{\Delta}{\mathord}{operators}{"01}
+\DeclareMathSymbol{\Theta}{\mathord}{operators}{"02}
+\DeclareMathSymbol{\Lambda}{\mathord}{operators}{"03}
+\DeclareMathSymbol{\Xi}{\mathord}{operators}{"04}
+\DeclareMathSymbol{\Pi}{\mathord}{operators}{"05}
+\DeclareMathSymbol{\Sigma}{\mathord}{operators}{"06}
+\DeclareMathSymbol{\Upsilon}{\mathord}{operators}{"07}
+\DeclareMathSymbol{\Phi}{\mathord}{operators}{"08}
+\DeclareMathSymbol{\Psi}{\mathord}{operators}{"09}
+\DeclareMathSymbol{\Omega}{\mathord}{operators}{"0A}
+
+
+\title{Geodesic Convexity of the Symmetric Eigenvalue Problem and Convergence of Riemannian Steepest Descent}
+% \date{August 2021}
+\date{}
+\author{Foivos Alimisis  \hspace{4mm}  Bart Vandereycken }
+\affil{Department of Mathematics, University of Geneva}
+\begin{document}
+
+\maketitle
+
+
+\begin{abstract}    
+We study the convergence of the Riemannian steepest descent algorithm on the Grassmann manifold for minimizing the block version of the Rayleigh quotient of a symmetric and positive semi-definite matrix. Even though this problem is non-convex in the Euclidean sense and only very locally convex in the Riemannian sense, we discover a structure for this problem that is similar to geodesic strong convexity, namely, weak-strong convexity. This allows us to apply similar arguments from convex optimization when studying the convergence of the steepest descent algorithm but with initialization conditions that do not depend on the eigengap $\delta$. When $\delta>0$, we prove exponential convergence rates, while otherwise the convergence is algebraic. Additionally, we prove that this problem is geodesically convex in a neighbourhood of the global minimizer of radius $\bigO(\sqrt{\delta})$.
+\end{abstract}
+
+\input{01_introduction}
+
+\input{02_related_work}
+
+\input{03_grassmann}
+
+\input{04_cost_convexity}
+
+\input{05_algo_convergence}
+
+\input{06_discussion}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\bibliographystyle{plain} % We choose the "plain" reference style
+\bibliography{refs}
+
+\input{A_convex}
+
+
+\end{document}
+
+\section{Introduction}
+
+\hspace{4mm} We consider the problem of computing the top $k$ eigenvectors of a symmetric and positive semi-definite matrix $A \in \mathbb{R}^{n \times n}$, which has many applications in numerical linear algebra (low rank approximation), statistics (principal component analysis) and signal processing.
+
+We denote by $\lambda_1 \geq \lambda_2 \geq \cdots \geq \lambda_n$ the eigenvalues of $A$ counted with multiplicity and by $\delta:=\lambda_k-\lambda_{k+1}$ the eigengap  for some $k$ between $1$ and $n-1$. We also denote $\Lambda_{\alpha} = \textnormal{diag}(\lambda_1, \ldots ,\lambda_k)$ and  $\Lambda_{\beta} = \textnormal{diag}(\lambda_{k+1}, \ldots ,\lambda_n)$.
+
+A set of $k$ leading eigenvectors of $A$ can be found by minimizing the function
+\[
+ f(X) = -\Tr(X^TAX)
+\]
+over the set of $n \times k$ matrices with orthonormal columns. Indeed, from the Ky-Fan theorem we know that
+\begin{equation}\label{eq:min_f_over_X}
+  \min \{ f(X) \colon X \in \mathbb{R}^{n \times k}, X^T X = I_k \} = -(\lambda_1 + \cdots + \lambda_k)=-\Tr(\Lambda_{\alpha})=:f^*.
+\end{equation}
+Since $A$ is symmetric, we can define the matrix $V_{\alpha} = \begin{bmatrix} v_1 \hspace{2mm} \cdots \hspace{2mm} v_k \end{bmatrix}$ such that $V_{\alpha}^T V_{\alpha} = I_k$ and with $v_i \in \mathbb{R}^n$ a unit-norm eigenvector corresponding to $\lambda_i$. If the eigengap $\delta$ is strictly positive, then $\myspan(V_{\alpha})$ is unique; otherwise, we can choose any $v_k$ from a subspace with dimension equal to the multiplicity of $\lambda_k$. It is readily seen that $f(V_{\alpha})= -(\lambda_1 + \cdots + \lambda_k)$. In fact, all minimizers of~\eqref{eq:min_f_over_X} are of the form $V_{\alpha} Q$ with $Q$ a $k \times k$ orthogonal matrix. We also define $V_{\beta}=\begin{bmatrix} v_{k+1} \hspace{2mm} \cdots \hspace{2mm} v_n  \end{bmatrix}$ that contains the eigenvectors corresponding to the eigenvalues $\lambda_{k+1},\ldots,\lambda_n$. Its columns span the orthogonal complement of $\myspan(V_{\alpha})$ in $\mathbb{R}^n$ and thus $V_{\beta}^T V_{\beta} = I_{n-k}$ and $V_{\alpha}^T V_{\beta} = {0}_{k \times (n-k)}$.
+
+Since $\myspan(V_{\alpha}) = \myspan(V_{\alpha}Q)$, it is more natural to consider this problem as a minimization problem on the Grassmann manifold $\Gr(n,k)$, the set of $k$-dimensional subspaces in $\mathbb{R}^n$. Let us therefore redefine the objective function as
+\begin{equation}\label{eq:min_f_over_Gr}
+ %f\colon \Gr(n,k) \to \mathbb{R}, \ \mathcal{S} \mapsto
+ f(\mathcal{X}) = -\Tr(X^TAX) \text{ where $\mathcal{X} = \myspan(X)$ for $X \in \mathbb{R}^{n \times k}$ s.t. $X^T X = I_k$}.
+\end{equation}
+This cost function can be seen as a block version of the standard Rayleigh quotient.
+An immediate benefit is that, if $\delta > 0$, the minimizer of~\eqref{eq:min_f_over_Gr} is isolated since it is the subspace $\mathcal{V_{\alpha}} = \myspan(V_\alpha)$.
+
+To minimize $f$ on $\Gr(n,k)$, we shall use the Riemannian steepest descent method (RSD) along geodesics in $\Gr(n,k)$. Quite remarkably, for $\Gr(n,k)$ these geodesics can be implemented efficiently in closed form.
+
+For analyzing the convergence properties of steepest descent on $\Gr(n,k)$, we extend results of the recent work \cite{alimisis2021distributed}, where it is shown that the Rayleigh quotient on the sphere enjoys favourable geodesic convexity-like properties, namely, \emph{weak-quasi-convexity} and \emph{quadratic growth}. In this work, we show that these convexity-like properties continue to hold in the more general case of the block Rayleigh quotient function $f\colon \Gr(n,k) \rightarrow \mathbb{R}$. These results are of general interest, but also sufficient to prove a local convergence rate for steepest descent for minimizing $f$ when started from an initial point outside the region of local convexity. For the latter, a crucial help is provided by the fact that the Grassmann manifold is positively curved.
+
+In particular, assuming a \emph{strictly positive eigengap} $\delta$ between $\lambda_k$ and $\lambda_{k+1}$, we prove an exponential convergence rate to the subspace spanned by the $k$ leading eigenvectors, similar to the convergence of power method and subspace iteration (Theorem \ref{thm:exponential_conv}). If we do not assume any knowledge regarding the eigengap, then we can still prove a sub-exponential (polynomial) convergence rate of the function values to the global minimum (Theorem \ref{thm:convex_conv}), but we cannot directly study the convergence to a global minimizer. This is in line with  previous work but our analysis does not use standard notions of geodesic convexity and allows for an initial guess further from the global minimizer. In Appendix \ref{sec:big_step} we present related convergence results for steepest descent with a more tractable step size but at the expense of needing a slightly better initialization.
+
+
+\section{Related work}
+
+
+\hspace{4mm} Over the last few years, different aspects of the convexity of eigenvalue problems have received quite some attention. In \cite{zhang2016riemannian}, the authors prove (in Theorem 4) that the Rayleigh quotient is geodesically gradient dominated in the sphere, that is, it satisfies a spherical version of the Polyak--Łojasiewicz inequality. In \cite{alimisis2021distributed}, it is shown that this result of \cite{zhang2016riemannian} can be strengthened to a geodesic weak-quasi-convexity and quadratic growth property, which imply gradient dominance when combined. Finally, the recent paper \cite{ahn2021riemannian} examines (among other contributions) the convexity structure of the same block version of the symmetric eigenvalue problem on the Grassmann manifold that we introduced above. Unfortunately, the characterization of the geodesic convexity region independently of the eigengap $\delta$ (Corollary 5 in \cite{ahn2021riemannian}) is wrong (see our Appendix~\ref{sec:convexity}). 
+%for reasons that we explain in Section \ref{sec:cost_conv}. 
+As we will prove in Theorem~\ref{eq:g-convex_domain}, the geodesic convexity region of $f$ (and the one of the equivalent cost function used in \cite{ahn2021riemannian}) needs to depend on the eigengap, as appears also in \cite[Lemma 7]{pmlr-v119-huang20e} in the case of the sphere ($k=1$).
+
+To the best of our knowledge, the current work is the first that deals with the convergence of the steepest descent algorithm for the multiple eigenvalue-eigenvector problem on the Grassmann manifold. The work \cite{alimisis2021distributed} proves exponential convergence of steepest descent only in the case of $k=1$, that is, for the leading eigenvector. In this paper, we take a reasonable but highly non-trivial step forward by extending this analysis for general $k$, that is, for a block of $k$ leading eigenvectors.
+
+The standard algorithm for computing the leading eigenspace of dimension $k$ is subspace iteration (or power method when $k=1$).\footnote{Krylov methods are arguably the most popular algorithms but they do not iterate on a subspace directly and are typically started from a single vector. In particular, they cannot easily improve a given approximation of a subspace for large $k>1$.} However, there are reasons to believe that, in certain cases, Riemannian steepest descent (and its accelerated version with non-linear conjugate gradients) should be preferred, especially in noisy settings \cite{alimisis2021distributed} or in  electronic structure calculations where the leading eigenspace of many varying matrices $A$ needs to be computed.\footnote{Personal communication by Yousef Saad.} In particular, \cite{alimisis2021distributed} presents strong experimental evidence that steepest descent is more robust to perturbations of the matrix-vector products than subspace iteration close to the optimum. While subspace iteration still behaves better at the start of the iteration, it asymptotically fails to converge to an approximation of the leading subspace that is as good as the one estimated by Riemannian steepest descent. While \cite{alimisis2021distributed} dealt with a noisy situation due to calculations in a distributed setting with limited communication, exactly the same effect can be observed when we inject the matrix-vector products with Gaussian noise. Thus, we expect steepest descent to perform better than subspace iteration close to the optimum in any stochastic regime \cite{hardt2014noisy}.
+
+Regarding worst-case theoretical guarantees, the strongest convergence result for subspace iteration in the presence of a strictly positive eigengap $\delta$ is in terms of the largest principal angle between the iterates and the optimum \cite{golub2013matrix}, that is, the $\ell_\infty$-norm of the vector of principal angles. In contrast, our convergence result for steepest descent for $\delta > 0$ (Theorem \ref{thm:exponential_conv}) is in terms of the $\ell_2$-norm of the same vector of angles, which is in general stronger. When $\delta = 0$, it is known from \cite{o1979estimating,Kuczynski92estimatingthe} that the largest eigenvalue ($k=1$) can still be efficiently estimated. We extend this result for $k>1$ and prove a convergence rate of steepest descent for the function values $f$ (Theorem \ref{thm:convex_conv}), relying only on weak-quasi-convexity (and thus using a different argument from \cite{o1979estimating,Kuczynski92estimatingthe}).
+\section{Geometry of the Grassmann manifold and block Rayleigh quotient} \label{sec:background}
+
+We present here a brief introduction into the geometry of the Grassmann manifold. The content is not new and for more details, we refer to \cite{absilOptimizationAlgorithmsMatrix2008, bendokatGrassmannManifoldHandbook2020, edelmanGeometryAlgorithmsOrthogonality1999}.
+
+The $(n,k)$-Grassmann manifold is defined as the set of all $k$-dimensional subspaces of $\mathbb{R}^n$:
+\begin{equation*}
+    \Gr(n,k)=\lbrace \mathcal{X} \subseteq \mathbb{R}^n \colon \mathcal{X} \hspace{1mm}  \text{is a subspace and} \dim(\mathcal{X})=k \rbrace.
+\end{equation*}
+
+Any element $\mathcal{X}$ of $\Gr(n,k)$ can be represented by a matrix $X \in \mathbb{R}^{n \times k}$ that satisfies $\mathcal{X} = \myspan(X)$. Such a representative is not unique since $Y=XQ$ for some invertible matrix $Q \in  \mathbb{R}^{k \times k}$ satisfies $\myspan(Y) = \myspan(X)$. Without loss of generality, \emph{we will therefore always take matrix representatives $X$ of subspaces $\mathcal{X}$ that have orthonormal columns throughout the paper}. 
+%This means that the matrix $Q$ above is orthogonal. 
+With some care, the non-uniqueness of the representatives is not a problem.\footnote{This can be made very precise by describing $\Gr(n,k)$ as the quotient of the Stiefel manifold with the orthogonal group. The elegant theory of this quotient manifold is worked out in \cite{absilOptimizationAlgorithmsMatrix2008}.} For example, our objective function \eqref{eq:min_f_over_Gr} is invariant to $Q$.
+
+% is a matrix representative for the subspace $[X]$. We have that $X \sim Y$ if $X=YQ$ for some invertible matrix $Q \in  \mathbb{R}^{k \times k}$. Without loss of generality, from now on we will represent these subspaces as in~\eqref{eq:min_f_over_Gr} by a matrix $X$ that has orthonormal columns. This means the $Q$ above is orthogonal.
+
+\paragraph{Riemannian structure.} The set $\Gr(n,k)$ admits the structure of a differential manifold with tangent spaces
+\begin{equation}\label{eq:def_TXGr}
+    T_{\mathcal{X}} \Gr(n,k)=\lbrace G \in \mathbb{R}^{n \times k} \colon X^T G=0 \rbrace, 
+\end{equation}
+where $\mathcal{X} = \myspan(X)$. Since $X^T G = 0$ if and only if $X^T (G Q)=0$, for any invertible matrix $Q \in \mathbb{R}^{k \times k}$, this description of the tangent space does not depend on the representative $X$. However, a specific tangent vector $G$ will depend on the chosen $X$. With slight abuse of notation,\footnote{Using the quotient manifold theory, one would use horizontal lifts.} the above definition should therefore be interpreted as: given a fixed $X$, we define tangent vectors $G_1, G_2, \ldots $ of  $\Gr(n,k)$ at $\mathcal{X}=\myspan(X)$. 
+
+This subtlety is important, for example, when defining an inner product on $T_{\mathcal{X}} \Gr(n,k)$:
+% Notice that $X^T G = 0$ if and only if $X^T (G Q)=0$, for any invertible matrix $Q \in \mathbb{R}^{k \times k}$, thus it is not of importance which matrix we use to represent the subspace spanned by the columns of $G$ (which is not necessarily orthonormal).
+% The tangent spaces of $\Gr(n,k)$ can be endowed with an inner product that makes $\Gr(n,k)$ a Riemannian manifold:
+\[
+ \langle G_1, G_2 \rangle_{\mathcal{X}} = \Tr(G^T_1 G_2) \ \text{\ with\  $G_1,G_2 \in T_{\mathcal{X}} \Gr(n,k)$ }.
+\] 
+Here, $G_1$ and $G_2$ are tangent vectors of the same representative $X$. Observe that the inner product is invariant to the choice of orthonormal representative: If $\Bar{G}_1=G_1 Q$ and $\Bar{G}_2 = G_2 Q$ with orthogonal $Q$, then we have
+\begin{equation*}
+    \langle \bar G_1, \bar G_2 \rangle_{\mathcal{X}} = \Tr(\bar G^T_1  \bar G_2) = \Tr(Q^T G_1^T G_2 Q)= \Tr(G_1^T G_2 Q Q^T) = \Tr(G_1^T G_2).
+\end{equation*}
+% Thus, we can extend this inner product naturally to equivalence classes.
+It is easy to see that the norm induced by this inner product in any tangent space is the Frobenius norm, which we will denote throughout the paper as $\| \cdot \|:=\| \cdot \|_F$.
+
+\paragraph{Exponential map.} Given the Riemannian structure of $\Gr(n,k)$, we can compute the exponential map at a point $\mathcal{X}$ as \cite[Thm.~3.6]{absilRiemannianGeometryGrassmann2004}
+\begin{equation}\label{eq:formula_geo}
+\begin{aligned}
+ \Exp_{\mathcal{X}}: T_{\mathcal{X}} \Gr(n,k) &\rightarrow \Gr(n,k) \\ 
+  G &\mapsto \myspan(\, X V \cos(\Sigma) + U \sin(\Sigma) \, ), 
+\end{aligned}
+\end{equation}
+where $ U \Sigma V^T$ is the \emph{compact} SVD of $G$ such that $\Sigma$ and $V$ are square matrices. %Note that if $X$ and $G$ are orthonormal, the matrix $X V \cos(\Sigma) \, V^T + U \sin(\Sigma) \, V^T$ is also orthonormal.
+
+
+The exponential map is invertible in the domain \cite[Prop.~5.1]{bendokatGrassmannManifoldHandbook2020}
+\begin{equation}\label{eq:inj_exp}
+\left \lbrace G \in T_{\mathcal{X}} \Gr(n,k)  \colon  \| G \|_2 < \frac{\pi}{2} \right \rbrace,
+\end{equation}
+where $\| G \|_2$ is the spectral norm of $G$. The inverse of the exponential map restricted to this domain is the logarithmic map, denoted by $\Log$. Given two subspaces $\mathcal{X},\mathcal{Y}\in \Gr(n,k)$, we have
+\begin{equation}\label{eq:log formula}
+ \Log_{\mathcal{X}}(\mathcal{Y}) = U \atan(\widehat\Sigma) \, V^T,
+\end{equation}
+where  $U \widehat \Sigma V^T = (I - X X^T) Y (X^T Y)^{-1}$ is again a compact SVD. This is well-defined if $X^T Y$ is invertible, which is guaranteed if all principal angles between $\mathcal{X}$ and $\mathcal{Y}$ are strictly less than $\pi / 2$ (see below). By taking $G = \Log_{\mathcal{X}}(\mathcal{Y})$, we see that $\Sigma = \atan(\widehat\Sigma)$.
+
+\paragraph{Principal angles.} The Riemannian structure of the Grassmann manifold can be conveniently described by the notion of the principal angles between subspaces. Given two subspaces $\mathcal{X},\mathcal{Y} \in \Gr(n,k)$, the principal angles between them are $0 \leq \theta_1 \leq \cdots \leq \theta_k \leq \pi/2$ obtained from the SVD 
+\begin{equation}\label{eq:SVD_for_principal_angles}
+    Y^T X=U_1 \cos \theta \ V_1^T
+\end{equation}
+where $U_1 \in \mathbb{R}^{k \times k}, V_1 \in \mathbb{R}^{k \times k}$ are orthogonal and the diagonal matrix $\cos \theta= \diag(\cos \theta_1,...,\cos \theta_k)$.
+
+We can express the Riemannian logarithm using principal angles and the intrinsic distance induced by the Riemannian inner product discussed above is
+\begin{equation}\label{eq:distance_with_Log_and_angles}
+    \dist(\mathcal{X},\mathcal{Y)}=\| \Log_{\mathcal{X}} (\mathcal{Y}) \| = \| \Log_{\mathcal{Y}} (\mathcal{X}) \|=\sqrt{\theta_1^2+...+\theta_k^2}=\| \theta \|_2,
+\end{equation}
+where $\theta=(\theta_1, \ldots ,\theta_k)^T$.% and $\| \cdot \|$ denotes the Frobenius norm.
+
+If $X \in \mathbb{R}^{n \times k}$ is an arbitrary matrix with orthonormal columns, then, generically, these columns will not be exactly orthogonal to the $k$ leading eigenvectors $v_1, \ldots, v_k$ of $A$. Thus, we have with probability one that the principal angles between $\mathcal{X}$ and the space of $k$ leading eigenvectors satisfy $0 \leq \theta_1 \leq \cdots \leq \theta_k < \pi/2$.
+
+
+\paragraph{Curvature.}
+We can compute exactly the sectional curvatures in $\Gr(n,k)$, but for our purposes we only need that they are everywhere non-negative \cite{Wong, bendokatGrassmannManifoldHandbook2020}. This means that the geodesics on the Grassmann manifold spread more slowly than in Euclidean space. This is consequence of the famous Toponogov's theorem that we state here in the form of the following technical lemma, which will be important in our convergence analysis.
+\begin{lemma}
+\label{prop:tangent_space}
+Let $\mathcal{X}, \mathcal{Y}, \mathcal{Z} \in \Gr(n,k)$, such that 
+$$\max\{ \textnormal{dist}(\mathcal{X}, \mathcal{Z})  , \textnormal{dist} (\mathcal{Y}, \mathcal{Z}) \} < \frac{\pi}{2}.
+$$ Then
+\begin{equation*}
+    \textnormal{dist}(\mathcal{X} , \mathcal{Y}) \leq \| \log_\mathcal{Z}(\mathcal{X})-\log_\mathcal{Z}(\mathcal{Y}) \|.
+\end{equation*}
+
+\end{lemma}
+
+\begin{lemma}(Law of cosines) \label{lem:geo_triangle_nonneg}
+Let $\mathcal{X},\mathcal{Y},\mathcal{Z}$ as in Lemma \ref{prop:tangent_space}. Then
+\begin{equation*}
+    \dist^2(\mathcal{X}, \mathcal{Y}) \leq \dist^2(\mathcal{Z}, \mathcal{X})+ \dist^2(\mathcal{Z}, \mathcal{Y})-2 \langle \Log_{\mathcal{Z}} (\mathcal{X}), \Log_{\mathcal{Z}} (\mathcal{Y}) \rangle.
+\end{equation*}
+\end{lemma}
+\begin{proof}
+Apply Lemma \ref{prop:tangent_space} and expand $\| \log_\mathcal{Z}(\mathcal{X})-\log_\mathcal{Z}(\mathcal{Y}) \|^2$.
+\end{proof}
+
+\paragraph{Block Rayleigh quotient.}
+Our objective function for minimization is the block version of the Rayleigh quotient:
+\[ 
+f(\mathcal{X}) = -\Tr(X^TAX) \text{ where $\mathcal{X} = \myspan(X) \in \Gr(n,k)$ s.t. $X^T X = I_k$}.
+\]  
+This function has $\mathcal{V}_{\alpha}=\myspan(\begin{bmatrix} v_1 \hspace{2mm} \cdots \hspace{2mm} v_k \end{bmatrix})$ as global minimizer. This minimizer is unique on $\Gr(n,k)$ if and only if $\delta>0$.
+
+Given any differentiable function $f\colon\Gr(n,k) \rightarrow \mathbb{R}$, we can define its Riemannian gradient as the vector field that satisfies
+\begin{equation*}
+    df(\mathcal{X})(\mathcal{G}) = \langle \grad f(\mathcal{X}),\mathcal{G} \rangle_{\mathcal{X}}.
+\end{equation*}
+For a given representative $X$ of $\mathcal{X}$, the Riemannian gradient of the block Rayleigh quotient satisfies 
+\begin{equation*}\label{eq:grad f formula}
+ \grad f(\mathcal{X}) = -2(I-X X^T) A X.
+\end{equation*}
+Using the notions of the Riemannian gradient and Levi-Civita connection, we can define also a Riemannian notion of Hessian. 
+% \begin{equation*}
+%     \Hess f (\mathcal{X}) = \nabla_{\mathcal{X}} \grad f(\mathcal{X}).
+% \end{equation*}
+For the block Rayleigh quotient $f$, the Riemannian Hessian $\Hess f$ evaluated as bilinear form satisfies
+\begin{equation}\label{eq:Hessian_f_inner_product}
+  \Hess f(\mathcal{X})[{G},{G}] = 2 \langle G, G X^T A X - A G \rangle, 
+\end{equation}
+for  $G \in T_{\mathcal{X}} \Gr(n,k)$; see \cite[\S4.4]{edelmanGeometryAlgorithmsOrthogonality1999} or \cite[\S6.4.2]{absilOptimizationAlgorithmsMatrix2008}.
+
+
+
+
+
+
+\section{Convexity-like properties of the block Rayleigh quotient} \label{sec:cost_conv}
+
+We now prove the new analytic properties of the block Rayleigh quotient $f(\mathcal{X})=-\Tr(X^T A X)$. These are important in their own right but will also be used later for the convergence of the Riemannian steepest descent method.
+
+\subsection{Smoothness}
+
+A $C^2$ function defined on the Grassmann manifold is called $\gamma$-smooth if the maximum eigenvalue of its Riemannian Hessian is everywhere upper bounded by $\gamma$. By the second-order Taylor expansion of $f$, it is easy to see that such a function then satisfies (see, e.g., \cite[Thm.~7.1.2]{absilOptimizationAlgorithmsMatrix2008})
+\begin{equation}\label{eq:quadratic_upper_bound}
+    f(\mathcal{X}) \leq f(\mathcal{Y})+ \langle \grad f(\mathcal{Y}), \Log_{\mathcal{Y}} (\mathcal{X}) \rangle+\frac{\gamma}{2} \dist^2(\mathcal{X},\mathcal{Y}), 
+\end{equation}
+for any $\mathcal{X}, \mathcal{Y} \in \Gr(n,k)$ with $\textnormal{dist}(\mathcal{X}, \mathcal{Y}) < \frac{\pi}{2}$.
+
+As in the introduction, denote the global minimum of $f$ by $f^*$ which is attained at $V_\alpha \in \Gr(n,k)$. The previous inequality also leads to
+\begin{equation}\label{eq:optim_gap_with_gradient}
+    f(\mathcal{X})-f^* \geq \frac{1}{2 \gamma} \| \grad f(\mathcal{X}) \|^2,
+\end{equation}
+for any $\mathcal{X} \in \Gr(n,k)$ with $\textnormal{dist}(\mathcal{X}, \mathcal{V}_{\alpha}) < \frac{\pi}{2}$. We present a proof below although the result is well known.
+
+\begin{proof}[Proof of~\eqref{eq:optim_gap_with_gradient}]
+Since $f^*$ is a global minimum of $f$, we have from~\eqref{eq:quadratic_upper_bound} that
+\begin{equation*}
+    f^* \leq f(\mathcal{X}) \leq f(\mathcal{Y})+\langle \textnormal{grad}f(\mathcal{Y}),\Log_{\mathcal{Y}}(\mathcal{X}) \rangle+\frac{\gamma}{2} \| \Log_{\mathcal{Y}}(\mathcal{X}) \|^2,
+\end{equation*}
+for any $\mathcal{X}, \mathcal{Y} \in \Gr(n,k)$ with $\textnormal{dist}(\mathcal{X}, \mathcal{Y}) < \frac{\pi}{2}$.  
+
+We set $\mathcal{X}:=\Exp_{\mathcal{Y}} \left(-\frac{1}{\gamma} \textnormal{grad}f(\mathcal{Y})\right)$. By the mean value theorem in $\grad f$, we have $\tfrac{1}{\gamma} \| \grad f(\mathcal{Y}) \| \leq \textnormal{dist}(\mathcal{Y},\mathcal{V}_{\alpha})$. Indeed, consider the geodesic connecting $\mathcal{Y}$ and $\mathcal{V}_{\alpha}$ and apply Lemma 4 from \cite{alimisis2020continuous} for the vector field $A=\textnormal{grad}f$. Taking norms of both sides and using  that $\textnormal{grad}f(\mathcal{V}_{\alpha}) = 0$, the norm of the integral is less or equal than the integral of the norms. Since parallel transport preserves the norm and the covariant derivative of the gradient is the Riemannian Hessian, we obtain the claimed inequality. If we now assume that $\textnormal{dist}(\mathcal{Y},\mathcal{V}_{\alpha})<\frac{\pi}{2}$, then $-\tfrac{1}{\gamma} \textnormal{grad}f(\mathcal{Y})$ satisfies the condition of the domain in \eqref{eq:inj_exp} and $\Log$ is well defined: $\Log_{\mathcal{Y}}(\mathcal{X}) = -\frac{1}{\gamma} \textnormal{grad}f(\mathcal{Y})$. 
+In that case, we also have 
+\begin{equation}\label{eq:distance_pi2_SD_step}
+    \textnormal{dist}(\mathcal{X},\mathcal{Y}) = \| \Log_{\mathcal{Y}}(\mathcal{X})  \| < \frac{\pi}{2}
+\end{equation} 
+and the right hand side of the initial inequality becomes 
+\begin{align*}
+    f^* \leq f(\mathcal{Y})-\frac{1}{\gamma} \| \textnormal{grad}f(\mathcal{Y})\|^2+ \frac{1}{2\gamma} \| \textnormal{grad}f(\mathcal{Y})\|^2 = f(\mathcal{Y})-\frac{1}{2 \gamma} \| \textnormal{grad}f(\mathcal{Y})\|^2,
+\end{align*}
+for any $\mathcal{Y} \in \Gr(n,k)$ with $\textnormal{dist}(\mathcal{Y},\mathcal{V}_{\alpha}) < \frac{\pi}{2}$. Rearranging the last inequality and substituting $\mathcal{Y}=\mathcal{X}$, we get the desired result.
+\end{proof}
+
+We start our analysis by showing that the largest eigenvalue of the Riemannian Hessian of the block Rayleigh quotient $f$ is indeed upper bounded on the Grassmann manifold. Thus the properties from above hold for the stated $\gamma$.
+\begin{tcolorbox} 
+\begin{Proposition}[Smoothness]\label{prop:smoothness}
+The eigenvalues of the Riemannian Hessian of $f$ on $\Gr(n,k)$ are upper bounded by  $\gamma := 2 (\lambda_1 - \lambda_n)$. %Hence, $f$ is geodesically smooth with the same constant.
+\end{Proposition}
+\end{tcolorbox}
+
+\begin{proof}
+Let $G$ be a tangent vector of $\Gr(n,k)$ at $X$. Then the Riemannian Hessian satisfies (see~\eqref{eq:Hessian_f_inner_product})
+\[
+  \tfrac{1}{2} \Hess f(\mathcal{X})[G,G] =  \Tr(G^T G X^T A X) - \Tr(A G G^T).
+\]
+Since $A, X^T A X, G G^T$, and $G^T G$ are all symmetric and positive definite matrices, standard trace inequality (see, e.g, \cite[Thm.~4.3.53]{hornMatrixAnalysis2012a}) gives 
+\[
+ \Hess f(\mathcal{X})[G,G]  \leq 2 (\lambda_{\max}(X^T A X)- \lambda_{\min} (A)) \| G \|^2.
+\]
+Since $X$ has orthonormal columns, $\lambda_{\max}(X^T A X) \leq \lambda_{\max}( A )$; see, e.g., \cite[Cor.~4.3.37]{hornMatrixAnalysis2012a}. The proof is now complete with the definition of $\lambda_1$ and $\lambda_n$.
+% For $\mathcal{X} = \myspan(\mathcal{X}) \in \textnormal{Grass}(n,k)$ and $\mathcal{U} = \myspan(U) \in T_{\mathcal{X} }\textnormal{Gr}(k,n) $ with $X$ orthonormal, we have that the Riemannian Hessian of $f$ satisfies
+% \begin{align*}
+%   \langle \mathcal{U}, \nabla^2 f(\mathcal{X}) \mathcal{U} \rangle  & = \langle U, -(I-X X^T)2AU + U X^T 2 A \mathcal{X}   \rangle   \\ & = -2 \Tr(U^T A U)+ 2 \Tr( U^T U X^T A X) \\ & \leq 2 \Tr( U^T U ) \Tr( X^T A X)   \leq  2 \langle \mathcal{U}, \mathcal{U} \rangle  \Tr(\Lambda_{\alpha})
+% \end{align*}
+% because $\Tr(U^T X)=0$ by the definition of tangent vectors, $\Tr(U^T A U) \geq 0, $ and $\Tr(X^T A X) \leq \Tr(\Lambda_{\alpha})$ by Proposition \ref{prop:quadratic_growth}. Notice now that the largest eigenvalue of the Hessian is the maximum of $\frac{\langle \mathcal{U}, \nabla^2 f(\mathcal{X}) \mathcal{U} \rangle}{\langle \mathcal{U}, \mathcal{U} \rangle}$ over all $ \mathcal{U}$, in the tangent space of $\mathcal{X},$ thus less or equal than $2 \Tr(\Lambda_{\alpha})$. Since the biggest eigenvalues of the Riemannian Hessian is upper bounded by $2 \Tr(\Lambda_{\alpha})$, the Riemannian gradient is geodesically Lipschitz continuous with the same constant and the proof is complete.
+\end{proof}
+
+The result in Prop.~\ref{prop:smoothness} is tight: Choosing $X = V_\alpha$ and $G = v_n e_1^T$, it is readily verified that the upper bound is attained.
+
+
+We will also need the following upper bound of the spectral norm of the Riemannian gradient, independently of $\mathcal{X}$.
+\begin{tcolorbox}
+\begin{lemma}\label{lem:uniform upper bound grad}
+For all $\mathcal{X} \in \Gr(n,k)$, the Riemanian gradient of $f$ satisfies
+\[
+ \| \grad f(\mathcal{X}) \|_2  \leq \frac{\gamma}{2}.
+\]
+\end{lemma}
+\end{tcolorbox}
+\begin{proof}
+Since $X$ has orthonormal columns, we can complete it to the orthogonal matrix $Q = \begin{bmatrix} X & X_\perp \end{bmatrix}$. Hence, $\| \grad f(\mathcal{X}) \|_2 = \| 2 (I - XX^T)AX \|_2 = 2 \| X_\perp^T A X \|_2$. The result now follows directly from~\cite[Thm.~2]{liInequalitiesSingularValues1999a} since $A$ is real symmetric and the definition of $\gamma = 2(\lambda_1 - \lambda_n)$.
+\end{proof}
+
+
+\subsection{Weak-quasi-convexity and quadratic growth}
+
+
+
+We now turn our interest in the convexity properties of the block Rayleight quotient function. We start by proving a property which is known in the literature as \emph{quadratic growth}.
+
+\begin{tcolorbox}
+\begin{Proposition}[Quadratic growth]\label{prop:quadratic growth}
+\label{prop:quadratic_growth}
+Let $0 \leq \theta_1 \leq \cdots \leq \theta_k < \pi/2$ be the principal angles between the subspaces $\mathcal{X}$ and $\mathcal{V}_\alpha$. The function $f$ satisfies
+$$f(\mathcal{X})-f^* \geq c_Q \, \delta \, \dist^2(\mathcal{X},\mathcal{V_{\alpha}})$$
+where $c_Q = 4/\pi^2 > 0.4$.
+\end{Proposition}
+\end{tcolorbox}
+\begin{proof}
+
+The spectral decomposition of $A = V_{\alpha} \Lambda_{\alpha}V_{\alpha}^T + V_{\beta} \Lambda_{\beta} V_{\beta}^T$ implies
+\begin{equation}\label{eq:XAX worked out}
+    X^T AX = X^T V_{\alpha} \Lambda_{\alpha}V_{\alpha}^T X+ X^T V_{\beta} \Lambda_{\beta} V_{\beta}^T X.
+\end{equation}
+Since $f(\mathcal{X}) = -\Tr(X^TAX)$, we have
+\begin{align*}
+    f(\mathcal{X})-f^*  &=  \Tr(\Lambda_{\alpha})-\Tr(X^T V_{\alpha} \Lambda_{\alpha}V_{\alpha}^T X)-\Tr(X^T V_{\beta} \Lambda_{\beta} V_{\beta}^T X) \\ &= \Tr(\Lambda_{\alpha})-\Tr( \Lambda_{\alpha}V_{\alpha}^T X X^T V_{\alpha})-\Tr( \Lambda_{\beta} V_{\beta}^T X X^T V_{\beta}) \\ & = \Tr(\Lambda_{\alpha} (I_k- V_{\alpha}^T X X^T V_{\alpha})) - \Tr(\Lambda_{\beta} V_{\beta}^T X X^T V_{\beta}).
+\end{align*}
+From the definition~\eqref{eq:SVD_for_principal_angles} of the principal angles between $X$ and $V_{\alpha}$, we recall that 
+\begin{equation}\label{eq:SVD_Va_X}
+    V_{\alpha}^T X=U_1 \cos \theta \, V_1^T,
+\end{equation}
+where $\cos \theta = \diag(\cos \theta_1, \ldots, \cos \theta_k)$ is a diagonal matrix and $U_1, V_1$ are orthogonal matrices. Plugging this equality in, we get that the $j$th eigenvalue of the matrix $I_k- V_{\alpha}^T X X^T V_{\alpha}$ is equal to $1-\cos^2\theta_j = \sin^2 \theta_j \geq 0$. Thus, by standard trace inequality for symmetric and positive definite matrices (see, e.g.,~\cite[Thm.~4.3.53]{hornMatrixAnalysis2012a}), the first summand above satisfies
+\begin{equation*}
+    \Tr(\Lambda_{\alpha} (I_k- V_{\alpha}^T X X^T V_{\alpha})) \geq \lambda_{k} \sum_{j=1}^k \sin^2 \theta_j.
+\end{equation*}
+The matrix $V_{\beta}^T X X^T V_{\beta}$ has the same non-zero eigenvalues with the same multiplicity as the matrix 
+\begin{equation*}\label{eq:SVD of Gramm of XVbeta}
+       X^T V_{\beta} V_{\beta}^T X = I_k-V_1 \cos^2 \theta \, V_1^T = V_1 \sin^2 \theta \, V_1^T 
+\end{equation*}
+where we used $V_{\beta} V_{\beta}^T= I_n - V_{\alpha} V_{\alpha}^T$ and the SVD of $V_{\alpha}^T X$. 
+Thus the $j$th eigenvalue of $V_{\beta}^T X X^T V_{\beta}$ is $\sin^2 \theta_j \geq 0$. By trace inequality again, the second summand therefore satisfies
+\begin{equation*}
+    \Tr(\Lambda_{\beta} V_{\beta}^T X X^T V_{\beta}) \leq \lambda_{k+1} \sum_{j=1}^k \sin^2 \theta_j.
+\end{equation*}
+Putting both bounds together, we get
+\begin{equation*}
+    f(\mathcal{X})-f^* \geq (\lambda_k - \lambda_{k+1}) \sum_{j=1}^k \sin^2 \theta_j
+    \geq \delta \sum_{j=1}^k \frac{4}{\pi^2}\theta_j^2 
+\end{equation*}
+and the proof is complete by the definition~\eqref{eq:distance_with_Log_and_angles} of $\dist$.
+\end{proof}
+
+
+
+We say that $f$ is geodesically convex if for all $\mathcal{X}$ and $\mathcal{Y}$ in a suitable region it holds
+$$ f(\mathcal{X})-f(\mathcal{Y}) \leq \langle \textnormal{grad}f(\mathcal{X}), -\Log_{\mathcal{X}}(\mathcal{Y}) \rangle.$$
+This generalizes the classical convexity of differentiable functions on $\mathbb{R}^n$ to manifolds by taking the logarithmic map instead of the difference $\mathcal{X}-\mathcal{Y}$.
+
+In Appendix~\ref{sec:convexity}, we prove that our objective function $f$ is only geodesically convex in a small neighbourhood of size $\bigO(\sqrt{\delta})$ around the minimizer $\mathcal{V}_\alpha$. Fortunately, our key result of this section shows that $f$ satisfies a much weaker notion of geodesic convexity, known in the literature as \emph{weak-quasi-convexity}, that does not depend on the eigengap $\delta$.
+
+
+We first need the following lemma which is the general version of the CS decomposition but applied to our setting of square blocks.
+\begin{lemma}\label{lemma:CS_square_blocks}
+Let $X,Y \in \mathbb{R}^{n \times k}$ be such that $X^T X = Y^T Y = I_k$ with $k < n$. 
+%Denote the principles angles between $\myspan(X)$ and $\myspan(Y)$ by $\theta_1 \leq \cdots \leq \theta_k$. If $\theta_k < \pi/2$, 
+Choose $X_\perp, Y_\perp \in \mathbb{R}^{n \times (n-k)}$ such that $X_\perp^T X_\perp = Y_\perp^T Y_\perp = I_{n-k}$ and $\myspan(X_\perp) = \myspan(X)^\perp$, $\myspan(Y_\perp) = \myspan(Y)^\perp$.
+Then there exists $0 \leq r,s \leq k$ such that
+\begin{align*}
+ Y^T X &= U_1 \begin{bmatrix}I_r \\ & C_s \\ & & O_{p \times p} \end{bmatrix} V_1^T,  & 
+ Y^T X_\perp &= U_1 \begin{bmatrix}O_{r \times m} \\ & S_s \\ & & I_{p} \end{bmatrix} V_2^T  \\
+Y_\perp^T X &= U_2 \begin{bmatrix}O_{m \times r} \\ & S_s \\ & & I_{p} \end{bmatrix} V_1^T, & Y_\perp^T X_\perp &= U_2 \begin{bmatrix}-I_{m} \\ & -C_s \\ & & O_{p \times p} \end{bmatrix} V_2^T
+\end{align*}
+with $p=k-r-s$ and $m = n - 2k +r$, and we have
+\begin{itemize}
+\item orthogonal matrices $U_1, V_1$ of size $k$ and $U_2, V_2$ of size $n-k$;
+\item identity matrices $I_q$ of size $q$;
+\item zero matrices $O_{q \times t}$ of size $q \times t$;
+\item diagonal matrices $C_s = \diag(\alpha_1, \ldots, \alpha_s)$ and $S_s = \diag(\beta_1, \ldots, \beta_s)$ such that $1 > \alpha_1 \ge \cdots \ge \alpha_s > 0$, $0 < \beta_1 \le \cdots \le \beta_s < 1$ and $C_s^2 + S_s^2 = I_s$.
+\end{itemize}
+\end{lemma}
+\begin{proof}
+Since $\begin{bmatrix} X & X_\perp \end{bmatrix}$ and $\begin{bmatrix} Y & Y_\perp \end{bmatrix}$ are orthogonal, the result follows directly from the CS decomposition of the orthogonal matrix $P = \begin{bmatrix} Y & Y_\perp \end{bmatrix}^T \begin{bmatrix} X & X_\perp \end{bmatrix}$; see the Theorem of \S 4 in \cite{paigeGeneralizedSingularValue1981}. 
+\end{proof}
+
+
+Observe that the matrix $\diag(I_r,C_s,O_{p \times p})$  in this lemma corresponds to the matrix $\cos(\theta)$ in~\eqref{eq:SVD_for_principal_angles} with $\theta$ the vector of principal angles $0 \leq \theta_1 \leq \cdots \leq \theta_k \leq \pi/2$ between $\myspan(X)$ and $\myspan(Y)$. However, the lemma explicitly splits off the angles that are zero and $\pi/2$ so that it can formulate the related decompositions for $Y^T X_\perp, Y_\perp^T X,$ and $Y_\perp^T X_\perp$ with $C_s$ and $S_s$.
+
+We are now ready to state our weak quasi-convexity result. In the statement of the proposition below (and throughout this paper), we use the convention that $\frac{0}{\tan 0} = 1$.
+
+\begin{tcolorbox}
+\begin{Proposition}[Weak-quasi-convexity]\label{prop:weak-quasi-convexity}
+Let $0 \leq \theta_1 \leq \cdots \leq \theta_k < \pi/2$ be the principal angles between the subspaces  $\mathcal{X}$ and $\mathcal{V}_\alpha$. Then, $f$ satisfies
+$$2 a(\mathcal{X}) \, (f(\mathcal{X})-f^*) \leq \langle \textnormal{grad}f(\mathcal{X}), -\Log_{\mathcal{X}}(\mathcal{V_{\alpha})} \rangle$$
+with $a(\mathcal{X}) := \theta_k / \tan \theta_k$.
+% $a(\mathcal{X}):= \begin{cases}
+%       \theta_k / \tan \theta_k &  \text{if}\ \theta_k>0; \\
+%       1 &   \text{if}\ \theta_k=0.
+%     \end{cases} $
+\end{Proposition}
+\end{tcolorbox}
+
+
+
+%\textbf{Remark}: The extra assumption that $0 < \theta_1$ is due to a technicality in our proof. It can probably be avoided by extending the proof since it corresponds to a good situation (converged directions).
+
+\begin{proof}
+Take $X$ and $V_\alpha$ matrices with orthonormal columns such that $\mathcal{X} = \myspan(X)$ and $\mathcal{V}_\alpha = \myspan(V_\alpha)$. Since $\theta_k < \pi / 2$, we know that $p=0$ in Lemma~\ref{lemma:CS_square_blocks} and thus $s = k - r$ with $r$ the number of principal angles that are equal to zero. Choosing a matrix $X_\perp$ with orthonormal columns such that $\myspan(X_\perp) = \myspan(X)^\perp$, we therefore get from Lemma~\ref{lemma:CS_square_blocks} that there exist orthogonal matrices $U_1,V_1$ of size $k$ and $V_2$ of size $n-k$ such that
+ \begin{align}\label{eq:SVD_XVa_XperpVa}
+ V_\alpha^T X &= U_1 \begin{bmatrix}I_r \\ & C_{k-r}  \end{bmatrix} V_1^T,  & 
+ V_\alpha^T X_\perp &= U_1 \begin{bmatrix}O_{r \times m} \\ & S_{k-r}  \end{bmatrix} V_2^T.
+\end{align}
+Comparing with~\eqref{eq:SVD_for_principal_angles}, we deduce that $C_{k-r} = \diag(\cos \theta_{r+1}  , \ldots, \cos \theta_k)$ and $S_{k-r} = \diag(\sin \theta_{r+1}, \ldots, \sin \theta_k)$ since $C_{k-r}^2 + S_{k-r}^2 = I$.
+
+We recall from~\eqref{eq:log formula} that 
+\begin{equation}\label{eq:log formula_XVa} 
+ \Log_{\mathcal{X}}(\mathcal{V}_{\alpha}) = U \atan(\Sigma) V^T,
+\end{equation}
+where  $U \Sigma V^T=(I_n - X X^T) V_{\alpha} (X^T V_{\alpha})^{-1}=:M$ is a compact SVD (without the requirement that the diagonal of $\Sigma$ is non-increasing). Using $X_\perp$ from above, we can also write $M = X_\perp X_\perp^T V_{\alpha} (X^T V_{\alpha})^{-1}$. Substituting~\eqref{eq:SVD_XVa_XperpVa} and using that $U_1$ and $V_1$ are orthogonal gives 
+\[
+ M = X_\perp V_2 \begin{bmatrix}O_{m \times r\textbf{}} \\ & S_{k-r} C_{k-r}^{-1}  \end{bmatrix}   V_1^T 
+ = X_\perp \tilde V_2 \begin{bmatrix}O_{r \times r} \\ & S_{k-r} C_{k-r}^{-1}  \end{bmatrix}   V_1^T,
+\]
+where $\tilde V_2 \in \mathbb{R}^{(n-k) \times k}$ contains the last $k$ columns of $V_2$ in order. Since $\theta_1 = \cdots = \theta_r = 0$, we can therefore formulate the compact SVD of $M$ using the vector $\theta$ of all principal angles as follows:
+\[
+ M = U \Sigma V^T \quad \text{with $U = X_\perp \tilde V_2, \ \Sigma = \tan(\theta), \ V = V_1$}.
+\]
+Hence from~\eqref{eq:log formula_XVa} we get directly that
+\begin{equation}\label{eq:Log_with_V2}
+ \Log_{\mathcal{X}}(\mathcal{V}_{\alpha}) =  X_\perp \tilde V_2\, \theta \, V_1^T,
+\end{equation}
+where $\theta$ is a diagonal matrix.
+
+We now claim that~\eqref{eq:Log_with_V2} also satisfies
+\begin{equation}\label{eq:Log_with_Va}
+ \Log_{\mathcal{X}}(\mathcal{V}_{\alpha}) =  X_\perp X_\perp^T V_\alpha U_1 \frac{\theta}{\sin \theta} V_1^T,
+\end{equation}
+where $\frac{\theta}{\sin \theta}$ is a diagonal matrix for which $\frac{0}{\sin 0} = 1$. Indeed, recalling that $\theta_1 = \cdots = \theta_r = 0$ and using the identities
+\[
+X_\perp^T V_\alpha =  \tilde V_2 \begin{bmatrix}O_{r \times r} \\ & S_{k-r}  \end{bmatrix} U_1^T, \quad\frac{\theta}{\sin \theta} = \begin{bmatrix}I_{r} \\ & S_{k-r}^{-1}  \end{bmatrix} \begin{bmatrix}I_{r} \\ & T_{k-r} \end{bmatrix}
+\]
+where $T_{k-r}=\diag(\theta_{r+1}, \ldots, \theta_k)$, we obtain
+\begin{align*}
+\textrm{rhs of~\eqref{eq:Log_with_Va}} &= X_\perp \tilde V_2 \begin{bmatrix}O_{r \times r} \\ & S_{k-r}  \end{bmatrix} \begin{bmatrix}I_{r} \\ & S_{k-r}^{-1}  \end{bmatrix} \begin{bmatrix}I_{r} \\ &  T_{k-r} \end{bmatrix} \, V_1^T \\ & =  X_\perp \tilde V_2 \begin{bmatrix} O_{r \times r} \\ & T_{k-r}  \end{bmatrix} \, V_1^T   = X_\perp \tilde V_2 \, \theta \, V_1^T = \textrm{rhs of~\eqref{eq:Log_with_V2}}.
+\end{align*}
+
+
+% (i) We firstly prove the statement for the case that $0 < \theta_j < \pi/2$ for all $j$. 
+% We recall that 
+% \begin{equation*}
+%  \Log_{\mathcal{X}}(\mathcal{V}_{\alpha}) = U \atan(\Sigma) V^T,
+% \end{equation*}
+% where  $U \Sigma V^T=(I_n - X X^T) V_{\alpha} (X^T V_{\alpha})^{-1}=:M$.
+
+% We start by normalizing $Z:=(I_n-X X^T) V_{\alpha}$, by multiplying it on the right by $(Z^T Z)^{-1/2}$. Writing $V_{\alpha}^T X=U_1 \cos \theta V_1^T$, we have that
+% \[
+%  Z^T Z = V_{\alpha}^T (I-X X^T) V_{\alpha} = I - U_1 \cos^2(\theta) \, U_1^T = U_1 \sin^2(\theta) \, U_1^T
+% \]
+% is positive definite. We define the orthonormal matrix $\widehat Z := Z (Z^T Z)^{-1/2}$, then $M$ can be written as
+% \[
+%  M = Z (Z^T Z)^{-1/2} (Z^T Z)^{1/2} (X^T V_{\alpha})^{-1} = 
+%  \widehat Z \ U_1 \tan(\theta) \, V_1^T.
+% \]
+% Since $U_1$ is an orthogonal matrix, we have thus obtained the SVD 
+% \[
+%  M=U \Sigma V^T \ \text{with $U = \widehat Z U_1, \Sigma = \tan(\theta), V = V_1$},
+% \]
+% from which we get directly that
+% \[
+%  \Log_{\mathcal{X}}(\mathcal{V}_{\alpha}) = U \atan(\Sigma) V^T = \widehat Z U_1\, \theta \, V_1^T,
+% \]
+% where $\theta$ is a diagonal matrix.
+
+Next, we work out 
+\[
+ s := \langle \grad f(\mathcal{X}), -\Log_{\mathcal{X}}(\mathcal{V_{\alpha})} \rangle.
+\] 
+Since $\grad f(\mathcal{X})$ and $\Log_{\mathcal{X}}(\mathcal{V}_{\alpha})$, respectively, give tangent vectors for the same representative $X$ of $\mathcal{X}$, the inner product above is the trace of the corresponding matrix representations. Using~\eqref{eq:Log_with_Va} with $I-XX^T = X_\perp X_\perp^T$, we therefore get
+\begin{align*}
+ s &= 2 \Big\langle (I-XX^T)AX, (I-XX^T) V_\alpha U_1 \frac{\theta}{\sin(\theta)} V_1^T \Big\rangle \\
+  &= 2 \Tr \Big( \frac{\theta}{\sin(\theta)} U_1^T V_\alpha^T (I-XX^T) AX V_1 \Big). 
+\end{align*}
+Since $AV_\alpha = V_\alpha \Lambda_\alpha$, we can simplify
+\begin{equation}\label{eq:grad_with_Va}
+ V_\alpha^T (I-XX^T) AX = \Lambda_\alpha V_\alpha^T X - V_\alpha^T XX^T AX.
+\end{equation}
+Substituting in the expression above and using that $V_{\alpha}^T X=U_1 \cos \theta \, V_1^T$, we get
+\begin{align*}
+ \tfrac{1}{2} s &= \Tr \Big( \frac{\theta}{\sin(\theta)} U_1^T  \Lambda_\alpha U_1 \cos(\theta) \Big) - 
+ \Tr \Big( \frac{\theta}{\sin(\theta)} \cos(\theta) V_1^T  X^T AX  V_1 \Big)  \\
+ &= \Tr \Big( \frac{\theta}{\tan(\theta)} \Big( U_1^T  \Lambda_\alpha U_1 - V_1^T  X^T AX  V_1 \Big) \Big),
+\end{align*}
+with the convention $\frac{0}{\tan 0} = 1$.
+
+Denote the symmetric matrix
+\begin{equation}\label{eq:def_S}
+ S := U_1^T  \Lambda_\alpha U_1 - V_1^T  X^T AX  V_1.
+\end{equation}
+We show below that all diagonal entries $S_{11}, \ldots, S_{kk}$ of $S$ are positive. Hence, by diagonality of the matrix $\tfrac{\theta}{\tan(\theta)}$, we obtain
+\textbf{}\begin{align*}
+ \tfrac{1}{2}s &=  \sum_j \frac{\theta_j}{\tan\theta_j} \, S_{jj} \geq \min_j \frac{\theta_j}{\tan\theta_j} \, \Tr(S) = \frac{\theta_k}{\tan\theta_k} \, \Big[ \Tr( \Lambda_{\alpha}) -  \Tr( X^T AX ) \Big]
+\end{align*}
+since $U_1$ and $V_1$ are orthogonal matrices. We recover the desired result after substituting $f(\mathcal{X}) = -\Tr(X^T A X)$ and $f_* = -\Tr(V_\alpha^T A V_\alpha) = -\Tr(\Lambda_\alpha)$, 
+
+
+
+It remains to show that $S_{jj} \geq 0$ for $j=1,\ldots, k$. Since $\myspan(V_\beta) = \myspan(V_\alpha)^\perp$, Lemma~\ref{lemma:CS_square_blocks} gives us in addition to~\eqref{eq:SVD_XVa_XperpVa} also
+\begin{equation}\label{eq:SVD_Vb_X}
+ V_\beta^T X = U_2 \begin{bmatrix} O_{m \times r} \\ & S_r \end{bmatrix} V_1^T = \tilde U_2 \sin \theta \,  V_1^T,
+\end{equation}
+where $\tilde U_2 \in \mathbb{R}^{(n-k) \times k}$ contains the last $k$ columns of the orthogonal matrix $U_2$ in order. 
+% \textcolor{red}{USE CS FROM ABOVE DIRECTLY FOR $ V_{\beta}^T X $} From $V_{\alpha}^T X = U_1 \cos \theta \, V_1^T$ and $X^T V_{\beta} V_{\beta}^T X = I_k-V_1 \cos^2 \theta \, V_1^T = V_1 \sin^2 \theta \, V_1^T $, we also have the SVD
+% $$
+%  V_{\beta}^T X = U_2 \sin \theta \, V_1^T,
+% $$
+% with orthonormal $U_2 \in \mathbb{R}^{(n-k) \times k}$. 
+A short calculation using~\eqref{eq:XAX worked out} then shows that~\eqref{eq:def_S} satisfies
+\[
+ S= U_1^T  \Lambda_\alpha U_1  - \cos\theta \, U_1^T  \Lambda_\alpha U_1  \cos\theta - \sin\theta \, \tilde U_2^T  \Lambda_\beta\tilde  U_2  \sin\theta
+\]
+with diagonal elements 
+\[
+ S_{jj} %= (U_1^T  \Lambda_\alpha U_1)_{jj} (1- \cos^2\theta_j) - (U_2^T  \Lambda_\beta U_2)_{jj} \sin^2\theta_j 
+ = \sin^2\theta_j \, (U_1^T  \Lambda_\alpha U_1 -\tilde  U_2^T  \Lambda_\beta\tilde  U_2)_{jj}.
+\]
+Since $U_1$ and $\tilde U_2$ have orthonormal columns, we obtain
+\[
+ \lambda_{\min} (U_1^T  \Lambda_\alpha U_1) \geq \lambda_{\min} (\Lambda_\alpha) = \lambda_k, \quad \lambda_{\max}(\tilde U_2^T  \Lambda_\beta \tilde U_2) \leq \lambda_{\max}(\Lambda_\beta) = \lambda_{k+1},
+\]
+from which we get with Weyl's inequality that
+\[
+ \lambda_{\min} (U_1^T  \Lambda_\alpha U_1 - \tilde U_2^T  \Lambda_\beta \tilde U_2)
+ \geq \lambda_{\min} (U_1^T  \Lambda_\alpha U_1) - \lambda_{\max}(\tilde U_2^T  \Lambda_\beta \tilde U_2) \geq \lambda_k - \lambda_{k+1} \geq 0.
+\]
+Hence, the matrix 
+\begin{equation}\label{eq:La_min_Lb_is_PSD}
+U_1^T  \Lambda_\alpha U_1 - \tilde U_2^T  \Lambda_\beta \tilde U_2
+\end{equation}
+is symmetric and positive semi-definite. Its diagonal entries, and thus also $S_{jj}$, are therefore positive. 
+\end{proof}
+
+% (ii) Secondly, we prove the statement for the case that some but not all of the principal angles between $\mathcal{X}$ and $\mathcal{V}_{\alpha}$ are $0$, let us assume $\theta_1=...=\theta_{\ell}=0$ and $\theta_{\ell+1}>0$ for some $\ell \geq 1$. Denoting by $x_i$ the principal vector associated with $\theta_i$ (see \cite{hardt2014noisy}, page 8), we have that $\mathcal{X}=[X]$ with $X=[x_1 \hspace{1mm} ... \hspace{1mm} x_{\ell} \hspace{1mm}... \hspace{1mm} x_k]$. We now define the linear map $R_{x_i x_{i+1}}(\theta)$, which rotates the vectors $x_i$ and $x_{i+1}$ with angle $\theta$ while keeping the rest of principal vectors (i.e. the orthogonal complement of $\textnormal{span}(x_i,x_{i+1})$) fixed. This map reads
+% \begin{equation*}
+%     R_{x_i x_{i+1}}(\theta) = I_n+\sin(\theta) (x_{i+1} x_i^T- x_i x_{i+1}^T)+ (\cos(\theta)-1) (x_i x_i^T+x_{i+1} x_{i+1}^T).
+% \end{equation*}
+% $R$ is orthogonal and $\textnormal{det}(R)=1$.
+
+% If $\ell$ is even we define
+% \begin{equation*}
+%     R(\theta):=R_{x_1 x_{2}}(\theta) \cdot ... \cdot R_{x_{\ell-1} x_{\ell}}(\theta)
+% \end{equation*}
+% while if $\ell$ is odd, we define
+% \begin{equation*}
+%     R(\theta):=R_{x_1 x_{2}}(\theta) \cdot ... \cdot R_{x_{\ell} x_{\ell+1}}(\theta).
+% \end{equation*}
+% In any case, we define
+% \begin{equation*}
+%     X_{\nu} := R \left(\frac{\min \lbrace \theta_{l+1}, \pi/2 - \theta_k \rbrace}{4 \nu} \right) X \longrightarrow X
+% \end{equation*}
+% when $\nu \rightarrow \infty$, in the sense that $\textnormal{dist}(X_{\nu}, X) \rightarrow 0$. This is because each $R_{x_i x_{i+1}}(\theta)$ converges to $I_n$ in the sense $\| R_{x_i x_{i+1}}(\theta)-I_n\|_F \rightarrow 0$, when $\theta \rightarrow 0$, thus their product $R$ also satisfies $\| R(\theta) - I_n \|_F \rightarrow 0$ and $\| R(\theta) X - I_n X \|_F \rightarrow 0$. Since $\frac{\min \lbrace \theta_{l+1}, \pi/2 - \theta_k \rbrace}{4 \nu}$ converges to $0$ when $\nu$ converges to $0$, we have $\| X_{\nu} - X\|_F \rightarrow 0$ which is equivalent to convergence in terms of intrinsic distance.
+
+% We have also that $\mathcal{X}_{\nu}=[X_{\nu}] \in \Gr(n,k)$ has principal angles with $\mathcal{V_{\alpha}}$ which are in $(0,\pi/2)$, because after rotation each vector rotates with an angle $\frac{\min \lbrace \theta_{l+1}, \pi/2 - \theta_k \rbrace}{4}<\frac{\pi}{8}$. This means that all the principal vector which correspond to $0$ principal angles, after rotation are still associated with the same leading eigenvectors (because the rotation angle is less than $\pi/8$) but with positive principal angles. In the case that $\ell$ is odd and we also rotate $x_{\ell+1}$, again since the angle of the rotation is sufficiently small, $x_{\ell+1}$ will remain associated with $v_{k+1}$ with angles between $\left(\theta_{\ell+1}-\frac{\min \lbrace \theta_{l+1}, \pi/2 - \theta_k \rbrace}{4},\theta_{l+1}+\frac{\min \lbrace \theta_{l+1}, \pi/2 - \theta_k \rbrace}{4} \right) \subseteq \left (0,\frac{\pi}{2} \right)$. All the other principal vectors will remain fixed.
+
+% Thus for the sequence $\mathcal{X_{\nu}}$, we have
+% \begin{equation*}
+%     2 a(\mathcal{X_{\nu}}) \, (f(\mathcal{X_{\nu}})-f^*) \leq \langle \textnormal{grad}f(\mathcal{X_{\nu}}), -\Log_{\mathcal{X_{\nu}}}(\mathcal{V_{\alpha})} \rangle
+% \end{equation*}
+% for any $\nu \geq 1$ by the argument in (i).
+
+% We have
+% \begin{equation*}
+%     a(\mathcal{X_{\nu}})=a(\mathcal{X})\hspace{2mm} \text{and} \hspace{2mm} f(\mathcal{X_{\nu}}) \rightarrow f(\mathcal{X}),
+% \end{equation*}
+% thus the left hand side of the inequality converges to $2 a(\mathcal{X})(f(\mathcal{X})-f^*)$ and
+% \begin{equation*}
+%     \grad f(\mathcal{X}_{\nu}) \rightarrow \grad f(\mathcal{X}) \hspace{2mm} \text{and} \hspace{2mm} \Log _ {\mathcal{X}_{\nu}}(V_{\alpha}) \rightarrow \Log _ {\mathcal{X}}(V_{\alpha})
+% \end{equation*}
+% because both 
+% \begin{equation*}
+%     \mathcal{X} \rightarrow \grad f(\mathcal{X}) \hspace{2mm} \text{and} \hspace{2mm} \mathcal{X} \rightarrow \Log _ {\mathcal{X}} (\mathcal{V}_{\alpha})
+% \end{equation*}
+% are smooth vector fields on the Grassmann manifold, thus also continuous. Thus, the right hand side of the inequality converges to $\langle \grad f(\mathcal{X}),- \Log _ {\mathcal{X}}(V_{\alpha}) \rangle$ and the desired inequality holds by an asymptotic argument. 
+
+% (iii) For the case that all principal angles between $\mathcal{X}$ and $\mathcal{V}_{\alpha}$ are $0$, then the two subspaces are exactly the same and both sides of inequality are $0$, thus it holds as an equality.
+
+% 
+% If $\mathcal{X}=\myspan(\mathcal{X})$ and $\mathcal{V_{\alpha}}=\myspan(V_{\alpha})$, we have that $$\textnormal{grad}f(\mathcal{X})= \myspan(-2(I_n-X X^T) A X)$$ and $$\log_{\mathcal{X}}(\mathcal{V_{\alpha})} = \myspan( V \arctan(S) U^T),$$ where $U S V^T = (V_{\alpha}^T X)^{-1} V_{\alpha}^T (I_n-X X^T)$.
+% 
+% We start by orthogonalizing the matrix $(I_n-X X^T) V_{\alpha}$, by multiplying with the matrix 
+% \begin{align*}
+%     N & = \left(\sqrt{V_{\alpha}^T (I_n-X X^T) (I_n-X X^T) V_{\alpha}} \right)^{-1} \\ &= \left(\sqrt{V_{\alpha}^T (I_n-X X^T) V_{\alpha}} \right)^{-1} \\ &= \left( \sqrt{ (I_n-{V_{\alpha}^T X X^T V_{\alpha}}} \right)^{-1} \\ & = \left( \sqrt{ I_n-U_1 \cos^2 \theta U_1^T} \right)^{-1} \\& = \left( \sqrt{ U_1 \sin^2 \theta U_1^T} \right)^{-1} \\ & = \left( U_1 \sin \theta U_1^T \right)^{-1} \\ & = U_1 (\sin \theta)^{-1} U_1^T.
+% \end{align*}
+% 
+% 
+% This yields to 
+% \begin{align*}
+%     U S V^T &= (V_{\alpha}^T X)^{-1} V_{\alpha}^T (I_n-X X^T) \\ & = 
+%     (V_1 ^ T)^{-1} (\cos \theta)^{-1} U_1^{-1} N^{-1} N V_{\alpha}^T (I_n-X X^T) \\ & = 
+%     V_1 (\cos \theta)^{-1} U_1^{-1} U_1 \sin \theta U_1^T ((I_n-X X^T) V_{\alpha} N)^T \\ & =
+%     V_1 (\cos \theta)^{-1} \sin \theta ((I_n-X X^T) V_{\alpha} N U_1)^T \\ & =
+%     V_1 \tan \theta ((I_n-X X^T) V_{\alpha} N U_1)^T.
+% \end{align*}
+% The matrices $V_1,(I_n-X X^T) V_{\alpha} N U_1 \in \mathbb{R}^{k \times k}$ are orthogonal and $\tan \theta \in \mathbb{R}^{k \times k}$ is diagonal, thus we can consider
+% \begin{equation*}
+%     U=V_1, \hspace{2mm} S= \tan \theta, \hspace{2mm} V=(I_n-X X^T) V_{\alpha} N U_1.
+% \end{equation*}
+
+% By the definition of the Riemannian logarithm, we get
+% $$\log_{\mathcal{X}}(\mathcal{V_{\alpha})} = \myspan( V \theta U^T).$$
+% Thus, we have
+% \begin{align*}
+%     \langle \textnormal{grad}f(\mathcal{X}), -\log_{\mathcal{X}}(\mathcal{V_{\alpha})} \rangle &= \Tr(U \theta V^T (I_n-X X^T) 2 A X) \\& = \Tr(V_1 \theta U_1^T N V_{\alpha}^T (I_n-X X^T) (I_n-X X^T) 2 A X) \\ & = \Tr(V_1 \theta U_1^T U_1 (\sin \theta)^{-1} U_1^T V_{\alpha}^T (I_n-X X^T) 2 A X) \\ & = 2 \Tr \left(V_1 \frac{\theta}{\sin \theta} U_1^T V_{\alpha}^T (I_n-X X^T) A X \right)\\ & = 2 \Tr \left(\frac{\theta}{\sin \theta} U_1^T V_{\alpha}^T (I_n-X X^T) A X V_1 \right).
+% \end{align*}
+% The matrix $V_{\alpha}^T (I_n-X X^T) A X$ is equal to
+% \begin{align*}
+%     V_{\alpha}^T A X-V_{\alpha}^T X X^T A X=\Lambda_{\alpha} V_{\alpha}^T X -V_{\alpha}^T X X^T A X= \Lambda_{\alpha} U_1 \cos \theta V_1^T- U_1 \cos \theta V_1^T X^T A X,
+% \end{align*}
+% thus the previous trace becomes
+% \begin{align*}
+%     &2 \Tr \left(\frac{\theta}{\sin \theta} U_1^T V_{\alpha}^T (I_n-X X^T) A X V_1 \right) \\ = & 2 \Tr \left(\frac{\theta}{\sin \theta} U_1^T (\Lambda_{\alpha} U_1 \cos \theta V_1^T- U_1 \cos \theta V_1^T X^T A X) V_1 \right)\\ =& 2 \Tr \left(\frac{\theta}{\sin \theta} (U_1^T \Lambda_{\alpha} U_1 \cos \theta- \cos \theta V_1^T X^T A X V_1) \right) \\ = & 2 \Tr \left(\frac{\theta}{\sin \theta} U_1^T \Lambda_{\alpha} U_1 \cos \theta \right)-2 \Tr \left(\frac{\theta}{\sin \theta} \cos \theta V_1^T X^T A X V_1 \right) \\ = & 2 \Tr \left(\frac{\theta}{\tan \theta} U_1^T \Lambda_{\alpha} U_1 \right) -2 \Tr \left(\frac{\theta}{\tan \theta} V_1^T X^T A X V_1 \right) \\ = &  2 \Tr \left(\frac{\theta}{\tan \theta} (U_1^T \Lambda_{\alpha} U_1-V_1^T X^T A X V_1) \right).
+% \end{align*}https://www.overleaf.com/project/611e2972547be061d35fe34e
+% We now denote $U_1^T \Lambda_{\alpha} U_1-V_1^T X^T A X V_1=: \lbrace a_{ij} \rbrace_{i,j=1}^k$. Since the matrix $\frac{\theta}{\tan \theta}$ is diagonal, we have
+% \begin{equation*}
+%     2 \Tr \left(\frac{\theta}{\tan \theta} (U_1^T \Lambda_{\alpha} U_1-V_1^T X^T A X V_1) \right)= 2\sum_{j=1}^k \frac{\theta_j}{\tan \theta_j} a_{jj}.
+% \end{equation*}
+% If $a_{jj} \geq 0$, then we get
+% \begin{align*}
+%     &2 \Tr \left(\frac{\theta}{\tan \theta} (U_1^T \Lambda_{\alpha} U_1-V_1^T X^T A X V_1) \right)  \\ \geq & 2 \min_j \frac{\theta_j}{\tan \theta_j} \sum_{j=1}^k a_{jj} \\  = & 2 \min_j \frac{\theta_j}{\tan \theta_j} \Tr(U_1^T \Lambda_{\alpha}U_1-V_1^T X^T A X V_1) \\  = & 2 \min_j \frac{\theta_j}{\tan \theta_j} (\Tr(U_1^T \Lambda_{\alpha}U_1)-\Tr(V_1^T X^T A X V_1)) \\ = & 2 \min_j \frac{\theta_j}{\tan \theta_j} (\Tr(\Lambda_{\alpha})-\Tr(X^T A X)) \\ = &  2 \min_j \frac{\theta_j}{\tan \theta_j} (f(\mathcal{X})-f^*)
+% \end{align*}
+% which is the desired result.
+
+% Thus it suffices to prove that $a_{jj} \geq 0$. To that end, we observe that
+% \begin{equation*}
+%     X^T A X= X^TV_{\alpha} \Lambda_{\alpha}V_{\alpha}^T X + X^T V_{\beta} \Lambda_{\beta} V_{\beta}^T X = V_1 \cos \theta U_1^T \Lambda_{\alpha} U_1 \cos \theta V_1^T + V_1 \sin \theta U_2^T \Lambda_{\beta} U_2 \sin \theta V_1^T.
+% \end{equation*}
+% Here we substitute $V_{\alpha}^T X = U_1 \cos \theta V_1^T$ and $V_{\beta}^T X = U_2 \sin \theta V_1^T$. The latter is because $X^T V_{\beta} V_{\beta}^T X = V_1 \sin^2 \theta V_1$, since $V_{\beta}$ is the orthogonal complement of $V_{\alpha}$. Thus,
+% \begin{equation*}
+%     V_1X^T A XV_1^T= \cos \theta U_1^T \Lambda_{\alpha} U_1 \cos \theta + \sin \theta U_2^T \Lambda_{\beta} U_2 \sin \theta
+% \end{equation*}
+% and
+% \begin{align*}
+%     \lbrace a_{ij} \rbrace_{i,j=1}^k = U_1^T \Lambda_{\alpha} U_1  -\cos \theta U_1^T \Lambda_{\alpha} U_1 \cos \theta-\sin \theta U_2^T \Lambda_{\beta} U_2 \sin \theta.
+% \end{align*}
+% Denoting $\lbrace b_{ij} \rbrace_{i,j=1}^k:=U_1^T \Lambda_{\alpha} U_1$ and $\lbrace c_{ij} \rbrace_{i,j=1}^k:=U_2^T \Lambda_{\beta} U_2$, we have
+% \begin{equation*}
+%     a_{jj}=b_{jj}-\cos^2 \theta_j b_{jj}- \sin^2 \theta_j c_{jj} = \sin^2 \theta_j (b_{jj}-c_{jj}),
+% \end{equation*}
+% because the matrices $\cos \theta_j, \sin \theta_j$ are diagonal. The quantities $b_{jj}-c_{jj}$ are the diagonal entries of the matrix $U_1^T \Lambda_{\alpha} U_1- U_2^T \Lambda_{\beta} U_2$, which is symmetric and positive definite, because
+% \begin{align*}
+%     &\lambda_{min}(U_1^T \Lambda_{\alpha} U_1- U_2^T \Lambda_{\beta} U_2) \geq \lambda_{min}(U_1^T \Lambda_{\alpha} U_1)-\lambda_{max}(U_2^T \Lambda_{\beta} U_2) \\ = & \lambda_k- \lambda_{max}(\Lambda_{\beta} U_2 U_2^T ) \geq \lambda_k- \lambda_{max}(\Lambda_{\beta}) \lambda_{max}(U_2 U_2^T) \geq \lambda_k-\lambda_{k+1}>0.
+% \end{align*}
+% It is well-known that the diagonal entries of a symmetric positive definite matrix are positive, thus $b_{jj}-c_{jj}>0$. This implies that
+% \begin{equation*}
+%     a_{jj}>0
+% \end{equation*}
+% and the proof is complete.
+
+% We denote
+% $$ a(\mathcal{X})=\min_j \frac{\theta_j}{\tan \theta_j}$$
+% where $\theta_j$ are the principal angles between $\mathcal{X}$ and $\mathcal{V}_{\alpha}$ and 
+% $$  \mu=\frac{\delta}{2}  .   $$
+
+
+
+We now arrive at a useful property of $f$ that will later allow us to analyze the convergence of Riemannian steepest descent. It is a \emph{weaker version of strong geodesic convexity} and can be proved easily using quadratic growth and weak-quasi-convexity. 
+
+\begin{tcolorbox}
+\begin{theorem}[Weak-strong convexity]\label{thm:weak_strong_convex}
+Let $0 \leq \theta_1 \leq \cdots \leq \theta_k < \pi/2$ be the principal angles between the subspaces $\mathcal{X}$ and $\mathcal{V}_\alpha$. Then, $f$ satisfies
+\begin{equation*}
+   f(\mathcal{X})-f^* \leq \frac{1}{a(\mathcal{X})} \langle \grad f(\mathcal{X}), -\Log_{\mathcal{X}}(\mathcal{V}_{\alpha}) \rangle - c_Q \delta \, \dist^2 (\mathcal{X},\mathcal{V}_{\alpha})
+\end{equation*}
+with $a(\mathcal{X})= \theta_k / \tan \theta_k >0$, $c_Q = 4/\pi^2 > 0.4$, and $\delta = \lambda_k - \lambda_{k+1} \geq 0$.
+\end{theorem}
+\end{tcolorbox}
+
+\begin{proof}
+Combining Propositions~\ref{prop:quadratic_growth} and~\ref{prop:weak-quasi-convexity} leads to
+\begin{equation*}
+    c_Q \delta \, \dist^2(\mathcal{X},\mathcal{V}_{\alpha}) \leq f(\mathcal{X})-f^* \leq \frac{1}{2 a(\mathcal{X})} \langle \grad f(\mathcal{X}), -\Log_{\mathcal{X}}(\mathcal{V}_{\alpha}) \rangle.
+\end{equation*}
+At the same time, Proposition~\ref{prop:weak-quasi-convexity} also implies
+\begin{align*}
+    f(\mathcal{X})-f^*  &\leq \frac{1}{2 a(\mathcal{X})} \langle \grad f(\mathcal{X}), -\Log_{\mathcal{X}}(\mathcal{V}_\alpha) \rangle - c_Q \delta \, \dist^2(\mathcal{X},\mathcal{V}_\alpha) \\ & \qquad + c_Q \delta \, \dist^2(\mathcal{X},\mathcal{V}_\alpha).
+    % \\ & \leq \frac{1}{a(\mathcal{X})} \langle \textnormal{grad}f(\mathcal{X}), -\log_{\mathcal{X}}(\mathcal{V_{\alpha}}) \rangle - \frac{\mu}{2} \textnormal{dist}^2(\mathcal{X},\mathcal{V_{\alpha})}).
+\end{align*}
+Substituting this inequality in the first one gives the desired result.
+\end{proof}
+\begin{remark}
+Theorem \ref{thm:weak_strong_convex} is also valid when the eigengap $\delta = 0$. In that case, $\mathcal{V}_{\alpha}$ is \textit{any subspace spanned by $k$ leading eigenvectors of $A$} and the theorem reduces to Proposition \ref{prop:weak-quasi-convexity}.
+\end{remark}
+
+
+
+% \vspace{4mm}
+
+While not needed for our convergence proof, the next result is of independent interest and shows that $f$ is gradient dominated in the Riemannian sense when the eigengap $\delta$ is strictly positive. This property is the \emph{Riemannian version of the Polyak--Łojasiewicz inequality} and generalizes a result by \cite{zhang2016riemannian} for the Rayleigh quotient on the sphere.
+
+
+\begin{tcolorbox}
+\begin{Proposition}[Gradient dominance] \label{prop:PL}
+The function $f$ satisfies
+\begin{equation*}
+    \| \textnormal{grad}f(\mathcal{X}) \|^2 \geq 4 \, c_Q \, \delta \, a^2(\mathcal{X}) (f(\mathcal{X})-f^*)
+\end{equation*}
+%almost surely.
+for all subspaces $\mathcal{X}$ that have a largest principal angle $<\pi/2$ with $\mathcal{V}_\alpha$.
+\end{Proposition}
+\end{tcolorbox}
+
+\begin{proof}
+We assume that $\delta > 0$ since otherwise the statement is trivially true. By Theorem~\ref{thm:weak_strong_convex}, we have
+\begin{equation*}
+   f(\mathcal{X})-f^* \leq \frac{1}{a(\mathcal{X})} \langle \grad f(\mathcal{X}), -\Log_{\mathcal{X}}(\mathcal{V}_{\alpha}) \rangle - c_Q \delta \dist^2 (\mathcal{X}, \mathcal{V}_{\alpha}).
+\end{equation*}
+Since $\langle G_1, G_2 \rangle \leq (\|G_1\|^2 + \|G_2 \|^2)/2$ for all matrices $G_1, G_2$, we can write for any $\rho > 0$ that
+\begin{equation*}
+    \langle \grad f(\mathcal{X}), -\Log_{\mathcal{X}}(\mathcal{V}_{\alpha}) \rangle \leq \frac{\rho}{2} \| \textnormal{grad}f(\mathcal{X}) \|^2 + \frac{1}{2 \rho} \| \Log_{\mathcal{X}}(\mathcal{V}_{\alpha}) \|^2.
+\end{equation*}
+Using that $\dist (\mathcal{X}, \mathcal{V}_{\alpha})= \| \Log_{\mathcal{X}}(\mathcal{V}_{\alpha}) \|$ and choosing $\rho=1/(2 c_Q \delta a(\mathcal{X}))$, we get the desired result.
+% :
+% \begin{align*}
+%     f(\mathcal{X})-f^* & \leq 
+%     % \frac{1}{a(\mathcal{X})}  \frac{1}{a(\mathcal{X}) \delta} \| \grad f(\mathcal{X}) \|^2  + \frac{1}{a(\mathcal{X})} \frac{a(\mathcal{X}) \delta}{4} \dist^2(\mathcal{X},\mathcal{V_{\alpha}}) - c_Q \delta \dist^2(\mathcal{X},\mathcal{V_{\alpha}}) \\ 
+%     % & =  
+%     \frac{1}{4 c_Q \delta a^2 (\mathcal{X}) } \| \grad f(\mathcal{X}) \|^2. \qedhere
+% \end{align*}
+% and rearranging the inequality the result follows.
+\end{proof}
+
+
+
+
+
+
+
+
+
+
+
+\section{Convergence of Riemannian steepest descent}
+
+We now have everything in place to prove the convergence of the Riemannian steepest descent (RSD) method on the Grassmann manifold for minimizing $f$. Starting from a subspace $\mathcal{X}_0 \in \Gr(n,k)$, we iterate
+\begin{equation}\label{eq:GD}
+ \mathcal{X}_{t+1}=\Exp_{\mathcal{X}_t} (-\eta_t \, \grad f(\mathcal{X}_t) ).
+\end{equation}
+Here, $\eta_t > 0$ is a step size that may depend on the iteration $t$ and will be carefully chosen depending on the specific case.
+
+
+
+
+
+% \vspace{20mm}
+%The iteration is started from a randomly chosen subspace $ \mathcal{X}_0 \in \textnormal{Gr}(n,k)$. Hence, with probability one all principal angles between $\mathcal{X}_0$  and the optimal subspace $\mathcal{V}_\alpha$ are strictly smaller than $\pi/2$.
+
+
+
+
+We start by a general result which shows that the distance to the optimal subspace contracts after one step of steepest descent. The step size depends on the smoothness and weak-quasi-convexity  constants of $f$ from Propositions~\ref{prop:smoothness} and~\ref{prop:weak-quasi-convexity}. This is crucial since the constant $a(\mathcal{X})$ depends on the biggest principal angle between $\mathcal{X}$ and $\mathcal{V}_{\alpha}$ and bounding the evolution of distances of the iterates to the minimizer will help us also bounding this constant.\footnote{The analysis of \cite{pmlr-v119-huang20e} is wrong with respect to this issue as discussed in detail in \cite{alimisis2021distributed}.} An alternative contraction property with a more tractable step size is presented in Proposition \ref{prop:big_step_distance} of Appendix \ref{sec:big_step}. 
+\begin{tcolorbox}
+\begin{lemma}[Contraction of RSD]\label{lem:GD convergence 1 step}
+Let $\mathcal{X}_t$ and $\mathcal{V}_\alpha$ have principal angles $0 \le \theta_1 \leq \cdots \leq \theta_k < \pi/2$. 
+Then, iteration~\eqref{eq:GD} with $0 \le \eta_t \leq \frac{a(\mathcal{X}_t)}{\gamma}$ satisfies
+   \begin{equation*}
+   \dist^2(\mathcal{X}_{t+1},\mathcal{V}_{\alpha})   \leq \big(1- 2 c_Q \delta a(\mathcal{X}_t) \, \eta_t \big)  \dist^2(\mathcal{X}_t,\mathcal{V}_{\alpha}) 
+   \end{equation*}
+%In particular, the best possible contraction rate is
+   %\begin{equation*}
+   %\dist^2(\mathcal{X}_{t+1},\mathcal{V}_{\alpha})   \leq \left(1- 2 c_Q a^2(\mathcal{X}_t) \, %\frac{\delta}{\gamma}  \right) \dist^2(\mathcal{X}_t,\mathcal{V}_{\alpha}),
+   %\end{equation*}
+   %is obtained for $\eta_t = \frac{a(\mathcal{X}_t)}{\gamma}$.
+\end{lemma}
+\end{tcolorbox}
+
+Observe that $\gamma= 0$ implies $A = \lambda_1 I$ and any subspace $\mathcal{X}$ of dimension $k$ will be an eigenspace of $A$ with $\dist(\mathcal{X},\mathcal{V}_\alpha)=0$. We will therefore not explicitly prove this lemma and all forthcoming convergence results for $\gamma=0$ since the statements will be trivially true.
+
+
+
+% \textcolor{red}{Bart: $\gamma= 0$ implies that $A = \lambda_1 I$. This is not interesting but the statement of the lemma does not exclude it. Can we take $\eta_t = \infty$? Do we converge in 1 step? Lemma 3 would give that Riem grad is always zero! Also $\delta=0$ and any subspace is a solution, so $\theta_k = 0$.}
+
+\begin{proof}[Proof of Lemma~\ref{lem:GD convergence 1 step}]
+By the assumption on the principal angles, we get that $0< a(\mathcal{X}_t) = \theta_k / \tan \theta_k \leq 1$. 
+% Recall from Proposition~\ref{prop:smoothness} that $\gamma=2(\lambda_1 - \lambda_n) > 0$ and by $0< a(\mathcal{X}_t) \leq 1$. 
+The hypothesis on $\eta_t$ and Lemma~\ref{lem:uniform upper bound grad} then gives
+\[
+ \eta_t \|\grad f(\mathcal{X}_t)\|_2 \leq \frac{a(\mathcal{X}_t)}{\gamma} \|\grad f(\mathcal{X}_t)\|_2 \leq \frac{1}{2} < \frac{\pi}{2}.
+\]
+By~\eqref{eq:inj_exp}, this guarantees that the geodesic $\tau \mapsto \Exp(- \tau \eta_t \, \grad f(\mathcal{X}_t))$ lies within the injectivity domain at ${\mathcal{X}_t}$ for $\tau \in [0,1]$. Hence, $\Exp$ is bijective along this geodesic and thus $\Log_{\mathcal{X}_t}(\mathcal{X}_{t+1}) = -\eta_t \, \grad f(\mathcal{X}_t)$. We can thus apply Lemma~\ref{prop:tangent_space} to obtain
+\begin{align}\label{eq:dist_with_sigma}
+        \dist^2(\mathcal{X}_{t+1},\mathcal{V}_{\alpha})  &\leq \|-\eta_t \grad f(\mathcal{X}_t)-\textnormal{log}_{\mathcal{X}_t}(\mathcal{V}_{\alpha}) \|^2   \notag \\ 
+        & = \eta_t^2 \|\grad f(\mathcal{X}_t)\|^2 + \dist^2(\mathcal{X}_t, \mathcal{V}_{\alpha}) +2 \eta_t \, \sigma \
+    \end{align}
+    with
+    \[
+    \sigma := \langle \grad f(\mathcal{X}_t),\log_{\mathcal{X}_t}(\mathcal{V}_{\alpha}) \rangle.
+    \]
+    Theorem~\ref{thm:weak_strong_convex} and~\eqref{eq:optim_gap_with_gradient} together with Proposition~\ref{prop:smoothness} give
+    \begin{align*}
+        \frac{\sigma}{a(\mathcal{X}_t)} &\leq f^*-f(\mathcal{X}_t)-c_Q \delta \dist^2(\mathcal{X}_t,\mathcal{V}_{\alpha}) \\
+        &\leq -\frac{1}{2 \gamma} \| \grad f(\mathcal{X}_t) \|^2- c_Q \delta \dist^2(\mathcal{X}_t,\mathcal{V}_{\alpha}).
+    \end{align*}
+    Multiplying by $2  a(\mathcal{X}_t)\, \eta_t$ and using $\eta_t \leq a(\mathcal{X}_t) / \gamma$, we get
+    \begin{align*}
+        2 \eta_t \, \sigma &\leq -\frac{a(\mathcal{X}_t) \, \eta_t }{\gamma} \| \grad f(\mathcal{X}_t) \|^2 - 2 c_Q \delta a(\mathcal{X}_t) \, \eta_t \, \dist^2(\mathcal{X}_t,\mathcal{V}_{\alpha}) \\ & \leq -\eta_t^2 \| \grad f(\mathcal{X}_t) \|^2 - 2 c_Q \delta a(\mathcal{X}_t)\, \eta_t \, \dist^2(\mathcal{X}_t, \mathcal{V}_{\alpha}).
+         \end{align*}
+         Substituting into~\eqref{eq:dist_with_sigma}, we obtain the first statement of the lemma.
+\end{proof}
+
+\begin{remark}
+When $\delta=0$, Lemma \ref{lem:GD convergence 1 step} still holds \emph{for any subspace $\mathcal{V}_{\alpha}$ spanned by $k$ leading eigenvectors of $A$}. In that case, the lemma only guarantees that the distance between the iterates of steepest descent and this $\mathcal{V}_{\alpha}$ does not increase. 
+\end{remark}
+
+
+
+\subsection{Linear convergence rate under positive eigengap}
+When $\delta>0$, we can extend Lemma \ref{lem:GD convergence 1 step} to a linear convergence rate of distances to the minimizer:
+\begin{tcolorbox}
+\begin{theorem} \label{thm:exponential_conv}
+If $\dist(\mathcal{X}_0,\mathcal{V}_{\alpha}) < \pi / 2$ then the iterates $\mathcal{X}_t$ of Riemannian steepest descent~\eqref{eq:GD} with step size $\eta_t$ such that
+\begin{equation*}
+    0<\eta \leq \eta_t \leq \cos(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})) / \gamma
+\end{equation*}
+ satisfy
+\begin{equation*}
+  \textnormal{dist}^2(\mathcal{X}_t,\mathcal{V}_{\alpha})   \leq \left(1- c_Q \cos (\dist(\mathcal{X}_0,\mathcal{V}_{\alpha}))\, \delta\, \eta \right) ^ t  \dist^2(\mathcal{X}_0,\mathcal{V}_{\alpha}).  
+\end{equation*}
+\end{theorem}
+\end{tcolorbox}
+
+% \begin{proof}
+% We first prove by induction that $\dist (\mathcal{X}_t,\mathcal{V}_{\alpha}) \leq \dist (\mathcal{X}_0,\mathcal{V}_{\alpha})$ for all $t \geq 0$.
+
+% By Lemma \ref{lem:GD convergence 1 step}, we have that $\textnormal{dist}(\mathcal{X}_{t+1},\mathcal{V}_{\alpha}) \leq \textnormal{dist}(\mathcal{X}_t,\mathcal{V}_{\alpha})$, if $\mathcal{X}_{t+1}$ is obtained by steepest descent with step-size at most $a(\mathcal{X}_t)/\gamma$ and the principal angles between $\mathcal{X}_t$ and $\mathcal{V}_{\alpha}$ are strictly less than $\frac{\pi}{2}$. 
+
+
+% For $t=0$ we have that 
+% \begin{equation*}
+%     \eta \leq \frac{a(\mathcal{X}_0)}{\gamma}
+% \end{equation*}
+% because
+% \begin{equation*}
+%     a(\mathcal{X}_0)=\frac{\theta_k(\mathcal{X}_0,\mathcal{V}_{\alpha})}{\tan(\theta_k(\mathcal{X}_0,\mathcal{V}_{\alpha}))} \geq \cos(\theta_k(\mathcal{X}_0,\mathcal{V}_{\alpha})) \geq \cos(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})).
+% \end{equation*}
+% Also the principal angles between $\mathcal{X}_0$ and $\mathcal{V}_{\alpha}$ are less than $\frac{\pi}{2}$ since \newline $\textnormal{dist}(\mathcal{X}_0, \mathcal{V}_{\alpha}) < \frac{\pi}{2}$.
+
+% Thus
+% \begin{equation*}
+%     \dist (\mathcal{X}_1,\mathcal{V}_{\alpha}) \leq \dist (\mathcal{X}_0,\mathcal{V}_{\alpha}).
+% \end{equation*}
+% Now, we assume that 
+% \begin{equation*}
+%     \dist (\mathcal{X}_t,\mathcal{V}_{\alpha}) \leq \dist (\mathcal{X}_0,\mathcal{V}_{\alpha}).
+% \end{equation*}
+% Then by a similar argument, we have
+% \begin{equation*}
+%   a(\mathcal{X}_t) = \frac{\theta_k(\mathcal{X}_t,\mathcal{V}_{\alpha})}{\tan \theta_k(\mathcal{X}_t,\mathcal{V}_{\alpha})} \geq \cos(\theta_k(\mathcal{X}_t,\mathcal{V}_{\alpha})) \geq \cos(\dist(\mathcal{X}_t,\mathcal{V}_{\alpha})) \geq \cos(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha}))
+% \end{equation*}
+% and the angles between $\mathcal{X}_t$ and $\mathcal{V}_{\alpha}$ are less than $\frac{\pi}{2}$.
+
+% Thus
+% \begin{equation*}
+%     \eta \leq \frac{a(\mathcal{X}_t)}{\gamma},
+% \end{equation*}
+% which implies that
+% \begin{equation*}
+%     \dist (\mathcal{X}_{t+1},\mathcal{V}_{\alpha}) \leq \dist (\mathcal{X}_t,\mathcal{V}_{\alpha}) \leq \dist (\mathcal{X}_0,\mathcal{V}_{\alpha}).
+% \end{equation*}
+% This completes the induction argument.
+
+
+% Since $\eta \leq \frac{a(\mathcal{X}_t)}{\gamma}$ and the principal angles between $\mathcal{X}_{t}$ and $\mathcal{V}_{\alpha}$ remain less than $\frac{\pi}{2}$, we can use again Lemma \ref{lem:GD convergence 1 step} and we get
+% \begin{equation*}
+%     \textnormal{dist}^2(\mathcal{X}_{t+1},\mathcal{V}_{\alpha})   \leq \left(1- c_Q \cos (\textnormal{dist}(\mathcal{X}_0,\mathcal{V}_{\alpha})) \delta \eta \right) \textnormal{dist}^2(\mathcal{X}_t,\mathcal{V}_{\alpha})
+% \end{equation*}
+% because
+% \begin{equation*}
+%     a(\mathcal{X}_0) \geq \cos(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})).
+% \end{equation*}
+% Again by induction, we get the desired result.
+% \end{proof}
+
+
+\begin{proof}
+We first claim that $\dist (\mathcal{X}_{t},\mathcal{V}_{\alpha}) \leq \dist (\mathcal{X}_0,\mathcal{V}_{\alpha})$ for all $t \geq 0$. This would then also imply that $\theta_k(\mathcal{X}_t, \mathcal{V}_\alpha) < \pi/2$ for all  $t\geq 0$ since
+\[
+ \theta_k(\mathcal{X}_t, \mathcal{V}_\alpha) \leq \sqrt{\sum_{i=1}^k \theta_i (\mathcal{X}_t, \mathcal{V}_\alpha)^2} = \dist(\mathcal{X}_t, \mathcal{V}_\alpha).
+\]
+% By Lemma \ref{lem:GD convergence 1 step}, we have that $\textnormal{dist}(\mathcal{X}_{t+1},\mathcal{V}_{\alpha}) \leq \textnormal{dist}(\mathcal{X}_t,\mathcal{V}_{\alpha})$, if $\mathcal{X}_{t+1}$ is obtained by steepest descent with step-size at most $a(\mathcal{X}_t)/\gamma$ and the principal angles between $\mathcal{X}_t$ and $\mathcal{V}_{\alpha}$ are strictly less than $\frac{\pi}{2}$. 
+For $t=0$, we have $\theta_k(\mathcal{X}_{0},\mathcal{V}_{\alpha}) < \pi/2$ by hypothesis on $\mathcal{X}_0$ and thus
+\begin{equation*}
+    a(\mathcal{X}_0)=\frac{\theta_k(\mathcal{X}_0,\mathcal{V}_{\alpha})}{\tan(\theta_k(\mathcal{X}_0,\mathcal{V}_{\alpha}))} \geq \cos(\theta_k(\mathcal{X}_0,\mathcal{V}_{\alpha})) \geq \cos(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})).
+\end{equation*}
+Since by construction $\eta_0 \leq \cos(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})) / \gamma$ , this implies that $\eta_0 \leq a(\mathcal{X}_0) / \gamma$ and Lemma \ref{lem:GD convergence 1 step} guarantees that $\dist(\mathcal{X}_{1},\mathcal{V}_{\alpha}) \leq \textnormal{dist}(\mathcal{X}_0,\mathcal{V}_{\alpha})$. In particular, we also have $\theta_k(\mathcal{X}_{1},\mathcal{V}_{\alpha}) < \pi/2$.
+
+Next, assume that 
+\begin{equation*}
+    \dist (\mathcal{X}_t,\mathcal{V}_{\alpha}) \leq \dist (\mathcal{X}_{0},\mathcal{V}_{\alpha}),
+\end{equation*}
+which implies $\theta_k(\mathcal{X}_{t},\mathcal{V}_{\alpha}) < \pi/2$.
+Then by a similar argument like above, we have
+\begin{equation}\label{eq:aX_with_cos_X0}
+   a(\mathcal{X}_t) %= \frac{\theta_k(\mathcal{X}_t,\mathcal{V}_{\alpha})}{\tan \theta_k(\mathcal{X}_t,\mathcal{V}_{\alpha})} \geq 
+   %\geq \cos(\theta_k(\mathcal{X}_t,\mathcal{V}_{\alpha})) \geq 
+   \geq \cos(\dist(\mathcal{X}_t,\mathcal{V}_{\alpha})) \geq \cos(\dist(\mathcal{X}_{0},\mathcal{V}_{\alpha})).
+\end{equation}
+% and the angles between $\mathcal{X}_t$ and $\mathcal{V}_{\alpha}$ are less than $\frac{\pi}{2}$.
+By hypothesis on $\eta_t$, we observe
+\begin{equation*}
+    \eta_t \leq \frac{\cos(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha}))}{\gamma} \leq \frac{\cos(\dist(\mathcal{X}_t,\mathcal{V}_{\alpha}))}{\gamma}
+    \leq \frac{a(\mathcal{X}_t)}{\gamma}.
+\end{equation*}
+Applying Lemma~\ref{lem:GD convergence 1 step} once again with the induction hypothesis proves the claim:
+\begin{equation*}
+    \dist (\mathcal{X}_{t+1},\mathcal{V}_{\alpha}) \leq \dist (\mathcal{X}_t,\mathcal{V}_{\alpha}) \leq \dist (\mathcal{X}_0,\mathcal{V}_{\alpha}).
+\end{equation*}
+
+
+The main statement of the theorem now follows easily: Since $\eta_t \leq a(\mathcal{X}_t) / \gamma$ and  $\theta_k(\mathcal{X}_{t}, \mathcal{V}_{\alpha}) < \pi/2$ for all $t\geq 0$, Lemma \ref{lem:GD convergence 1 step} gives
+\begin{equation*}
+    \textnormal{dist}^2(\mathcal{X}_{t+1},\mathcal{V}_{\alpha})   \leq \left(1- c_Q a(\mathcal{X}_t) \delta \eta_t \right) \textnormal{dist}^2(\mathcal{X}_t,\mathcal{V}_{\alpha})
+\end{equation*}
+% because
+% \begin{equation*}
+%     a(\mathcal{X}_0) \geq \cos(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})).
+% \end{equation*}
+Combining with~\eqref{eq:aX_with_cos_X0} and $\eta_t \geq \eta$ shows the desired result by induction.
+\end{proof}
+
+
+If the eigengap $\delta$ is strictly positive, then Theorem \ref{thm:exponential_conv} gives an exponential convergence rate towards the optimum $\mathcal{V}_{\alpha}$. If $\delta=0$, then Theorem \ref{thm:exponential_conv} \emph{does not provide a convergence rate} but rather implies that the intrinsic distances of the iterates to the optimum do not increase.
+
+From Theorem \ref{thm:exponential_conv} we get immediately the following iteration complexity.
+
+\begin{corollary}
+Let Riemannian steepest descent be started from a subspace $\mathcal{X}_0$ that satisfies $\dist(\mathcal{X}_0,\mathcal{V}_{\alpha}) < \pi/2$. Then after at most
+    % \begin{equation*}
+    %     T \leq \bigO \left(\frac{1}{\cos (\textnormal{dist}(\mathcal{X}_0,\mathcal{V}_{\alpha})) \delta \eta} \log \frac{\textnormal{dist}(\mathcal{X}_0,\mathcal{V}_{\alpha})}{\epsilon} \right)
+    % \end{equation*}
+    \begin{equation*}
+        T \leq 2 \frac{\log(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})) - \log(\varepsilon)}{\log(1- 0.4 \cos (\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})) \delta \eta)}  +1 
+        = \bigO \left(\frac{\log(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})) - \log(\varepsilon)}{\cos (\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})) \delta \eta}  \right)
+    \end{equation*}
+    many iterations, $\mathcal{X}_T$ will satisfy $\dist(\mathcal{X}_T,\mathcal{V}_{\alpha}) \leq \varepsilon$. With the maximal step size allowed in Theorem \ref{thm:exponential_conv}, we get
+\[
+ T = \bigO \left(\frac{\lambda_1 - \lambda_n}{\delta}
+ \frac{1}{\cos^2(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha}))}
+ \log\left(\frac{\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})}{\varepsilon}\right) \right).
+\]
+\end{corollary}
+
+
+As expected, $T$ depends inversely proportional on the eigengap $\delta$ and proportional to the spread of the eigenvalues. In addition, we also have an extra term $1/\cos^2(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha}))$ that depends on the initial distance $\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})$, which is due to the weak-quasi-convexity property of $f$. This is a conservative overestimation, since this quantity improves as the iterates get closer to the optimum. 
+
+%In fact, once they reach the strict convexity domain of $f$, this term will be equal to one. As proven in Theorem~\ref{eq:g-convex_domain}, this occurs when $\dist(\mathcal{X}_t,\mathcal{V}_\alpha) = O(\sqrt{\delta})$.
+
+
+\begin{remark}
+  If $\delta>0$, the exponential convergence rate is in terms of the intrinsic distance on the Grassmann manifold, that is, the $\ell_2$ norm of the principal angles. Standard convergence results for subspace iteration are stated for the biggest principal angle, that is, the $\ell_\infty$ norm. This is weaker than the intrinsic distance. For subspace iteration with projection, the convergence result from~\cite[Thm.~5.2]{saadNumericalMethodsLarge2011} shows that all principal angles $\theta_i$ converge to zero and eventually gives convergence of the $\ell_4$ norm of the principal angles. This is also weaker than the intrinsic distance.
+%   More refined convergence results give bounds exists that could imply convergence for the intrinsic distance \textcolor{red}{(see XXX)}, they are not derived directly for this distance.
+\end{remark}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Convergence of function values without an eigengap assumption}
+When $\delta=0$, Theorem \ref{thm:exponential_conv} still holds, but does not provide a rate of convergence as discussed above. Instead, we can prove the following result:
+
+
+\begin{tcolorbox}
+\begin{theorem} \label{thm:convex_conv}
+If the distance $\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})$ of the initial subspace $\mathcal{X}_0$ to the minimizer satisfies $\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})<\pi / 2$ for a subspace $\mathcal{V}_{\alpha}$ that is spanned by any $k$ leading eigenvectors of $A$, then the iterates $\mathcal{X}_t$ of Riemannian steepest descent~\eqref{eq:GD} with fixed step size 
+\begin{equation*}
+    \eta \leq \cos(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha})) / \gamma
+\end{equation*}
+ satisfy
+% If the initial subspace $\mathcal{X}_0$ satisfies
+% \begin{equation*}
+%     \dist(\mathcal{X}_0, \mathcal{V}_{\alpha})<\frac{\pi}{2},
+% \end{equation*}
+% for some $\mathcal{V}_{\alpha}$ spanned by $k$ leading eigenvectors of $A$,
+% then the iterates $\mathcal{X}_t$ of Riemannian steepest descent with step-size 
+% \begin{equation*}
+%     \eta \leq \frac{\cos(\textnormal{dist}(\mathcal{X}_0,\mathcal{V}_{\alpha}))}{\gamma}
+% \end{equation*}
+%  satisfy
+\begin{equation*}
+    f(\mathcal{X}_t) - f^* \leq \frac{2\gamma+\frac{1}{\eta}}{\cos(\dist(\mathcal{X}_0,\mathcal{V}_{\alpha}))t+1} \dist^2(\mathcal{X}_0,\mathcal{V}_{\alpha})=\bigO\left(\frac{1}{t} \right).  
+\end{equation*}
+\end{theorem}
+\end{tcolorbox}
+
+
+% Since $\dist(\mathcal{X}_t,\mathcal{V}_{\alpha}) < \pi/2$,  Theorem \ref{thm:exponential_conv} guarantees that $\dist(\mathcal{X}_t,\mathcal{V}_{\alpha}) \ < \pi/2$ for all $t \geq 0$. This implies that $f$ is weakly-quasi-convex as introduced in Prop.~\ref{prop:weak-quasi-convexity} with $a(\mathcal{X}_0)$
+
+\begin{proof}
+Since we satisfy all the hypotheses of Theorem \ref{thm:exponential_conv}, we know that for all $t\geq 0$ it holds
+$\textnormal{dist}(\mathcal{X}_{t},\mathcal{V}_{\alpha}) \leq 
+% \textnormal{dist}(\mathcal{X}_t,\mathcal{V}_{\alpha}) \leq
+\textnormal{dist}(\mathcal{X}_0,\mathcal{V}_{\alpha}) < \pi/2$ and thus also that $\mathcal{X}_t$ is in the injectivity domain of $\Exp$ at $\mathcal{V}_{\alpha}$. In addition, its proof states in~\eqref{eq:aX_with_cos_X0} that
+\begin{equation*}%\label{eq:aX_with_cos_X0_b}
+   a(\mathcal{X}_t) %= \frac{\theta_k(\mathcal{X}_t,\mathcal{V}_{\alpha})}{\tan \theta_k(\mathcal{X}_t,\mathcal{V}_{\alpha})} \geq 
+   %\geq \cos(\theta_k(\mathcal{X}_t,\mathcal{V}_{\alpha})) \geq 
+   \geq  C_0 := \cos(\dist(\mathcal{X}_{0},\mathcal{V}_{\alpha})) > 0,
+\end{equation*}
+which implies that the function $f$ is weakly-quasi-convex at every $\mathcal{X}_t$ with constant $2 C_0$. Hence
+\begin{equation}\label{eq:weak-quasi-conv_with_Delta_t}
+2 C_0  \Delta_t \leq \langle \grad f(\mathcal{X}_t) , - \Log_{\mathcal{X}_t} (\mathcal{V}_{\alpha}) \rangle,
+\end{equation}
+where we defined
+\begin{equation*}
+    \Delta_t := f(\mathcal{X}_t) - f^*.
+\end{equation*}
+
+Similar to the proof of Theorem \ref{thm:exponential_conv}, by the hypothesis on the step size $\eta_t$, Lemma~\ref{lem:GD convergence 1 step} shows that $\mathcal{X}_{t+1}$ is in the injectivity domain of $\Exp$ at $\mathcal{X}_t$. 
+Hence, by the definition of Riemannian steepest descent, we have
+\begin{equation}\label{eq:Log_SD}
+    \Log_{\mathcal{X}_t} (\mathcal{X}_{t+1})=-\eta \grad f(\mathcal{X}_t).
+\end{equation}
+In addition, the smoothness property~\eqref{eq:quadratic_upper_bound} of $f$ gives
+\begin{equation*}
+    \Delta_{t+1}-\Delta_t \leq \langle \grad f(\mathcal{X}_t), \Log_{\mathcal{X}_t} (\mathcal{X}_{t+1}) \rangle+\frac{\gamma}{2} \dist^2(\mathcal{X}_t,\mathcal{X}_{t+1}).
+\end{equation*}
+Substituting~\eqref{eq:Log_SD}, we obtain
+\begin{equation}\label{eq:conv_SD_delta_zero_diff_Delta}
+    \Delta_{t+1}-\Delta_t \leq \left(-\eta +\frac{\gamma}{2} \eta^2 \right) \| \grad f(\mathcal{X}_t)\|^2 \leq 0
+\end{equation}
+since $\eta \leq C_0/\gamma$ with $0 < C_0:= \cos(\dist(\mathcal{X}_0, \mathcal{V}_{\alpha})) \leq 1$ and $\gamma > 0$.
+
+Since $\Gr(n,k)$ has nonnegative sectional curvature, Lemma~\ref{lem:geo_triangle_nonneg} implies
+\begin{equation*}
+    \dist^2(\mathcal{X}_{t+1}, \mathcal{V}_{\alpha}) \leq \dist^2(\mathcal{X}_t, \mathcal{X}_{t+1})+ \dist^2(\mathcal{X}_t, \mathcal{V}_{\alpha})-2 \langle \Log_{\mathcal{X}_t} (\mathcal{X}_{t+1}), \Log_{\mathcal{X}_t} (\mathcal{V}_{\alpha}) \rangle.
+\end{equation*}
+Substituting~\eqref{eq:Log_SD} into the above and rearranging terms gives
+\begin{equation*}
+    2 \eta \langle \grad f(\mathcal{X}_t) , - \Log_{\mathcal{X}_t} (\mathcal{V}_{\alpha}) \rangle \leq \dist^2(\mathcal{X}_t, \mathcal{V}_{\alpha})-\dist^2(\mathcal{X}_{t+1}, \mathcal{V}_{\alpha})+ \eta^2 \| \grad f(\mathcal{X}_t) \|^2.
+\end{equation*}
+Combining with~\eqref{eq:weak-quasi-conv_with_Delta_t}, we  get
+% \begin{equation*}
+%     2 a(\mathcal{X}_0)  \Delta_t \leq \frac{1}{2 \eta} ( \dist^2(\mathcal{X}_t, \mathcal{V}_{\alpha})-\dist^2(\mathcal{X}_{t+1}, \mathcal{V}_{\alpha})) + \frac{\eta}{2} \| \grad f(\mathcal{X}_t) \|^2,
+% \end{equation*}
+% which implies
+\begin{equation}\label{eq:bound_Delta_t}
+    \Delta_t \leq \frac{1}{4 C_0 \eta} ( \dist^2(\mathcal{X}_t, \mathcal{V}_{\alpha})-\dist^2(\mathcal{X}_{t+1}, \mathcal{V}_{\alpha})) + \frac{\eta}{4 C_0} \| \grad f(\mathcal{X}_t) \|^2.
+\end{equation}
+Now multiplying \eqref{eq:conv_SD_delta_zero_diff_Delta} by $\frac{1}{C_0}$ and summing with~\eqref{eq:bound_Delta_t} gives
+\begin{multline}\label{eq:diff_Delta_intermediate}
+    \frac{1}{C_0} \Delta_{t+1} - \left( \frac{1}{ C_0} - 1  \right) \Delta_t  \leq  \frac{1}{4 C_0 \eta} ( \dist^2(\mathcal{X}_t, \mathcal{V}_{\alpha})-\dist^2(\mathcal{X}_{t+1}, \mathcal{V}_{\alpha})) \\  
+    +\frac{1}{C_0} \left( -\eta + \frac{\gamma}{2}\eta^ 2 + \frac{\eta}{4} \right)
+    % \left(-\frac{\eta}{a(\mathcal{X}_0)}+\frac{\gamma}{2 a(\mathcal{X}_0)} \eta^2 + \frac{\eta}{4 C_0} \right) 
+    \| \grad f(\mathcal{X}_t) \|^2.
+\end{multline}
+By assumption $\eta \leq C_0/\gamma$ where $0 < C_0:= \cos(\dist(\mathcal{X}_0, \mathcal{V}_{\alpha})) \leq 1$ and $\gamma > 0$. Since
+\begin{equation*}
+    % -\frac{\eta}{a(\mathcal{X}_0)}+\frac{\gamma}{2 a(\mathcal{X}_0)} \eta^2 + \frac{\eta}{4 a(\mathcal{X}_0)} =
+    \frac{\eta}{C_0} \left( -1 + \frac{\gamma}{2} \eta + \frac{1}{4}  \right) \leq \frac{1}{\gamma} \left(\frac{C_0}{2} -\frac{3}{4} \right) \leq - \frac{1}{4 \gamma}< 0.
+\end{equation*}
+the inequality~\eqref{eq:diff_Delta_intermediate} can be simplified to
+\begin{equation*}
+     \frac{1}{C_0} \Delta_{t+1} - \left( \frac{1}{ C_0} - 1  \right) \Delta_t \leq \frac{1}{4 C_0 \eta} ( \dist^2(\mathcal{X}_t, \mathcal{V}_{\alpha})-\dist^2(\mathcal{X}_{t+1}, \mathcal{V}_{\alpha})).
+\end{equation*}
+Summing from $0$ to $t-1$ gives
+\[
+    \frac{1}{C_0} \Delta_t + \sum_{s=1}^{t-1} \Delta_s - \left( \frac{1}{C_0} -1  \right) \Delta_0 \leq  \frac{1}{4 C_0 \eta} \left( \dist^2(\mathcal{X}_0, \mathcal{V}_{\alpha}) - \dist^2(\mathcal{X}_t, \mathcal{V}_{\alpha}) \right).
+\]
+From the smoothness property~\eqref{eq:quadratic_upper_bound} at the critical point $\mathcal{V}_\alpha$ of $f$, we get 
+\[
+ \Delta_0 \leq \frac{\gamma}{2} \dist^2(\mathcal{X}_0, \mathcal{V}_{\alpha}).
+\]
+Combining these two inequalities then leads to
+\begin{align*}
+    \frac{1}{C_0} \Delta_t + \sum_{s=0}^{t-1} \Delta_s & \leq \frac{1}{C_0}  \Delta_0 + \frac{1}{4 C_0 \eta} \dist^2(\mathcal{X}_0, \mathcal{V}_{\alpha}) \\ 
+    % & \leq \frac{1}{C_0} \frac{\gamma}{2} \dist^2(\mathcal{X}_0, \mathcal{V}_{\alpha}) +\frac{1}{4 C_0 \eta} \dist^2(\mathcal{X}_0, \mathcal{V}_{\alpha}) \\ 
+    & = \frac{1}{2C_0} \left(\gamma +\frac{1}{2 \eta}\right) \dist^2(\mathcal{X}_0, \mathcal{V}_{\alpha}).
+\end{align*}
+Since \eqref{eq:conv_SD_delta_zero_diff_Delta} holds for all $t \geq 0$, it also implies $\Delta_t \leq \Delta_s$ for all $1 \leq s \leq t$. Substituting
+\[
+ t \Delta_t \leq \sum_{s=0}^{t-1} \Delta_s.
+\]
+into the inequality from above, 
+% \textcolor{red}{HERE} We therefore get that
+\begin{equation*}
+    \Delta_t \leq \frac{1}{2C_0} \frac{\gamma+\frac{1}{2 \eta}}{\frac{1}{C_0}+t} \dist^2(\mathcal{X}_0, \mathcal{V}_{\alpha}) = \frac{\gamma+\frac{1}{2\eta}}{2(C_0 t+1)} \dist^2(\mathcal{X}_0, \mathcal{V}_{\alpha}),
+\end{equation*}
+we obtain the desired result.
+\end{proof}
+
+
+
+\begin{remark}
+This type of result is standard for functions that are geodesically convex (see, e.g. \cite{zhangFirstorderMethodsGeodesically2016}). Our objective function does not satisfy this property, 
+but we can still have a similar upper bound on the iteration complexity for convergence in function value. We note that this does not imply convergence of the iterates to a specific $k$-dimensional subspace, but only convergence of a subsequence of the sequence of the iterates.
+\end{remark}
+
+
+\subsection{Sufficiently small step sizes}
+
+
+The convergence results in Theorems~\ref{thm:exponential_conv} and~\ref{thm:convex_conv} require that the initial subspace $\mathcal{X}_0$ lies within a distance strictly less than $\pi/2$ from a global minimizer $\mathcal{V}_{\alpha}$. While this condition is independent from the eigengap (unlike results that rely on standard convexity, see appendix), it is also not fully satisfactory: it is hard to verify in practice, and it is unnecessarily severe in numerical experiments. In fact, this condition is  only used to obtain a uniform lower bound on the weak-quasi-convexity constant $a(\mathcal{X}_t) = \theta_k^{(t)} / \tan(\theta_k^{(t)})$ with $\theta_k^{(t)}$ the largest principal angle between $\mathcal{X}_t$ and  $\mathcal{V}_{\alpha}$. Since the Riemannian distance is the $\ell_2$ norm of the principal angles, a contraction in this distance leads automatically to $\theta_k^{(t)} < \pi/2$ if $\theta_k^{(0)} < \pi/2$. If one could guarantee by some other reasoning that $\theta_k^{(t)} $ does not increase after one step, the condition $\dist(\mathcal{X}_0, \mathcal{V}_\alpha) < \pi/2$ would not be needed.
+
+
+% This guarantees that the largest principal angle of all subsequent iterates $\mathcal{X}_t$ satisfies $\theta_k(\mathcal{X}_t, \mathcal{V}_{\alpha}) < \pi/2$, which allows us to lower bound the weak-quasi-convexity constant in terms of this initial distance. 
+
+ 
+We now show that for sufficiently small step sizes $\eta_t$, the largest principal angle $\theta_k^{(t)} $ between $\mathcal{X}_t$ and  $\mathcal{V}_{\alpha}$ does indeed not increase after each iteration of Riemannian steepest descent regardless of the initial subspace $\mathcal{X}_0$.  While it does not explain what we observe in numerical experiments where large steps can be taken, it is a first result in explaining why we can initialize the iteration at a random initial subspace $\mathcal{X}_0$.
+
+
+
+\begin{tcolorbox}
+\begin{Proposition} \label{prop:suff_small}
+     Riemannian steepest descent started from a subspace $\mathcal{X}_t$ returns a subspace $\mathcal{X}_{t+1}$ such that
+     \begin{equation*}
+           \theta_k(\mathcal{X}_{t+1},\mathcal{V}_{\alpha}) \leq \theta_k(\mathcal{X}_t,\mathcal{V}_{\alpha}),
+     \end{equation*}
+     for all step sizes $0 \leq \eta \leq \bar \eta$ where  $ \bar \eta > 0$ is sufficiently small.
+\end{Proposition}
+\end{tcolorbox}
+
+For the proof of this proposition, we will need the derivatives of certain singular values. While this is well known for isolated singular values, it is possible to generalize to higher multiplicities as well by relaxing the ordering and sign of singular values~\cite{bunse-gerstnerNumericalComputationAnalytic1991}. For a concrete formula, we use the following result from Lemma A.5 in~\cite{lippertFixingTwoEigenvalues2005}.
+
+
+\begin{lemma}\label{lem:perturb_sing_value}
+% USE LIPPERT LEMMA A.5 SINCE NO SIGN HERE
+% Let $A \colon (-\varepsilon, \varepsilon) \to \mathbb{R}^{n \times n}$ be a real analytic function. Let $\sigma_j$ be the $j$th singular value of $A(0)$ of multiplicity $r$ with associated left and right orthonormal singular vectors  $u_1, \ldots, u_r$ and $v_1, \ldots, v_r$, resp. Then, there exists non-negative functions $s_1(t), \ldots, s_r(t)$ defined on $(-\tilde\varepsilon, \tilde\varepsilon) \subset (-\varepsilon, \varepsilon)$ such that $s_1(t),\ldots, s_r(t)$ are singular values of $A(t)$ with
+% \[
+%  s_1(0) = \cdots = s_r(0) = \sigma_j, \qquad 
+% \]
+% Furthermore, there exists a permutation $\pi$ of $\{1, \ldots, r\}$ such that the right derivative of each $s_i$ satisfies
+% \[
+% \left. \frac{ds_i(t)}{dt} \right|_{t=0+} 
+% = \sigma_{\pi(i)}\left(
+% \begin{bmatrix} u_1 & \cdots & u_r \end{bmatrix}^T
+% \left. \frac{dA(t)}{dt} \right|_{t=0} 
+%  \begin{bmatrix} v_1 & \cdots & v_r \end{bmatrix} \right).
+% \]
+% Here, $\sigma_i(B)$ denotes the $i$th singular value of a matrix $B$, counting multiplicity.
+Let $\sigma_1 \geq \cdots \geq \sigma_n$ be the singular values of $A \in \mathbb{R}^{n \times n}$ with $u_{1}, \ldots, u_{n}$ and $v_{1}, \ldots, v_{n}$ the associated left and right orthonormal singular vectors. Suppose that $\sigma_j$ has multiplicity $m$, that is,
+$$
+ \sigma_{j_0-1} > \sigma_{j_0} = \cdots = \sigma_j =\cdots = \sigma_{j_0+m-1} > \sigma_{j_0+m}.
+$$
+Then, the $j$th singular value of $A+\eta B$ satisfies
+\[
+ \sigma_j(A + \eta B) = \sigma_j + \eta\, \lambda_{j - j_0 + 1} + \bigO(\eta^2), \quad \eta \to 0^+,
+\]
+where $\lambda_{j}$ is the $j$th largest eigenvalue of $\tfrac{1}{2}(U^T B V + V^T B^T U)$
+with
+\[
+ U = \begin{bmatrix} u_{j_0} & \cdots & u_{j_0+m-1} \end{bmatrix} \quad \text{and}\quad V = \begin{bmatrix} v_{j_0} & \cdots & v_{j_0+m-1} \end{bmatrix}.
+\]
+\end{lemma}
+
+% Let $\sigma_j(A)$ be $j$th singular value with multiplicity $r$ of a matrix $A \in \mathbb{R}^{n \times n$ which implies that $$
+
+% let $u_1, \ldots, u_r$ and $v_1, \ldots, v_r$ be its associated left and right orthonormal singular vectors, resp. Then, there exist $r$ functions $s_1(t),\ldots, s_r(t)$ such that 
+% \[
+%  \sigma_j(A + t B) = \sigma_j(A) + t \mu_{j}
+% \]
+
+
+% \begin{proof}
+% Since  $\lambda_i(B + E) = \lambda_i(B) + O(\|E\|^2)$, the result follows directly from Lemma A.5 in~\cite{lippertFixingTwoEigenvalues2005}.
+% \end{proof}
+
+
+\begin{proof}[Proof of Proposition~\ref{prop:suff_small}]
+% We denote $\mathcal{X}_t=[X_t]$ and $\mathcal{X}_{t+1}=[X_{t+1}]$. Then 
+For ease of notation, let $X:= X_t$ and $X_+ := X_{t+1}$ such that $\mathcal{X}_t = \myspan(X)$ and $\mathcal{X}_{t+1} = \myspan(X_+)$. By definition of the exponential map on Grassmann, the next iterate of the Riemannian SD iteration~\eqref{eq:GD} with step $\eta$ satisfies
+%, we have
+\begin{equation*}
+    X_+=X V \cos(\eta \Sigma) V^T + U \sin(\eta \Sigma) V^T
+\end{equation*}
+with
+\begin{equation*}
+    U \Sigma V^T = -\grad f(\mathcal{X}_t).
+\end{equation*}
+% Of course, we have again that the geodesic $\tau \mapsto \Exp(- \tau \eta \, \grad f(\mathcal{X}_t))$ lies within the injectivity radius at ${\mathcal{X}_t}$ for $\tau \in [0,1]$, since $\eta$ is sufficiently small.
+Since $V$ is orthogonal, we can write
+\begin{equation*}
+    U \sin(\eta \Sigma) V^T = U (\eta \Sigma) V^T V \left(\frac{\sin(\eta \Sigma)}{\eta \Sigma} \right) V^T = -\eta \grad f(\mathcal{X}_t) V \left(\frac{\sin(\eta \Sigma)}{\eta \Sigma} \right) V^T
+\end{equation*}
+where $1/\Sigma:=\Sigma^{-1}$ and $\frac{\sin 0}{0} = 1$. 
+Taking Taylor expansions of $\sin$ and $\cos$, 
+\begin{align*}
+   V \cos(\eta \Sigma) V^T &= V \left(I - \bigO(\eta^2) \right) V^T = I-\bigO(\eta^2) \\
+   V \frac{\sin(\eta \Sigma)}{\eta \Sigma} V^T &= V \left(I - \bigO(\eta^2) \right) V^T = I-\bigO(\eta^2),
+\end{align*}
+we obtain
+\begin{align}\label{eq:V_a_X_t_plus_1}
+    {V}_{\alpha}^T X_+ & = {V}_{\alpha}^T X (I-\bigO(\eta^2)) + {V}_{\alpha}^T (- \eta \grad f(\mathcal{X})) (I-\bigO(\eta^2)) \notag \\ 
+    & = {V}_{\alpha}^T (X- \eta \grad f(\mathcal{X}_t)) (I-\bigO(\eta^2))
+\end{align}
+since $\|V_\alpha\|_2 = \| X \|_2=1$.
+
+Let now $\theta$ be the vector of $k$ principal angles between $\mathcal{X}_t$ and  $\mathcal{V}_\alpha$. As in~\eqref{eq:SVD_Va_X} and~\eqref{eq:SVD_Vb_X}, we therefore have the SVDs
+\begin{equation}\label{eq:Va_X_Vb_X}
+ V_\alpha^T X = U_1 \cos \theta\, V_1^T \qquad \text{and} \qquad V_\beta^T X = \tilde U_2 \sin \theta\, V_1^T,
+\end{equation}
+where $U_1,V_1 \in \mathbb{R}^{k \times k}$  and $\tilde U_2 \in \mathbb{R}^{(n-k) \times k}$ have orthonormal columns. Next, we write~\eqref{eq:V_a_X_t_plus_1} in terms of
+\[
+ M :=\sin^2 \theta \, U_1^T \Lambda_{\alpha} U_1 \cos \theta -  \cos \theta \sin \theta \, \tilde U_2^T \Lambda_{\beta} \tilde U_2 \sin \theta.
+\]
+% (Remark that...)
+Since $\grad f(\mathcal{X}_t) = -2 (I-XX^T)AX$, the identity~\eqref{eq:grad_with_Va} gives
+\[
+{V}_{\alpha}^T (X- \eta \grad f(\mathcal{X}_t)) = V_\alpha^T X +2 \eta \Lambda_\alpha V_\alpha^T X - 2 \eta V_\alpha^T X X^T A  X.
+\]
+After substituting~\eqref{eq:XAX worked out} and~\eqref{eq:Va_X_Vb_X}, a short calculation using $\cos^2 \theta = I - \sin^2 \theta$ and the orthogonality of $U_1$ and $V_1$ then shows
+\[
+V_{\alpha}^T (X- \eta \grad f(\mathcal{X}_t)) = U_1 (\cos \theta + 2\eta M) V_1 ^T.
+\]
+% The quantity ${V}_{\alpha}^T (X_t- \eta \grad f(\mathcal{X}_t))$ can be written as:
+% \begin{align*}
+%      &{V}_{\alpha}^T (X_t- \eta \grad f(\mathcal{X}_t)) = V_\alpha^T X -2 \eta \Lambda_\alpha V_\alpha^T X + \eta V_\alpha^T XX^T AX  = \\ 
+%      &V_\alpha^T X \textcolor{red}{+} \eta \Lambda_\alpha V_\alpha^T X - \eta V_\alpha^T X X^T (V_{\alpha} \Lambda_{\alpha} V_{\alpha}^T + V_{\beta} \Lambda_{\beta} V_{\beta}^T) X
+%       =  \\ 
+%       & U_1 \cos \theta V_1^T + \eta \Lambda_{\alpha} U_1 \cos \theta V_1^T + \eta U_1 \cos \theta V_1^T (V_1^T \cos \theta U_1^T \Lambda_{\alpha} U_1 \cos \theta V_1^T + V_1^T \sin \theta U_2^T \Lambda_{\alpha} U_2 \sin \theta V_1^T)   = \\  & U_1 \cos \theta V_1^T + \eta \Lambda_{\alpha} U_1 \cos \theta V_1^T \textcolor{red}{-} \eta U_1 \cos^2 \theta U_1^T \Lambda_{\alpha} U_1 \cos \theta V_1^T + U_1 \cos \theta \sin \theta U_2^T \Lambda_{\alpha} U_2 \sin \theta V_1^T) = \\ 
+%       &  U_1 \cos \theta V_1^T+\eta U_1 \sin^2 \theta U_1^T \Lambda_{\alpha} U_1 \cos \theta V_1^T - \eta U_1 \cos \theta \sin \theta U_2^T \Lambda_{\beta} U_2 \sin \theta V_1^T = \\ 
+%       &
+%      U_1 ( \cos \theta + \eta  \sin^2 \theta U_1^T \Lambda_{\alpha} U_1 \cos \theta - \eta  \cos \theta \sin \theta U_2^T \Lambda_{\beta} U_2 \sin \theta ) V_1^T =: U_1 (\cos \theta + \eta M) V_1 ^T.
+% \end{align*}
+Relating back to~\eqref{eq:V_a_X_t_plus_1}, we thus obtain
+\begin{align*}
+    V_{\alpha}^T {X}_{+} &= U_1 (\cos \theta + 2\eta M) V_1 ^T (I-\bigO(\eta^2)) \\
+    &= U_1 (\cos \theta + 2\eta M) (I - V_1 ^T \bigO(\eta^2) V_1)V_1 ^T \\
+    &= U_1 (\cos \theta + 2\eta M - \bigO(\eta^2)) V_1^T.
+    % & = U_1 (\cos \theta + 2\eta M ) V_1^T - U_1 (\cos \theta + 2\eta M) V_1 ^T \bigO(\eta^2) \\ & = U_1 (\cos \theta + 2\eta M ) V_1^T - U_1 (\cos \theta + 2\eta M) (V_1 ^T \bigO(\eta^2) V_1) V_1^T \\ & = U_1 (\cos \theta + 2\eta M ) V_1^T - U_1 (\cos \theta + 2\eta M) \bigO(\eta^2) V_1^T \\ & = U_1 (\cos \theta + 2\eta M - (\cos \theta + \eta M) \bigO(\eta^2)) V_1^T \\ & = 
+    % U_1 (\cos \theta + 2\eta M - \bigO(\eta^2)) V_1^T.
+\end{align*}
+The singular values of $V_{\alpha}^T {X}_{+}$ are therefore the same as the singular values of the matrix $\cos \theta + 2\eta M +\bigO(\eta^2)$. 
+
+
+By  Weyl's inequality (see, e.g., \cite[Cor.~7.3.5]{hornMatrixAnalysis2012a}), each singular value of $\cos \theta + 2\eta M +\bigO(\eta^2)$ is $\bigO(\eta^2)$ close to some singular value of $\cos \theta + 2\eta M$. Let $1 \leq j \leq k$. Denote the $j$th singular of $\cos \theta + 2\eta M $ by $\sigma_j(\eta)$ to which we will apply Lemma~\ref{lem:perturb_sing_value}. Since $\cos \theta$ is a diagonal matrix with decreasing diagonal, its $j$th singular value equals $\cos \theta_j$ and its associated left/right singular vector is the $j$th canonical vector $e_j$. 
+%To apply Lemma~\ref{lem:perturb_sing_value}, we can assume that $j_0=1$ after a suitable permutation of the row/columns. 
+Denoting
+\[
+ E = \begin{bmatrix} e_{j_0} & \cdots & e_{j_0+m-1} \end{bmatrix}, %= \begin{bmatrix} O \\ I_m \\ O \end{bmatrix}
+\]
+observe that $\cos \theta \, E = \cos \theta_{j_0} \, E$ (here, $\cos \theta$ is a diagonal matrix and $\cos \theta_{j_0} $ is a scalar) and likewise for $\sin \theta \, E$. We thus get
+\[
+ E^T M E = \sin^2 \theta_{j_0} \cos \theta_{j_0} (U_1^T \Lambda_{\alpha} U_1  -  \tilde U_2^T \Lambda_{\beta} \tilde U_2 ).
+\]
+In the proof of Proposition~\ref{prop:weak-quasi-convexity}, we showed that the matrix in brackets above is symmetric and positive semi-definite (see~\eqref{eq:La_min_Lb_is_PSD}). Since $0 \leq \theta_{j_0} \leq \pi/2$, the eigenvalues of $E^T M E$ are therefore all non-negative. Lemma~\ref{lem:perturb_sing_value} thus gives that $\sigma_j(\eta) \geq \sigma_j$ for sufficiently small and positive $\eta $. Since the singular values of $V_\alpha^T X_+$ are the cosines of the principal angles between $\mathcal{V}_\alpha$ and $\mathcal{X}_{t+1}$ with step size $\eta \geq 0$, we conclude that there exists $\bar \eta>0$ such that for all $\eta \in [0,\bar\eta]$ it holds
+% $\sigma_j(\eta) = \cos(\theta_j)$ with $\theta_j(\eta)$ is the 
+\begin{equation*}
+    \theta_j(\mathcal{X}_{t+1}, \mathcal{V}_{\alpha}) \leq \theta_j(\mathcal{X}_t, \mathcal{V}_{\alpha}).
+\end{equation*}
+Since $j$ was arbitrary, this finishes the proof.
+\end{proof}
+% for every $i$, thus also for $i=k$ and the desired result follows.
+
+
+% Then
+% \[
+% \sigma_j(\eta) = \sigma_j + t \lambda_{j-j_0+1} + O(t^2)
+% \]
+% with $\lambda_j$ the $j$th largest eigenvalue of
+
+
+
+% Let $\theta_{j_0} = \cdots = $
+% The diagonal entries of $M$ satisfy
+% \begin{equation*}
+%     M_{jj} = \sin^2 \theta_j \cos \theta_j (U_1^T \Lambda_{\alpha} U_1-U_2^T \Lambda_{\beta} U_2)_{jj} > 0
+% \end{equation*}
+% because the matrix $U_1^T \Lambda_{\alpha} U_1-U_2^T \Lambda_{\beta} U_2$ is symmetric and  positive definite as we have proved above. By 7.3.12 in \cite{hornMatrixAnalysis2012a}, we have that the $i$-th singular value of $\cos \theta + \eta M -\bigO(\eta^2)$, let it be $\sigma_i(\eta)$,  satisfies $\sigma_i(0)= \cos \theta_i$ and it is differentiable near $\eta=0$ with 
+% \begin{equation*}
+%     \frac{d}{d \eta}{\bigg|}_{\eta=0} \sigma_i(\eta) = \eta M_{ii} \geq 0.
+% \end{equation*}
+% Thus, we have
+% \begin{equation*}
+%     \sigma_i(\eta)= \cos \theta_i + \eta M_{ii} + \bigO(\eta^2)
+% \end{equation*}
+% and since $M_{ii} > 0$, we get
+% \begin{equation*}
+%     \sigma_i(\eta) \geq \cos \theta_i
+% \end{equation*}
+% for $\eta$ sufficiently small. 
+
+% \textcolor{red}{UNTIL HERE}   
+
+
+% \begin{remark}
+% The previous result means that the assumption $\textnormal{dist}(\mathcal{X}_0,\mathcal{V}_{\alpha})< \frac{\pi}{2}$ of Theorems \ref{thm:exponential_conv} and \ref{thm:convex_conv} can be removed if the step-size $\eta$ is chosen sufficiently small. This is because the only use of this assumption is to guarantee that the biggest angle $\theta_k$ does not increase over the course of steepest descent in order to be able to bound the weak-quasi-convexity constant $a(\mathcal{X}_t)$. Still, it is not clear if a step-size $\eta$ smaller than just $\frac{\cos(\textnormal{dist}(\mathcal{X}_0, \mathcal{V}_{\alpha}))}{\gamma}$ is enough to guarantee the above.
+% \end{remark}
+
+ 
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\section{Conclusion and future work}
+
+
+We provided the first systematic study of Riemannian steepest descent on the Grassmann manifold for computing a subspace spanned by $k$ leading eigenvectors of a symmetric and positive semi-definite matrix $A$. 
+
+Our main idea was to exploit a convexity-like structure of the block Rayleigh quotient, which can be of much more general interest than for only analyzing steepest descent. One example is line search methods, which have usually favourable properties compared to vanilla steepest descent. Also, weakly-quasi-convex functions have been proven to admit accelerated algorithms \cite{nesterov2020primal}, while accelerated or almost accelerated Riemannian algorithms have been developed in \cite{zhang2018towards,alimisis2020continuous,alimisis2021momentum}. It would naturally be interesting to examine whether a provable accelerated method  can be developed for the block Rayleigh quotient on the Grassmann manifold. This would hopefully reduce the dependence of the iteration complexity on the eigengap $\delta$ from $\bigO(1/\delta)$ to $\bigO(1/\sqrt{\delta})$.
+
+Another interesting direction is to extend the analysis of \cite{alimisis2021distributed} from the  computation of just one leading eigenvector to computation of a whole subspace, using the generalized machinery developed in this work, or develop a noisy version of steepest descent and compare with noisy power method \cite{hardt2014noisy}.
+
+
+
+\paragraph{Acknowledgements}
+This work was supported by the SNSF under research project 192363.
+\appendix
+\section{Geodesic convexity} \label{sec:convexity}
+
+Let $\delta > 0$ and thus $\mathcal{V}_\alpha$ is the unique minimizer of $f$.  Define the following neighbourhood of $\mathcal{V}_\alpha$ in $\Gr(n,k)$:
+\begin{equation}\label{eq:geodesic_region_N}
+ N_*(\varphi) = \{ \mathcal{X} \in \Gr(n,k) \colon \theta_k(\mathcal{X}, \mathcal{V}_\alpha) < \varphi \} \qquad \text{with $\varphi \in [0, \pi/4]$}.
+\end{equation}
+Here, $\theta_k(\mathcal{X}, \mathcal{V}_\alpha)$ denotes the largest principle angle between $\mathcal{X}$ and $\mathcal{V}_\alpha$. Since $\theta_k$ is a metric on $\Gr(n,k)$ (see~\cite{qiuUnitarilyInvariantMetrics2005}), any two subspaces $\mathcal{X},\mathcal{Y} \in N_*(\varphi)$ will satisfy $\theta_k(\mathcal{X},\mathcal{Y}) < \pi /2$ by triangle inequality. They thus have a unique connecting geodesic. It is shown in \cite[Lemma~2]{ahn2021riemannian} that for any fixed $\varphi \in [0, \pi/4]$ this geodesic remains in $N_*(\varphi)$. Each set $N_*(\varphi)$ is thus an open totally geodesically convex set as defined in, e.g., \cite[Def.~11.16]{boumal2022intromanifolds}. 
+
+One of the main results in \cite{ahn2021riemannian}, namely Cor.~4, states that $f$ is geodesically convex on $N_*(\pi/4)$. This is unfortunately wrong and we present a small counterexample.
+
+\paragraph{Counterexample for Cor.~4 in \cite{ahn2021riemannian}.}
+
+Here we use the notation of \cite{ahn2021riemannian}. The reader is encouraged to take a look there for notational purposes.
+
+Take $c:=\cos(\pi/4) = \sqrt{2}/2$ and $0 \le \varepsilon<1$. Define the matrices
+$$
+X_p := \begin{pmatrix} 1 & 0 \\ 0 & 1 \\ 0 & 0  \\ 0 & 0 \end{pmatrix}, \quad
+U_p := \begin{pmatrix} c & 0 \\ 0 & c \\ c & 0  \\ 0 & c \end{pmatrix}, \quad
+M := U_p \begin{pmatrix} 1 & 0 \\ 0 & \varepsilon \end{pmatrix}.
+$$
+These matrices satisfy the conditions posed in \cite{ahn2021riemannian}:
+\begin{itemize}
+    \item Principal alignment: $X_p^T U_p = \begin{pmatrix} c & 0 \\ 0 & c \end{pmatrix}$.
+    \item Principal angles between $X_p$ and $U_p$ are in $[0,\pi/4]$.
+    \item $U = U_p$ since $Q=I$.
+\end{itemize} 
+
+
+Now consider the following tangent vector of unit Frobenius norm:
+$$
+ \Delta = \begin{pmatrix} 0 & 0 \\ 0 & 0 \\ 0 & 1  \\ 0 & 0 \end{pmatrix}.
+$$
+It is clearly a tangent vector of $[X_p]$ since $X_p^T \Delta = 0$.
+The Hessian of $f_{full}$ at $[X_p]$ in the direction of $\Delta$ satisfies (see equation (4.2) in \cite{ahn2021riemannian})
+$$
+\textnormal{Hess}f_{full}([X_p])[\Delta,\Delta] = -2  \Tr(M^T \Delta \Delta^T (I-X_p X_p^T) M) + \|(\Delta X_p^T + X_p\Delta ^T) M \|_F^2.
+$$
+Simple calculation shows that
+$$
+ \textnormal{Hess}f_{full}([X_p])[\Delta,\Delta] = -2 c^2 + (1+\varepsilon^2) c^2.
+$$
+Hence for $\varepsilon<1$, we have $\textnormal{Hess}f_{full}([X_p])[\Delta,\Delta]<0$ and the $f_{full}$ is non-convex which is in contrast with Corollary 4. \qed
+
+\vspace{8mm}
+Instead, our Theorem~\ref{eq:g-convex_domain} guarantees convexity when $\varphi$ depends on the spectral gap.
+Since $f$ is smooth, the function is geodesically convex on $N_*(\varphi)$ if and only if its Riemannian Hessian is positive definite on $N_*(\varphi)$; see, e.g., \cite[Thm.~11.23]{boumal2022intromanifolds}. We will therefore compute the eigenvalues of $\Hess f$ based on its matrix representation. This requires us to first vectorize the tangent space.
+
+From~\eqref{eq:def_TXGr}, a matrix $G$ is a tangent vector if and only if $G^TX = 0$. Hence, taking $X_\perp \in \mathbb{R}^{n \times (n-k)}$ orthonormal such that $\mathcal{X}^\perp=\myspan(X_\perp)$, we have the equivalent definition
+\[
+ T_X \Gr(n,k) = \{ X_\perp M \colon M \in \mathbb{R}^{(n-k) \times k} \}.
+\]
+
+
+The matrix $M$ above can be seen as the coordinates of $G=X_\perp M $ in the basis $X_\perp$. More specifically, by using the linear isomorphism $\vecop \colon \mathbb{R}^{n \times k} \to \mathbb{R}^{nk}$ that stacks all columns of a matrix under each other, we can define the tangent vectors of $\Gr(n,k)$ as standard (column) vectors in the following way:
+\[
+ \vecop(G) = \vecop(X_\perp M ) = (I_k \otimes X_\perp) \vecop(M).
+\]
+Here, the Kronecker product $\otimes$ appears due to \cite[Lemma 4.3.1]{hornTopicsMatrixAnalysis1991}. By well-known properties of $\otimes$  (see, e.g., \cite[Chap.~4.2]{hornTopicsMatrixAnalysis1991}), the matrix $I_k \otimes X_\perp$ has orthonormal columns. We have thus obtained an orthonormal basis for the (vectorized) tangent space. With this setup, we can now construct the Hessian. 
+ 
+\begin{lemma}\label{lem:matrix_Hx}
+Let $I_k \otimes X_\perp$ be the orthonormal basis for the vectorization of $T_{\mathcal{X}} \Gr(n,k)$. Then the Riemannian Hessian of $f$ at $\mathcal{X}$ in that basis has the symmetric matrix representation
+\begin{equation}\label{eq:matrix_Hx}
+ H_X = 2 (X^T A X \otimes I_{n-k} - I_k \otimes X_\perp^T A X_\perp).
+\end{equation}
+Furthermore, with $1 \leq i \leq k$ and $1 \leq j \leq n-k$ its $k(n-k)$ eigenvalues satisfy
+\[
+ \lambda_{i,j}(H_X) = 2(\lambda_i(X^T A X) - \lambda_j(X_\perp^T A X_\perp)).
+\]
+\end{lemma}
+\begin{proof}
+Since $\vecop$ is a linear isomorphism, the symmetric matrix $H_X$ satisfies
+\[
+ \Hess f(X)[X_\perp M, X_\perp M] = \langle \vecop(M), H_X \vecop(M) \rangle,  \qquad \forall M \in \mathbb{R}^{n \times (n-k)},
+\]
+where $\langle \cdot, \cdot \rangle$ is the Euclidean inner product. Define $m = \vecop(M)$. Plugging in the formula~\eqref{eq:Hessian_f_inner_product} for $\Hess f$, we calculate
+\begin{align*}
+ \Hess f(X)[X_\perp M, X_\perp M] &= 2\langle X_\perp M, X_\perp M X^T A X - AX_\perp M \rangle \\
+ &= 2\langle (I \otimes X_\perp) m,  (X^T A X \otimes X_\perp)  m  - (I \otimes AX_\perp) m  \rangle \\
+ &= 2\langle m,  (I \otimes X_\perp)^T (X^T A X \otimes X_\perp   - I \otimes AX_\perp) m  \rangle \\
+ &= 2\langle m,  (X^T A X \otimes I   - I \otimes X_\perp^T AX_\perp) m  \rangle
+\end{align*}
+Here, we used typical calculus rules for the Kronecker product (see, e.g., \cite[Chap.~4.2]{hornTopicsMatrixAnalysis1991}). We recognize the matrix $H_X$ directly.
+
+The eigenvalues of~\eqref{eq:matrix_Hx} can be directly obtained using  \cite[Thm.~4.4.5]{hornTopicsMatrixAnalysis1991}.
+\end{proof}
+
+Taking $X=V_\alpha$ and $X_\perp = V_\beta$, Lemma~\ref{lem:matrix_Hx} shows immediately that the minimal eigenvalue of $\Hess f(\mathcal{V}_\alpha)$ is equal to $2\delta = 2(\lambda_k - \lambda_{k+1})$. Since $\delta > 0$, $\Hess f$ will remain strictly positive definite in a neighbourhood of $\mathcal{V}_\alpha$ by continuity. To quantify this neighbourhood, we will connect $\mathcal{V}_\alpha$ to an arbitrary $\mathcal{X}$ using a geodesic and see how this influences the bounds of Lemma~\ref{lem:matrix_Hx}. This also requires connecting $\mathcal{V}_\beta$ to $\mathcal{X}^\perp$. The next lemma shows that both geodesics are closely related. Recall that $\sin(t\theta)$ and  $\cos(t\theta)$ denote diagonal matrices of size $k \times k$. For convenience, we will denote by $O$ a zero matrix whose dimensions are clear from the context and is not always square.
+
+
+\begin{lemma}\label{lem:geodesic_perp}
+Let $X,Y \in \mathbb{R}^{n \times k}$ be such that $X^T X = Y^T Y = I_k$ with $k \leq n/2$. Denote the principal angles between $\myspan(X)$ and $\myspan(Y)$ by $\theta_1 \leq \cdots \leq \theta_k$ and assume that $\theta_k< \pi/2$. Choose $X_\perp, Y_\perp \in \mathbb{R}^{n \times (n-k)}$ such that $X_\perp^T X_\perp = Y_\perp^T Y_\perp = I_{n-k}$ and $\myspan(X_\perp) = \myspan(X)^\perp$, $\myspan(Y_\perp) = \myspan(Y)^\perp$. Define the curves
+\begin{align*}
+ \gamma(t) &\colon [0,1] \to \mathbb{R}^{n \times k} , &  t &\mapsto  X V_1 \cos(t\theta) + X_\perp V_2  \begin{bmatrix} O \\ \sin(t\theta) \end{bmatrix},  \\
+ \gamma_\perp(t) &\colon [0,1] \to \mathbb{R}^{n \times (n-k)} , & t &\mapsto X_\perp  V_2 \begin{bmatrix} I \\ & \cos(t\theta)   \end{bmatrix} - X V_1  \begin{bmatrix} O & \sin(t\theta) \end{bmatrix},
+\end{align*}
+where the orthogonal matrices $V_1,V_2$ are the same as in Lemma~\ref{lemma:CS_square_blocks}. Then $\myspan(\gamma(t))$ is the connecting geodesic on $\Gr(n,k)$ from $\myspan(X)$ to $\myspan(Y)$. Likewise, $\myspan(\gamma_\perp(t))$ is a connecting geodesic on $\Gr(n,n-k)$  from $\myspan(X_\perp)$ to $\myspan(Y_\perp)$. Furthermore, $\gamma(t)$ and $\gamma_\perp(t)$ are orthonormal matrices for all $t$.
+\end{lemma}
+
+% %Denote the principles angles between $\myspan(X)$ and $\myspan(Y)$ by $\theta_1 \leq \cdots \leq \theta_k$. If $\theta_k < \pi/2$, 
+
+% Then there exists $0 \leq r,s \leq k$ such that
+
+
+% Let $X,Y \in \mathbb{R}^{n \times k}$ be orthonormal with $k \leq n/2$. Define $X_\perp,Y_\perp \in \mathbb{R}^{n \times (n-k)}$ orthonormal such ...
+
+\begin{proof}
+Assume $\theta_1 = \cdots = \theta_r = 0$, where $r=0$ means that $\theta_1 > 0$.  Like in the proof of Prop.~\ref{prop:weak-quasi-convexity}, the CS decomposition of $X$ and $Y$ from Lemma~\ref{lemma:CS_square_blocks} can be written in terms of their principal angles $\theta_1, \ldots, \theta_k$. Since $\theta_k < \pi/2$ and $n \leq k/2$, this gives after dividing certain block matrices the relations
+\begin{align*}
+ Y^T X &= U_1 \, \cos(\theta) \, V_1^T,  & 
+ Y^T X_\perp &= U_1 \begin{bmatrix}O_{k \times (n-2k)} & \sin(\theta) \end{bmatrix} V_2^T  \\
+Y_\perp^T X &= U_2 \begin{bmatrix}O_{(n-2k) \times k} \\ \sin(\theta) \end{bmatrix} V_1^T, & Y_\perp^T X_\perp &= U_2  \begin{bmatrix}-I_{n-2k}  \\ & -\cos(\theta) \end{bmatrix} V_2^T,
+\end{align*}
+where  $U_1, V_1$ and $U_2,V_2$ are orthogonal matrices of size $k \times k$ and $(n-k) \times (n-k)$, resp.
+
+
+% simplified since $\theta_k < \pi/2$ and written in 
+
+% leads to
+% \begin{align*}
+%  Y^T X &= U_1 \begin{bmatrix}I_r \\ & C_{k-r} \end{bmatrix} V_1^T,  & 
+%  Y^T X_\perp &= U_1 \begin{bmatrix}O_{r \times m} \\ & S_{k-r} \end{bmatrix} V_2^T  \\
+% Y_\perp^T X &= U_2 \begin{bmatrix}O_{m \times r} \\ & S_{k-r} \end{bmatrix} V_1^T, & Y_\perp^T X_\perp &= U_2 \begin{bmatrix}-I_{m} \\ & -C_{k-r}  \end{bmatrix} V_2^T,
+% \end{align*}
+% where $C_{k-r} = \diag(\cos \theta_{r+1}  , \ldots, \cos \theta_k)$, $S_{k-r} = \diag(\sin \theta_{r+1}  , \ldots, \sin \theta_k)$, and $m=n-2k+r$. Here,  
+
+% Since $m-r = n -2k \geq 0$ and after dividing the zero block matrices, we can rewrite this in terms of the principal angles $\theta_1, \ldots, \theta_k$ as follows:
+
+
+Denote $\mathcal{X}=\myspan(X)$ and $\mathcal{Y}=\myspan(Y)$. By definition, the connecting geodesic $\gamma(t)$ is determined by the tangent vector $ \Log_{\mathcal{X}}(\mathcal{Y})$, which can be computed from \eqref{eq:log formula}. To this end, we first need the compact SVD of $M:= X_\perp X_\perp^T Y (X^T Y)^{-1}$. Substituting the results from above, we get (cfr.~\eqref{eq:Log_with_V2})
+\[
+ M %= X_\perp V_2 \begin{bmatrix}O_{m \times r\textbf{}} \\ & S_{k-r} C_{k-r}^{-1}  \end{bmatrix}   V_1^T 
+ = X_\perp  V_2 \begin{bmatrix} O_{(n-2k) \times k} \\ \sin(\theta)  \end{bmatrix}  U_1^ T U_1  \, (\cos(\theta))^{-1}\,  V_1^T = 
+%  = X_\perp  V_2 \begin{bmatrix} O_{(n-2k) \times k} \\ \tan(\theta) \end{bmatrix}   V_1^T = 
+ X_\perp  V_2 \begin{bmatrix} O_{(n-2k) \times k} \\ I_k \end{bmatrix} \,  \tan(\theta) \, V_1^T.
+\]
+
+
+Observe that this is a compact SVD. Applying \eqref{eq:log formula}, we therefore get
+\[
+ G := \Log_{\mathcal{X}}(\mathcal{Y}) =  U \Sigma V^T \quad \text{with $U = X_\perp V_2 \begin{bmatrix} O \\ I_k \end{bmatrix}, \ \Sigma = \theta, \ V = V_1$}
+\]
+and from~\eqref{eq:formula_geo}, the connecting geodesic satisfies
+\[
+ \Exp_{\mathcal{X}}(tG) = \myspan( \, X V_1 \cos(t\theta) + X_\perp V_2 \begin{bmatrix} O \\ I_k \end{bmatrix} \sin(t\theta) \, ).
+\]
+We have proven the stated formula for $\gamma(t)$. Verifying that $\gamma(t)^T \gamma(t) = I_k$ follows from a simple calculation that uses $\cos^2(t \theta) + \sin^2(t \theta) = I_k$.
+
+
+
+
+Denote $\mathcal{X}^\perp=\myspan(X_\perp)$ and $\mathcal{Y}^\perp=\myspan(Y_\perp)$. To prove $\gamma_\perp(t)$, we proceed similarly by computing $G^\perp:= \Log_{\mathcal{X}^\perp}(\mathcal{Y}^\perp)$, which requires now the SVD of $M^\perp:= X X^T Y_\perp (X_\perp^T Y_\perp)^{-1}$. Again substituting the results from the CS decomposition, we get
+\begin{align*}
+ M^\perp &= X V_1 \begin{bmatrix}O_{k \times (n-2k)} & \sin(\theta)  \end{bmatrix} U_2^ T U_2 \begin{bmatrix} -I_{n-2k} \\ & - \cos(\theta) \end{bmatrix}^{-1}  V_2^T \\
+ &= X V_1 \begin{bmatrix}O_{k \times (n-2k)} & -\tan(\theta)  \end{bmatrix} V_2^T
+\end{align*}
+Since \eqref{eq:log formula} requires a compact SVD with a \emph{square} $\Sigma$, we rewrite this as
+\[
+ M^\perp = \begin{bmatrix} \widetilde X & X V_1 \end{bmatrix} \begin{bmatrix}O_{(n-2k) \times (n-2k)} \\ & -\tan(\theta)  \end{bmatrix} V_2^T
+\]
+where $\widetilde X$ contains $n-2k$ columns that are orthonormal to $X$ (the final result will not depend on $\widetilde X$). Let $\theta^\perp_1 \leq \cdots \leq  \theta^\perp_{n-k}$ denote the principal angles between $\mathcal{X}^\perp$ and $\mathcal{Y}^\perp$. Up to zero angles, they are the same as those between $\mathcal{X}$ and $\mathcal{Y}$. Since $k \leq n/2$, we thus have
+\[
+ \theta^\perp_1 = \cdots =  \theta^\perp_{n-2k} = 0, \  \theta^\perp_{n-2k+1} = \theta_1, \ldots,   \theta^\perp_{n-k} =  \theta_k.
+\]
+Applying \eqref{eq:log formula} with these principal angles, we obtain
+\[
+ G^\perp := \Log_{\mathcal{X}^\perp}(\mathcal{Y^\perp}) =  U \Sigma V^T \quad \text{with $U = -\begin{bmatrix} \widetilde X & X V_1 \end{bmatrix} , \ \Sigma = \theta^\perp, \ V = V_2$}.
+\]
+From \eqref{eq:formula_geo}, the corresponding geodesic satisfies
+\begin{align*}
+ \Exp_{\mathcal{X}^\perp}(tG^\perp) &= \myspan( \, X_\perp   V_2 \cos(t\theta^\perp) - \begin{bmatrix} \widetilde X & X V_1 \end{bmatrix} \sin(t\theta^\perp) \, ) \\
+ &= \myspan( \, X_\perp   V_2 \begin{bmatrix} I_{n-2k}  \\ & \cos(t\theta) \end{bmatrix}  - \begin{bmatrix}  O_{n \times (n-2k)} & X V_1 \sin(t\theta) \end{bmatrix}  \, ). 
+\end{align*}
+Rewriting the block matrix, we have proven $\gamma_\perp(t)$. Its orthonormality is again a straightforward verification.
+\end{proof}
+
+With the previous lemma, we can now investigate the Riemannian Hessian of $f$ near $\mathcal{V}_\alpha$ when it is given in the matrix form $H_X$ of Lemma~\ref{lem:matrix_Hx}. Let $\mathcal{X} = \myspan(X) \in \Gr(n,k)$ with orthonormal $X$. Its principal angles with $\mathcal{V}_\alpha$ are $\theta_1 \leq \cdots \leq \theta_k < \pi/2$.
+Use the substitutions $X \mapsto V_\alpha, Y \mapsto X$ and $X_\perp \mapsto V_\beta, Y_\perp \mapsto X_\perp$ in Lemma~\ref{lem:geodesic_perp} to define the geodesics $\gamma(t)$ and $\gamma_\perp(t)$ that connect $\mathcal{V}_\alpha$ to $\mathcal{X}$, and $\mathcal{V}_\beta$ to $\mathcal{X}^\perp$, resp. Denoting
+\[
+ C := \cos(\theta), \ S := \sin(\theta), 
+ \ \widetilde C := \begin{bmatrix} I \\ & C \end{bmatrix}, 
+ \ \widetilde S := \begin{bmatrix} O \\  S \end{bmatrix},
+\]
+we get the following expressions for the geodesics:
+\[
+ \gamma(t) = V_\alpha V_1 C + V_\beta V_2 \widetilde S, \quad 
+ \gamma_\perp(t) = V_\beta V_2 \widetilde C - V_\alpha V_1 \widetilde S^T.
+\]
+Recall that $H_X$ is defined using $X^T A X$ and $X_\perp^T A X_\perp$. Since $\gamma(1) = XQ_1$ and $\gamma_\perp(1) = X^\perp Q_2$ for some orthogonal matrices $Q_1, Q_2$, we can write with $A = V_\alpha \Lambda_{\alpha} V_\alpha^T + V_\beta \Lambda_{\beta} V_\beta^T$ that
+
+\begin{equation}\label{eq:XtAX_XptAXp_geodesic}
+\begin{aligned}
+ Q_1^T X^T A X Q_1 &=  \gamma(1)^T A \gamma(1) \\
+ &=  C \, (V_1^T \Lambda_{\alpha} V_1) \, C  +  \widetilde S^T \, (V_2^T \Lambda_{\beta} V_2) \, \widetilde S  \\
+ Q_2^TX_\perp^T A X_\perp Q_2&=  \gamma_\perp(1)^T A \gamma_\perp(1) \\
+  &=  \widetilde C \, (V_2^T \Lambda_{\beta} V_2) \, \widetilde C + \widetilde S \, (V_1^T \Lambda_{\alpha} V_1) \, \widetilde S^T.
+\end{aligned}
+\end{equation}
+
+
+
+Here we used simplifications like $V_\beta^T AV_\alpha = V_\beta^T V_\alpha \Lambda_{\alpha} = 0$.
+
+% we  the geodesics  $\gamma(t)$ and $\gamma_\perp(t)$ in Lemma~\ref{lem:matrix_Hx}, we obtain using the matrices defined above that
+% \begin{align*}
+%  X^T A X &= C \, (V_1^T \Lambda_{\alpha} V_1) \, C + \widetilde S^T \, (V_2^T \Lambda_{\beta} V_2) \, \widetilde S   \\
+%  X_\perp^T A X_\perp &= \widetilde C \, (V_2^T \Lambda_{\beta} V_2) \, \widetilde C + \widetilde S \, (V_1^T \Lambda_{\alpha} V_1) \, \widetilde S^T,
+% \end{align*}
+% where we used simplifications like $V_\beta^T AV_\alpha = V_\beta^T V_\alpha \Lambda_{\alpha} = 0$. 
+
+A simple bounding of the eigenvalues of the difference of these matrices results in the main result.
+\begin{theorem}\label{eq:g-convex_domain}
+Let $k \leq n/2$. Define the neighbourhood
+\[
+ B_* = \left\{ \mathcal{X} \in \Gr(n,k) \colon \sin^2 (\theta_k(\mathcal{X}, \mathcal{V}_\alpha)) \leq \frac{\delta}{\lambda_1 + \lambda_k} \right\},
+\]
+then $f$ is geodesically convex on $B_*$.
+\end{theorem}
+
+
+
+\begin{proof}
+Our aim is to show that $\lambda_{i,j}(H_X)$ remains positive given the bound on $\theta_k$. From Lemma~\ref{lem:matrix_Hx}, we see that 
+\begin{equation}\label{eq:condition_Hess_pos}
+ \lambda_{\min}(H_X) \geq 0 \quad \iff \quad \lambda_{\min}(X^T A X) \geq \lambda_{\max}(X_\perp^T A X_\perp).
+\end{equation}
+Since $Q_1,Q_2$ are orthogonal in~\eqref{eq:XtAX_XptAXp_geodesic}, it suffices to find a lower and upper bound of, resp.,
+\begin{align*}
+ \lambda_{\min}(X^T A X) &= \lambda_{\min}(C \, (V_1^T \Lambda_{\alpha} V_1) \, C  +  \widetilde S^T \, (V_2^T \Lambda_{\beta} V_2) \, \widetilde S) \\
+ \lambda_{\max}(X_\perp^T A X_\perp) &= \lambda_{\max}(\widetilde C \, (V_2^T \Lambda_{\beta} V_2) \, \widetilde C + \widetilde S \, (V_1^T \Lambda_{\alpha} V_1) \, \widetilde S^T).
+\end{align*}
+Standard eigenvalue inequalities for symmetric matrices (see, e.g., \cite[Cor.~4.3.15]{hornMatrixAnalysis2012a}) give
+\begin{align*}
+ \lambda_{\min}(X^T A X) &\geq \lambda_{\min}(C \, (V_1^T \Lambda_{\alpha} V_1) \, C)  +  \lambda_{\min}(\widetilde S^T \, (V_2^T \Lambda_{\beta} V_2) \, \widetilde S) \\
+ \lambda_{\max}(X_\perp^T A X_\perp) &\leq \lambda_{\max}(\widetilde C \, (V_2^T \Lambda_{\beta} V_2) \, \widetilde C)  + \lambda_{\max}(\widetilde S \, (V_1^T \Lambda_{\alpha} V_1) \, \widetilde S^T).
+\end{align*}
+Recall that $\lambda_1 \geq \cdots \geq \lambda_n$ are the eigenvalues of $A$. 
+Since $\widetilde S$ is a tall rectangular matrix, we apply the generalized version of Ostrowski's theorem from~\cite[Thm.~3.2]{highamModifyingInertiaMatrices1998} to each term above\footnote{Observe that the cited theorem orders the eigenvalues inversely to the convention used in this paper.} and obtain 
+\begin{align*}
+ \lambda_{\min}(C \, (V_1^T \Lambda_{\alpha} V_1) \, C) &\geq \lambda_{\min}(C^2) \lambda_{\min}(\Lambda_{\alpha}) = \cos^2(\theta_k) \lambda_k \\
+ \lambda_{\min}(\widetilde S^T \, (V_2^T \Lambda_{\beta} V_2) \, \widetilde S) &\geq \lambda_{\min}(\tilde S^T \tilde S) \lambda_{\min}(\Lambda_{\beta}) = \sin^2(\theta_1) \lambda_n,
+\end{align*} 
+since the matrices $V_1,V_2$ are orthogonal and $\theta_1 \leq \cdots \leq \theta_k < \pi/2$. Adding this gives the lower bound
+\begin{equation}\label{eq:convex_intermediate_lower_bound}
+\lambda_{\min}(X^T A X) \geq \cos^2(\theta_k) \lambda_k + \sin^2(\theta_1) \lambda_n \geq \cos^2(\theta_k) \lambda_k.
+\end{equation}
+Likewise, using the block structure of $\widetilde S$, we get
+\begin{align*} 
+ \lambda_{\max}(\widetilde C \, (V_2^T \Lambda_{\beta} V_2) \, \widetilde C) &\leq \lambda_{\max}(C^2) \lambda_{\max}(\Lambda_{\beta}) = \cos^2(\theta_1) \lambda_{k+1} \\
+ \lambda_{\max}(\widetilde S \, (V_1^T \Lambda_{\alpha} V_1) \, \widetilde S^T) &= 
+ \lambda_{\max}(S \, (V_1^T \Lambda_{\alpha} V_1) \, S) \\
+ &\leq \lambda_{\max}(S^2) \lambda_{\max}(\Lambda_{\alpha}) = \sin^2(\theta_k) \lambda_1
+\end{align*}
+and thus
+\begin{equation}\label{eq:convex_intermediate_upper_bound}
+ \lambda_{\max}(X_\perp^T A X_\perp) \leq \cos^2(\theta_1) \lambda_{k+1} +  \sin^2(\theta_k) \lambda_1 \leq  \lambda_{k+1} +  \sin^2(\theta_k) \lambda_1.
+\end{equation}
+The condition~\eqref{eq:condition_Hess_pos} is thus satisfied when
+\[
+ \cos^2(\theta_k) \lambda_k = \lambda_k - \sin^2(\theta_k) \lambda_k \geq  \lambda_{k+1} +  \sin^2(\theta_k) \lambda_1,
+\]
+which reduces to the bound on $\theta_k$ in the statement of the theorem.
+
+It remains to show that $B_*$ is an open totally geodesically convex set. Since $\lambda_1 \geq \lambda_k \geq \lambda_{k+1} \geq 0$, we get
+\[
+\frac{\lambda_k - \lambda_{k+1}}{\lambda_1 + \lambda_{k}} \leq \frac{\lambda_k }{2\lambda_{k}} = \frac{1}{2}.
+\]
+Hence, $B_* = N_*(\varphi)$ with $\varphi \leq \pi/4$ since $\sin^2(\pi/4) = 1/2$.
+% From~\eqref{eq:geodesic_region_N}, we see that $B_* = N_*(\varphi)$ with it suffices to show that
+% \subset N_*$ with $N_*$ defined in~\eqref{eq:geodesic_region_N}. 
+% Hence all $\mathcal{X} \in B_*$ satisfy $\sin(\theta_k(\mathcal{X},\mathcal{V}_\alpha)) \leq 1 / \sqrt{2} $ and thus also $\theta_k(\mathcal{X},\mathcal{V}_\alpha) \leq \pi/4$.
+\end{proof}
+
+If $k=1$, the proof above can be simplified.
+
+\begin{corollary}\label{cor:g-convex_domain_sphere}
+Let $k=1$ and define the neighbourhood
+\[
+ B_* = \left\{ \mathcal{X} \in \Gr(n,1) \colon \sin^2 (\theta_1(\mathcal{X}, \mathcal{V}_\alpha)) \leq \frac{\delta}{\delta + \lambda_1 - \lambda_n} \right\}.
+\]
+Then $f$ is geodesically convex on $B_*$.
+\end{corollary}
+\begin{proof}
+Since $k=1$, there is no need to simplify the bounds~\eqref{eq:convex_intermediate_lower_bound} and \eqref{eq:convex_intermediate_upper_bound} as was done above. This gives that $f$ is convex as long as
+\[
+ \cos^2(\theta_1) \lambda_1 + \sin^2(\theta_1) \lambda_n \geq  \cos^2(\theta_1) \lambda_{2} +  \sin^2(\theta_1) \lambda_1.
+\]
+Rewriting leads directly to the stated condition on  $\sin^2(\theta_1)$.
+% \[
+%  \sin^2(\theta_1) < \frac{\delta}{\delta + \lambda_1 - \lambda_n}
+% \]
+\end{proof}
+Remark that optimizing $f$ on $\Gr(n,1)$ is equivalent to
+\begin{equation}\label{eq:min_f_sphere}
+ \min_{x \in \mathbb{R}^n} - x^T A x \qquad \text{s.t.} \quad \|x\| = 1,
+\end{equation}
+which is the minimization of the Rayleigh quotient problem on the unit sphere $S^{n-1} = \{ x \in \mathbb{R}^n \colon x^T x = 1 \}$. 
+Cor.~\ref{cor:g-convex_domain_sphere} can therefore also be phrased in terms of a geodesically convex region for this problem. Denoting a unit norm top eigenvector of $A$ by $v_1$ and using that $\sin^2 \theta_1 = 1 - \cos^2 \theta_1$, we get that~\eqref{eq:min_f_sphere} is geodesically convex on 
+\[
+ \hat B_* = \left\{ x \in S^{n-1} \colon (x^T v_1)^2 \geq 1 -  \frac{\delta}{\delta + \lambda_1 - \lambda_n} \right\}.
+\]
+This result can now be directly compared to \cite[Lemma 7]{pmlr-v119-huang20e} where the corresponding region is defined as $(x^T v_1)^2 \geq 1 -  \frac{\delta}{\delta + \lambda_1}$. This is a stricter condition and our result is therefore a small improvement.
+
+
+
+\section{Convergence of steepest descent with step $\frac{1}{\gamma}$}
+\label{sec:big_step}
+
+We now prove convergence of steepest descent with a more tractable choice of step size compared to the analysis of the main paper, where it depended on the weak convexity constant $a(\mathcal{X})$.  However, this requires a slightly better initialization at most $\frac{\pi}{2 \sqrt{2}}$ away from the minimizer.
+
+\subsection{Maximum extent of the iterates}
+We first prove that, while steepest descent with step size at most $\frac{1}{\gamma}$ does not guarantee contraction in Riemannian distance to the global minimizer, the distance after $t$ steps is always at most a constant factor (independent from $t$) within the initial distance.
+\begin{Proposition} \label{prop:big_step_distance}
+     Consider steepest descent applied to $f$ with step-size $\eta \leq \frac{1}{\gamma}$. If the iterates $\mathcal{X}_t$ satisfy $\theta_k(\mathcal{X}_t,\mathcal{V}_{\alpha})<\frac{\pi}{2}$, then they also satisfy
+     \begin{equation*}
+         \textnormal{dist}^2(\mathcal{X}_t, \mathcal{V}_{\alpha}) \leq 2 \textnormal{dist}^2(\mathcal{X}_0, \mathcal{V}_{\alpha}).
+     \end{equation*}
+\end{Proposition}
+\begin{proof}
+Consider the discrete Lyapunov function
+\begin{equation*}
+    \mathcal{E}(t)= \frac{1}{\gamma} (f(\mathcal{X}_t)-f^*)+\frac{1}{2} \textnormal{dist}^2(\mathcal{X}_t, \mathcal{V}_{\alpha}).
+\end{equation*}
+Then
+\begin{equation*}
+    \mathcal{E}(t+1)-\mathcal{E}(t) = \frac{1}{\gamma}(f(\mathcal{X}_{t+1})-f(\mathcal{X}_t))+\frac{1}{2} ( \textnormal{dist}^2(\mathcal{X}_{t+1},\mathcal{V}_{\alpha})-\textnormal{dist}^2(\mathcal{X}_t,\mathcal{V}_{\alpha}) ).
+\end{equation*}
+Recall that $\mathcal{X}_{t+1} = \Exp_{\mathcal{X}_t}(-\eta \grad f(\mathcal{X}_t))$. 
+By $\gamma$-smoothness of $f$ (cfr.~\eqref{eq:quadratic_upper_bound}), we have
+\begin{align}
+    f(\mathcal{X}_{t+1})-f(\mathcal{X}_t) &\leq \langle \textnormal{grad}f(\mathcal{X}_t),\textnormal{Log}_{\mathcal{X}_t}(\mathcal{X}_{t+1}) \rangle +\frac{\gamma}{2} \textnormal{dist}(\mathcal{X}_t,\mathcal{X}_{t+1})^2\notag \\ 
+    &= \left( -\eta +\frac{\gamma}{2} \eta^2 \right) \|\textnormal{grad}f(\mathcal{X}_t) \| ^2. \label{eq:diff_X_gamma_smoothness}
+ \end{align}
+ We also know by Proposition \ref{prop:weak-quasi-convexity} that
+ \begin{equation*}
+     \langle \textnormal{grad}f(\mathcal{X}), -\Log_{\mathcal{X}}(\mathcal{V_{\alpha})} \rangle \geq 0,
+ \end{equation*}
+ for any $\mathcal{X}$ with $\theta_k(\mathcal{X},\mathcal{V}_\alpha) < \pi/2$.
+ 
+ 
+ By the fact that the sectional curvatures of the Grassmann manifold are non-negative, we have
+ \begin{align*}
+     \textnormal{dist}^2(\mathcal{X}_{t+1},\mathcal{V}_{\alpha}) & \leq \textnormal{dist}^2(\mathcal{X}_t,\mathcal{V}_{\alpha}) + \textnormal{dist}^2(\mathcal{X}_{t+1},\mathcal{X}_t) - 2 \langle \Log_{\mathcal{X}_{t}}(\mathcal{X}_{t+1}), \Log_{\mathcal{X}_t}(\mathcal{V_{\alpha})} \rangle \\ 
+     & = \textnormal{dist}^2(\mathcal{X}_t,\mathcal{V}_{\alpha}) + \eta^2 \| \textnormal{grad}f(\mathcal{X}_t) \|^2 + 2 \eta \langle \textnormal{grad}f(\mathcal{X}_t) , \Log_{\mathcal{X}_t}(\mathcal{V_{\alpha})} \rangle \\ & \leq \textnormal{dist}^2(\mathcal{X}_t,\mathcal{V}_{\alpha}) + \eta^2 \| \textnormal{grad}f(\mathcal{X}_t) \|^2.
+ \end{align*}
+ From $\eta \leq \frac{1}{\gamma}$, we therefore get
+ \begin{align*}
+     \mathcal{E}(t+1)-\mathcal{E}(t) &\leq \left(-\frac{\eta}{\gamma}+\frac{\eta^2}{2} \right)\| \textnormal{grad}f(\mathcal{X}_t) \| ^2+ \frac{\eta^2}{2}\| \textnormal{grad}f(\mathcal{X}_t) \|^2 \\
+     & \leq \left(-\frac{\eta}{\gamma}+\eta^2 \right) \| \textnormal{grad}f(\mathcal{X}_t) \|^2 \leq 0.
+ \end{align*}
+ Since $\mathcal{E}(t)$ does not increase, we have
+ \begin{align*}
+     \frac{1}{2} \textnormal{dist}^2(\mathcal{X}_t,\mathcal{V}_{\alpha}) & \leq \mathcal{E}(t) \leq \mathcal{E}(0) =  \frac{1}{\gamma} (f(\mathcal{X}_0)-f^*)+\frac{1}{2} \textnormal{dist}^2(\mathcal{X}_0, \mathcal{V}_{\alpha}) \\ & \leq \frac{1}{2} \textnormal{dist}^2(\mathcal{X}_0, \mathcal{V}_{\alpha}) + \frac{1}{2} \textnormal{dist}^2(\mathcal{X}_0, \mathcal{V}_{\alpha})= \textnormal{dist}^2(\mathcal{X}_0, \mathcal{V}_{\alpha})
+ \end{align*}
+ and the desired result follows.
+\end{proof}
+
+
+\subsection{Convergence under positive eigengap}
+When $\delta>0$, we can use gradient dominance to prove convergence of steepest descent to the (unique) minimizer in terms of function values. 
+\begin{Proposition}
+Steepest descent with step-size $\eta = \frac{1}{\gamma}$ initialized at $\mathcal{X}_0$ such that
+\begin{equation*}
+    \textnormal{dist}(\mathcal{X}_0,\mathcal{V}_{\alpha}) \leq \frac{\pi}{4}
+\end{equation*}
+satisfies
+\begin{equation*}
+    f(\mathcal{X}_t)-f^* \leq \left(1-0.32 c_Q \frac{\delta}{\gamma} \right)^t (f(\mathcal{X}_0)-f^*).
+\end{equation*}
+\end{Proposition}
+\begin{proof}
+By the previous result and an induction argument to guarantee that the biggest angle between $\mathcal{X}_t$ and $\mathcal{V}_{\alpha}$ stays strictly less than $\pi/2$, we can bound the quantities $a(\mathcal{X}_t)$ uniformly from below:
+\newline
+Indeed, since $\textnormal{dist}(\mathcal{X}_t,\mathcal{V}_{\alpha}) \leq \sqrt{2} \cdot \textnormal{dist}(\mathcal{X}_0,\mathcal{V}_{\alpha}) \leq \frac{\sqrt{2} \pi}{4}$, we have
+\begin{equation*}
+    a(\mathcal{X}_t) \geq \cos(\theta_k(\mathcal{X}_t,\mathcal{V}_{\alpha})) \geq \cos(\textnormal{dist}(\mathcal{X}_t,\mathcal{V}_{\alpha})) \geq \cos\left(\frac{\sqrt{2} \pi}{4} \right) \geq 0.4.
+\end{equation*}
+Since the step size $\eta = \frac{1}{\gamma}$, the bound~\eqref{eq:diff_X_gamma_smoothness} implies
+\begin{equation*}
+f(\mathcal{X}_{t+1})-f(\mathcal{X}_t) \leq -\frac{\| \textnormal{grad}f(\mathcal{X}_t) \| ^2}{2 \gamma}
+\end{equation*}
+Applying gradient dominance (Proposition \ref{prop:PL}), we therefore obtain
+\begin{equation*}
+    f(\mathcal{X}_{t+1})-f(\mathcal{X}_t) \leq -\frac{2 c_Q \delta a^2(\mathcal{X}_t)}{\gamma}(f(\mathcal{X}_t)-f^*)
+\end{equation*}
+and thus
+\begin{equation*}
+    f(\mathcal{X}_{t+1})-f^* \leq \left(1-2 c_Q a^2(\mathcal{X}_t ) \frac{\delta}{\gamma}\right ) (f(\mathcal{X}_t)-f^*) \leq  \left(1-0.32 c_Q \frac{\delta}{\gamma} \right) (f(\mathcal{X}_t)-f^*).
+\end{equation*}
+By induction the desired result follows.
+\end{proof}
+We now state the iteration complexity of steepest descent algorithm:
+\begin{theorem}
+Steepest descent with step-size $\frac{1}{\gamma}$ starting from a subspace $\mathcal{X}_0$ with Riemannian distance at most $\frac{\pi}{4}$ from $\mathcal{V}_{\alpha}$ computes an estimate $\mathcal{X}_T$ of $\mathcal{V}_{\alpha}$ such that $\textnormal{dist}(\mathcal{X}_T,\mathcal{V}_{\alpha})\leq \epsilon$  in at most 
+\begin{equation*}
+    T=\bigO\left( \frac{\gamma}{\delta} \log \frac{f(\mathcal{X}_0)-f^*}{\delta \epsilon} \right).
+\end{equation*}
+\end{theorem}
+\begin{proof}
+For $\textnormal{dist}(\mathcal{X}_T,\mathcal{V}_{\alpha})< \epsilon$, it suffices to have
+\begin{equation*}
+    f(\mathcal{X}_T)-f^* \leq c_Q \epsilon^2 \delta
+\end{equation*}
+by quadratic growth of $f$ in Proposition \ref{prop:quadratic growth}. Using $(1-c)^T \leq \exp(-c T)$ for all $T \geq 0$ and $0 \leq c \leq 1$, the previous result gives that it suffices to choose $T$ as the smallest integer such that 
+\begin{equation*}
+    f(\mathcal{X}_T)-f^* \leq \exp\left(- 0.32 c_Q \frac{\delta}{\gamma} T \right) (f(\mathcal{X}_0)-f^*) \leq c_Q \epsilon^2 \delta.
+\end{equation*}
+Solving for $T$ and substituting $c_Q = 4/\pi^2$, we get the required result.
+\end{proof}
+
+\begin{remark} The step size in the above theorems satisfies $\eta =\frac{1}{\gamma}$, which may seem unrealistic. Since an overestimation for $\gamma$ is always a valid (but less tight) smoothness constant, the previous theorems can also be phrased for a step size $\eta \leq \frac{1}{\gamma}$.
+\end{remark}
+
+\subsection{Gap-less result}
+
+We also prove a convergence result for the function values when $\delta$ is unknown and can be, in particular, equal to $0$.
+
+\begin{theorem}
+    Steepest descent with step-size $\eta=\frac{1}{\gamma}$
+    initialized at $\mathcal{X}_0$ such that
+\begin{equation*}
+    \textnormal{dist}(\mathcal{X}_0,\mathcal{V}_{\alpha}) \leq \frac{\pi}{4}
+\end{equation*}
+satisfies
+\begin{equation*}
+    f(\mathcal{X}_t)-f^* \leq \frac{f(\mathcal{X}_0)-f^*+\frac{\gamma}{2}\textnormal{dist}^2(\mathcal{X}_0, \mathcal{V}_{\alpha})}{0.4 t + 1} = \bigO\left(\frac{1}{t}\right). 
+\end{equation*}
+\end{theorem}
+
+\begin{proof}
+By Proposition \ref{prop:big_step_distance}, we have that $\textnormal{dist}(X_t,\mathcal{V}_{\alpha}) \leq \frac{\sqrt{2} \pi}{4}$ and $f$ satisfies the weak-quasi-convexity inequality at any iterate $\mathcal{X}_t$ of steepest descent with constant $C_0:=0.4$.
+
+Consider the discrete Lyapunov function
+\begin{equation*}
+    \mathcal{E}(t)= \frac{C_0t+1}{\gamma} (f(\mathcal{X}_t)-f^*)+\frac{1}{2} \textnormal{dist}^2(\mathcal{X}_t, \mathcal{V}_{\alpha})
+\end{equation*}
+We have that
+\begin{align*}
+    \mathcal{E}(t+1)-\mathcal{E}(t) = & \frac{C_0t+C_0+1}{\gamma}(f(\mathcal{X}_{t+1})-f^*)-\frac{C_0t+1}{\gamma} (f(\mathcal{X}_t)-f^*) 
+    \\ & +\frac{1}{2}(\textnormal{dist}^2(\mathcal{X}_{t+1},\mathcal{V}_{\alpha})-\textnormal{dist}^2(\mathcal{X}_t,\mathcal{V}_{\alpha})).
+\end{align*}
+ Now we have to estimate a bound for $\textnormal{dist}^2(\mathcal{X}_{t+1},\mathcal{V}_{\alpha})-\textnormal{dist}^2(\mathcal{X}_t,\mathcal{V}_{\alpha})$.
+ By $\gamma$-smoothness of $f$ and denoting 
+ $\Delta_t=f(\mathcal{X}_t)-f^*$ we have
+ \begin{equation*}
+    \Delta_{t+1}-\Delta_t \leq \langle \textnormal{grad}f(\mathcal{X}_t),\textnormal{Log}_{\mathcal{X}_t}(\mathcal{X}_{t+1}) \rangle +\frac{\gamma}{2} \textnormal{dist}^2(\mathcal{X}_t,\mathcal{X}_{t+1})= -\frac{\|\textnormal{grad}f(\mathcal{X}_t) \|^2}{2\gamma}
+ \end{equation*}
+ By $C_0$-weak-strong-convexity of $f$ and the fact that the Grassmann manifold is of positive curvature, we have
+ \begin{equation*}
+     C_0\Delta_t \leq \frac{\gamma}{2}(\textnormal{dist}^2(\mathcal{X}_t,\mathcal{V}_{\alpha})-\textnormal{dist}^2(\mathcal{X}_{t+1},\mathcal{V}_{\alpha}))+\frac{ \| \textnormal{grad}f(\mathcal{X}_t) \|^2}{2\gamma}
+ \end{equation*}
+ 
+ Summing this to the previous inequality, we get
+ \begin{equation*}
+    \textnormal{dist}^2(\mathcal{X}_{t+1},\mathcal{V}_{\alpha})-\textnormal{dist}^2(\mathcal{X}_t,\mathcal{V}_{\alpha}) \leq \frac{2}{\gamma} ((1-C_0)(f(\mathcal{X}_t)-f(\mathcal{X}_{t+1}))-C_0(f(\mathcal{X}_{t+1})-f^*)).
+ \end{equation*}
+ Thus
+ \begin{align*}
+     \mathcal{E}(t+1)-\mathcal{E}(t) & \leq \frac{C_0t+ 1 }{\gamma} (f(\mathcal{X}_{t+1})-f(\mathcal{X}_t))+\frac{C_0}{\gamma} (f(\mathcal{X}_{t+1})-f^*) \\ & + \frac{1 - C_0}{\gamma} (f(\mathcal{X}_t)-f(\mathcal{X}_{t+1}))- \frac{C_0}{\gamma} (f(\mathcal{X}_{t+1})-f^*) 
+     \\&=\frac{C_0t+C_0}{\gamma} (f(\mathcal{X}_{t+1})-f(\mathcal{X}_t)) \leq 0.
+ \end{align*}
+
+Thus $\mathcal{E}(t) \leq \mathcal{E}(0)$ and the result follows.
+\end{proof}
+
+\begin{thebibliography}{10}
+
+\bibitem{absilRiemannianGeometryGrassmann2004}
+P.-A. Absil, R.~Mahony, and R.~Sepulchre.
+\newblock Riemannian geometry of {{Grassmann}} manifolds with a view on
+  algorithmic computation.
+\newblock {\em Acta Applicandae Mathematicae}, 80(2):199--220, 2004.
+
+\bibitem{absilOptimizationAlgorithmsMatrix2008}
+P.-A. Absil, R.~Mahony, and R.~Sepulchre.
+\newblock {\em Optimization Algorithms on Matrix Manifolds}.
+\newblock {Princeton University Press}, {Princeton, NJ}, 2008.
+
+\bibitem{ahn2021riemannian}
+Kwangjun Ahn and Felipe Suarez.
+\newblock Riemannian perspective on matrix factorization.
+\newblock {\em arXiv preprint arXiv:2102.00937}, 2021.
+
+\bibitem{alimisis2021distributed}
+Foivos Alimisis, Peter Davies, Bart Vandereycken, and Dan Alistarh.
+\newblock Distributed principal component analysis with limited communication.
+\newblock {\em Advances in Neural Information Processing Systems}, 34, 2021.
+
+\bibitem{alimisis2020continuous}
+Foivos Alimisis, Antonio Orvieto, Gary B{\'e}cigneul, and Aurelien Lucchi.
+\newblock A continuous-time perspective for modeling acceleration in riemannian
+  optimization.
+\newblock In {\em International Conference on Artificial Intelligence and
+  Statistics}, pages 1297--1307. PMLR, 2020.
+
+\bibitem{alimisis2021momentum}
+Foivos Alimisis, Antonio Orvieto, Gary Becigneul, and Aurelien Lucchi.
+\newblock Momentum improves optimization on riemannian manifolds.
+\newblock In {\em International Conference on Artificial Intelligence and
+  Statistics}, pages 1351--1359. PMLR, 2021.
+
+\bibitem{bendokatGrassmannManifoldHandbook2020}
+Thomas Bendokat, Ralf Zimmermann, and P.-A. Absil.
+\newblock A {G}rassmann manifold handbook: Basic geometry and computational
+  aspects.
+\newblock {\em arXiv:2011.13699 [cs, math]}, December 2020.
+
+\bibitem{boumal2022intromanifolds}
+Nicolas Boumal.
+\newblock An introduction to optimization on smooth manifolds.
+\newblock To appear with Cambridge University Press, Apr 2022.
+
+\bibitem{bunse-gerstnerNumericalComputationAnalytic1991}
+A.~{Bunse-Gerstner}, R.~Byers, V.~Mehrmann, and N.~K. Nichols.
+\newblock Numerical computation of an analytic singular value decomposition of
+  a matrix valued function.
+\newblock {\em Numerische Mathematik}, 60(1):1--39, 1991.
+
+\bibitem{edelmanGeometryAlgorithmsOrthogonality1999}
+A.~Edelman, T.~A. Arias, and S.~T. Smith.
+\newblock The geometry of algorithms with orthogonality constraints.
+\newblock {\em SIAM Journal on Matrix Analysis and Applications},
+  20(2):303--353, 1999.
+
+\bibitem{golub2013matrix}
+Gene~H Golub and Charles~F Van~Loan.
+\newblock {\em Matrix computations}.
+\newblock JHU press, 2013.
+
+\bibitem{hardt2014noisy}
+Moritz Hardt and Eric Price.
+\newblock The noisy power method: A meta algorithm with applications.
+\newblock {\em Advances in neural information processing systems}, 27, 2014.
+
+\bibitem{highamModifyingInertiaMatrices1998}
+N.~J. Higham and S.~Cheng.
+\newblock Modifying the inertia of matrices arising in optimization.
+\newblock {\em Lin. Alg. Appl.}, 275--276:261--279, 1998.
+
+\bibitem{hornTopicsMatrixAnalysis1991}
+Roger Horn and Charles~R. Johnson.
+\newblock {\em Topics in Matrix Analysis}.
+\newblock {Cambridge University Press}, 1991.
+
+\bibitem{hornMatrixAnalysis2012a}
+Roger~A. Horn and Charles~R. Johnson.
+\newblock {\em Matrix Analysis}.
+\newblock {Cambridge University Press}, {Cambridge ; New York}, 2nd ed edition,
+  2012.
+
+\bibitem{pmlr-v119-huang20e}
+Long-Kai Huang and Sinno Pan.
+\newblock Communication-efficient distributed {PCA} by {R}iemannian
+  optimization.
+\newblock In Hal~Daumé III and Aarti Singh, editors, {\em Proceedings of the
+  37th International Conference on Machine Learning}, volume 119 of {\em
+  Proceedings of Machine Learning Research}, pages 4465--4474. PMLR, 13--18 Jul
+  2020.
+
+\bibitem{Kuczynski92estimatingthe}
+J.~Kuczynski and H.~Wozniakowski.
+\newblock Estimating the largest eigenvalue by the power and lanczos algorithms
+  with a random start, 1992.
+
+\bibitem{liInequalitiesSingularValues1999a}
+Chi-Kwong Li and Roy Mathias.
+\newblock Inequalities on the {{Singular Values}} of an {{Off}}-{{Diagonal
+  Block}} of a {{Hermitian Matrix}}.
+\newblock {\em Journal of Inequalities and Applications}, 3(2):137--142, 1999.
+
+\bibitem{lippertFixingTwoEigenvalues2005}
+Ross~A. Lippert.
+\newblock Fixing two eigenvalues by a minimal perturbation.
+\newblock {\em Linear Algebra and its Applications}, 406:177--200, September
+  2005.
+
+\bibitem{nesterov2020primal}
+Yurii Nesterov, Alexander Gasnikov, Sergey Guminov, and Pavel Dvurechensky.
+\newblock Primal--dual accelerated gradient methods with small-dimensional
+  relaxation oracle.
+\newblock {\em Optimization Methods and Software}, pages 1--38, 2020.
+
+\bibitem{o1979estimating}
+Dianne~P O’Leary, GW~Stewart, and James~S Vandergraft.
+\newblock Estimating the largest eigenvalue of a positive definite matrix.
+\newblock {\em Mathematics of Computation}, 33(148):1289--1292, 1979.
+
+\bibitem{paigeGeneralizedSingularValue1981}
+C.~C. Paige and M.~A. Saunders.
+\newblock Towards a {{Generalized Singular Value Decomposition}}.
+\newblock {\em SIAM Journal on Numerical Analysis}, 18(3):398--405, June 1981.
+
+\bibitem{qiuUnitarilyInvariantMetrics2005}
+Li~Qiu, Yanxia Zhang, and Chi-Kwong Li.
+\newblock Unitarily {{Invariant Metrics}} on the {{Grassmann Space}}.
+\newblock {\em SIAM Journal on Matrix Analysis and Applications},
+  27(2):507--531, January 2005.
+
+\bibitem{saadNumericalMethodsLarge2011}
+Y.~Saad.
+\newblock {\em Numerical Methods for Large Eigenvalue Problems}.
+\newblock {SIAM}, 2nd edition edition, 2011.
+
+\bibitem{Wong}
+Yung-Chow Wong.
+\newblock Sectional curvatures of {G}rassmann manifolds.
+\newblock {\em Proceedings of the National Academy of Sciences}, 60(1):75--79,
+  May 1968.
+
+\bibitem{zhang2016riemannian}
+Hongyi Zhang, Sashank J~Reddi, and Suvrit Sra.
+\newblock Riemannian svrg: Fast stochastic optimization on riemannian
+  manifolds.
+\newblock {\em Advances in Neural Information Processing Systems}, 29, 2016.
+
+\bibitem{zhangFirstorderMethodsGeodesically2016}
+Hongyi Zhang and Suvrit Sra.
+\newblock First-order {{Methods}} for {{Geodesically Convex Optimization}}.
+\newblock {\em arXiv:1602.06053 [cs, math, stat]}, February 2016.
+
+\bibitem{zhang2018towards}
+Hongyi Zhang and Suvrit Sra.
+\newblock Towards riemannian accelerated gradient methods.
+\newblock {\em arXiv preprint arXiv:1806.02812}, 2018.
+
+\end{thebibliography}

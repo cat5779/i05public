@@ -1,0 +1,2041 @@
+\documentclass[a4paper, cleveref]{lipics-v2021}
+
+\input{input/header.tex}
+
+\title{Deciding Linear Height and Linear Size-to-Height Increase for
+	Macro Tree Transducers}
+\titlerunning{Deciding Linear Height and Linear Size-to-Height Increase for MTTs}
+
+\author{Paul Gallot}{Universit{\"a}t Bremen, Germany, \href{mailto:pgallot@uni-bremen.de}{pgallot@uni-bremen.de}}{pgallot@uni-bremen.de}{}{abc}
+\author{Sebastian Maneth}{Universit{\"a}t Bremen, Germany, \href{mailto:maneth@uni-bremen.de}{maneth@uni-bremen.de}}{maneth@uni-bremen.de}{}{}
+\author{Keisuke Nakano}{Tohoku University, Japan, \href{mailto:ksk@riec.tohoku.ac.jp}{ksk@riec.tohoku.ac.jp}}{ksk@riec.tohoku.ac.jp}{}{}
+\author{Charles Peyrat}{ENS Paris-Saclay, Université Paris-Saclay, France, \href{mailto:charles.peyrat@ens-paris-saclay.fr}{charles.peyrat@ens-paris-saclay.fr}}{charles.peyrat@ens-paris-saclay.fr}{}{}
+
+\authorrunning{P.~Gallot, S.~Maneth, K.~Nakano and C.~Peyrat}%TODO mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et al.'
+
+\begin{document}
+\nolinenumbers
+
+%\maketitle
+%\input{input/titlepage.tex}
+%\input{input/abstract.tex}
+%\begin{singlespace} % table of contents
+%	\selectlanguage{english}
+%	\tableofcontents 
+%	%\listoffigures 
+%\end{singlespace}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\Copyright{Paul Gallot, Sebastian Maneth, Keisuke Nakano and Charles Peyrat}
+
+\maketitle
+
+\input{input/introduction}
+
+\input{input/preliminaries}
+
+\input{input/bremen23}
+
+\input{input/decision}
+
+\input{input/lsoi}
+
+\input{input/conclusions}
+
+\bibliography{input/bibli.bib}{}
+\bibliographystyle{plain}
+%%%%%%%%%%%%%%%%%%%%%%%% biblio:
+%Pour ajouter des oeuvres non citées,utiliser \nocite
+%\bibliographystyle{plainurl}
+%\bibliography{biblio}
+%\printbibheading 
+%\printbibliography
+%%%%%%%%%%%%%%%%%%%%%%%
+
+\end{document}
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%% copied from template at https://cs.overleaf.com/latex/templates/modele-pour-theses-en-litterature-a-luniversite-de-montreal/jpzqpxmrpdwb
+\usepackage[utf8]{inputenc}  % put latin1 instead of utf8 if you use latin1
+\usepackage[T1]{fontenc}
+\usepackage{setspace}
+%\renewcommand{\baselinestretch}{2} % uncomment to add space between lines
+%\usepackage[english]{babel}   %langue française et anglais. Si vous utilisez d'autres langues, ajoutez-les ici. Quand vous avez du texte en anglais, il faut ajouter la commande \selectlanguage{english}. Après, rappelez-vous de revenir au français avec \selectlanguage{french}
+\usepackage[maxlevel=3]{csquotes}
+%\usepackage[backend=biber]{biblatex} %,isbn=false,style=verbose-trad1
+%\DefineBibliographyStrings{english}{in={dans},inseries={dans}}
+\usepackage[cyr]{aeguill}
+%\usepackage{geometry}
+\usepackage{xspace}
+%\geometry{centering, verbose, tmargin=30mm,bmargin=10mm,lmargin=35mm,rmargin=0mm, letterpaper }
+\usepackage{graphicx}
+\usepackage{epigraph}
+\setlength\epigraphwidth{13cm}
+%\usepackage[center,up,labelfont=bf]{caption}
+\usepackage{float}
+\usepackage{url}
+%\usepackage{tcolorbox}
+%\newcommand{\guil}[1]{«~{#1}~»}    %guillemets 
+%\newcommand{\guill}[1]{``{#1}''}     %guillements dans les guillemets
+%\addbibresource{biblio.bib}
+%%%%%%%%%%%%%%%%%%%% end of part copied from template
+
+%Packages
+%\usepackage{logic9}
+\usepackage{bbm}
+\usepackage{tikz}
+\usetikzlibrary{graphs,quotes,positioning}
+%\usegdlibrary{trees}
+%\setlength {\marginparwidth }{2cm} % ça résoud un problème avec todonotes
+%\usepackage{todonotes}
+\usepackage{amssymb}
+\usepackage{cmll}
+
+
+% from this point on: merged header from keisuke and Charles
+\usepackage{amsmath,mathabx} %,amsthm
+%\usepackage{cleveref}
+\usepackage{stmaryrd}
+\usepackage{amsfonts}
+\usepackage{cite}
+\usepackage{subcaption}
+%\usepackage[dvipdfmx]{graphicx}
+
+%%% tikz libraries:
+\usetikzlibrary{shapes.geometric}
+\usetikzlibrary{decorations.pathreplacing}
+
+
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\wleq}{\preccurlyeq}
+\newcommand{\wless}{\prec}
+\DeclareMathOperator{\mdepth}{mdepth}
+
+%\theoremstyle{plain}
+\theoremstyle{definition}
+\newtheorem{dfn}{Definition}[section]
+\newtheorem{thm}[dfn]{Theorem}
+\newtheorem{lem}[dfn]{Lemma}
+\newtheorem{prp}[dfn]{Proposition}
+
+%\newtheoremstyle{claim}{}{}{\rmfamily}{}{\itshape}{:}{ }{\underline{\thmname{#1}\thmnumber{ #2}\thmnote{ #3}}}
+%\theoremstyle{claim}
+%\newtheorem{clm}[dfn]{Claim}
+\newtheorem{clm}{Claim}
+
+\crefname{thm}{Theorem}{Theorems}
+\crefname{lem}{Lemma}{Lemmata}
+
+%\newcommand\Nat{\mathbb{N}}
+\newcommand\Size[1]{\mathrm{size}(#1)}
+\newcommand\Rank[1]{\mathrm{rank}(#1)}
+\newcommand\Maxr[1]{\mathrm{maxrank}(#1)}
+\newcommand\Root[1]{\mathrm{root}(#1)}
+\newcommand\Sub[1]{\mathrm{sub}(#1)}
+
+\DeclareSymbolFont{bbsymbol}{U}{bbold}{m}{n} 
+\DeclareMathSymbol\comp{\mathbin}{bbsymbol}{"3B}
+\newcommand\hole{\scalebox{0.7}{\(\square\)}}
+
+\newcommand\ab{\allowbreak}
+
+\newcommand\lcop[1]{\left\lfloor{#1}\right\rfloor}
+\newcommand\paras[1]{\mathsf{ps}(#1)}
+\newcommand\nop{\$}
+\newcommand\pout{\text{pOut}}
+\newcommand\rhsnop[1]{\left\lceil{#1}\right\rceil}
+\newcommand\ot{\leftarrow}
+\newcommand\eps{\varepsilon}
+\newcommand\rhs{\mathsf{rhs}}
+%\def\<#1>{\left\langle #1\right\rangle}
+\newcommand\apa[1]{\left\langle #1\right\rangle}
+\newcommand\stpair[1]{\left\langle\!\left\langle#1\right\rangle\!\right\rangle}
+%\newcommand\sosubst[2]{\left[\!\left[#1\ot #2\right]\!\right]}
+%\newcommand\sosubst[2]{[\![#1\ot #2]\!]}
+%\newcommand\sosubst[2]{\left\llbracket #1\ot #2\right\rrbracket}
+%\newcommand\sosubst[2]{{\renewcommand\mmid{\mid}\llbracket #1\ot #2\rrbracket}}
+\newcommand\sosubst[2]{\llbracket #1\ot #2\rrbracket}
+\newcommand\sosub[1]{\llbracket #1\rrbracket}
+%\newcommand\subst[2]{\left[#1\ot #2\right]}
+\newcommand\subst[2]{[#1\ot #2]}
+%\newcommand\mmid{\;\middle|\;}
+\newcommand\mmid{\mid}
+\DeclareMathOperator{\rank}{rank}
+
+\newcommand\MTTR{\text{MTT}^\text{R}}
+\newcommand\LMTT{\text{LMTT}}
+\newcommand\LSI{\text{LSI}}
+\newcommand\LSOI{\text{LSOI}}
+\newcommand\LBIS{\text{LBIS}}
+\newcommand\MSOTT{\text{MSOTT}}
+\newcommand\SC{\mathfrak{S\!C}}
+
+%MACROS from Paul (end of header from Keisuke and Charles
+%\newcommand{\paul}[1]{\todo[color=red!40,inline]{\textbf{P.} -- #1}} % note added by paul
+\newcommand{\dom}{\mathrm{dom}} % domain of a function
+\renewcommand{\max}{\mathrm{max}} % maximum
+%\newtheorem{claim}{Claim}
+%\newcommand{\N}{\mathbb{N}}
+\renewcommand{\epsilon}{\varepsilon}
+%\newcommand{\llb}{[\![} % opens semantics brackets
+%\newcommand{\rrb}{]\!]} % closes semantics brackets
+%\newcommand{\lb}{\llbracket} %opens double brackets
+%\newcommand{\rb}{\rrbracket} %closes double brackets
+
+\def \<#1>{{\langle {#1} \rangle}}
+
+
+%% Redefine the \author command
+%\makeatletter
+%\renewcommand*\author[2][]{%
+%	\def\@tempa{#1}%
+%	\ifx\@tempa\@empty%
+%	\def\author@arg{#2}%
+%	\else%
+%	\def\author@arg{#2\thanks{#1}}%
+%	\fi%
+%	\gdef\author@list{\author@arg}%
+%}
+%\makeatother
+
+
+
+
+
+
+% At the end of a tex file, you have information on how to compile the file. Here we tell your computer which file should be compiled first. 
+% In this case it is the file named "main.tex" in the parent directory, so "../main.tex" is the relative path from the directory of the current file to the file which should be compiled. 
+% TeXstudio and Emacs/orgmod (Sylvain's setup) use different syntaxes to specify the main file, the TeX root line is for TeXstudio, the TeX master line is for Emacs:
+% !TeX root = ../main.tex
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "../main"
+%%% End:
+
+\section{Introduction}
+
+Tree Transducers are fundamental devices within automata theory and formal language theory.
+They generalize the finite state transductions from strings to (finite, ranked) trees and
+were invented in the 1970s in the context of compiler theory and mathematical linguistics.
+Probably the most basic such transducers are the top-down tree
+transducer~\cite{DBLP:journals/jcss/Thatcher70,DBLP:journals/mst/Rounds70}
+and the bottom-up tree transducer~\cite{th70}, see also~\cite{DBLP:journals/mst/Engelfriet75}.
+These transducers traverse their input tree once, but may process subrees in several copies.
+It is well known that these transducers have \emph{linear height increase} (``LHI''),
+see e.g.~\cite{DBLP:series/eatcs/FulopV98}.
+
+In this paper we deal with a more powerful type of tree transducer:
+the macro tree transducer~\cite{DBLP:journals/jcss/EngelfrietV85} (``mtt'').
+Mtts can be seen as particular functional
+programs that carry out primitive recursion via tree pattern matching.
+Alternativly, mtts can be seen as context-free tree grammars
+(introduced in~\cite{DBLP:journals/mst/Rounds70} as ``context-free dendrogrammars'';
+see also~\cite{fis68, DBLP:journals/jcss/EngelfrietS77,DBLP:journals/jcss/EngelfrietS78}
+and Section~15 of~\cite{DBLP:reference/hfl/GecsegS97}),
+the nonterminals of
+which are controlled by a top-down tree storage in the spirit of~\cite{DBLP:journals/corr/Engelfriet14}.
+
+It is well known, that if we restrict the translations of mtts to
+\emph{linear size increaase}, then we obtain exactly the MSO definable tree
+translations~\cite{DBLP:journals/siamcomp/EngelfrietM03}. 
+In that paper it is also proven that it is decidable
+for a given mtt, whether or not its translation is of linear size increase
+(in fact, this can even be decided for compositions of mtts, and if so,
+then the translation is effectively MSO definable~\cite{DBLP:journals/acta/EngelfrietIM21}).
+It is an open problem, if it is decidable for a given mtt whether or not
+its translation can be realized by a top-down tree transducer
+(in the presence of ``origin'', this problem was shown to be decidable~\cite{DBLP:journals/iandc/FiliotMRT18}).
+As mentioned above, it is a necessary condition for the mtt to be of
+linear height increase (``LHI''). 
+This raises the question, can we decide for a given
+mtt, whether or not its translation is of LHI?
+Here we answer this question in the affirmative. 
+
+It is also an open problem, if it is decidable for a given mtt whether or not
+its translation can be realized by an attributed tree 
+transducer~\cite{DBLP:journals/mst/Knuth68,DBLP:journals/actaC/Fulop81} (``att'').
+It is well-known that atts have \emph{linear size-to-height increase} (``LSHI''), 
+see, e.g., Lemma~5.40 of~\cite{DBLP:series/eatcs/FulopV98}. 
+This raises the question, can we decide for a given
+mtt, whether or not its translation is of LSHI?
+Here we answer this question in the affirmative. 
+Note that it was conjectured already in~\cite{DBLP:journals/siamcomp/EngelfrietM03}
+that the methods of that paper
+can be applied in order to decide whether or not the translation of an mtt
+is of LSHI.
+
+Last but not least, let us consider \emph{linear size-to-distinct-number-of-output-trees increase}
+(``LSOI''). It is well-known that atts have LSOI, see, e.g.,
+Lemma~5.43 of~\cite{DBLP:series/eatcs/FulopV98}.
+In fact, it was conjectured in the year~2000 by Joost~Engelfriet that the translation of an mtt
+can be realized by an att (with look-around, see~\cite{DBLP:journals/jcss/BloemE00}) if and only if the 
+translation if of LSOI. This raises the question, can we decide for a given mtt,
+whether or not its translation is of LSOI? 
+Here we show that deciding LSOI for mtts is at least as difficult as
+deciding equivalence of atts. The latter is a long-standing and difficult open problem.  
+
+Let us now discuss our results in more detail.
+How is the \emph{linear size increase} (``LSI'') 
+property decided for a given mtt~\cite{DBLP:journals/siamcomp/EngelfrietM03}?
+The given mtt is first transformed into a certain normal form (called ``proper'');
+intuitively, the normal form guarantees that 
+(1.)~each state (except possibly the initial state) produces
+infinitely many output trees (this is called ``input-proper''),
+and that 
+(2.)~each parameter of a state is instantiated with infinitely many
+distinct argument trees (this is called ``parameter-proper'').
+Note that input-properness is a 
+generalization of the proper form of~\cite{DBLP:journals/iandc/AhoU71}.
+Once in proper normal form, it suffices to check if the transducer
+is ``finite copying''. This means that 
+(1.)~each node of each input tree is processed only a bounded number of times
+and that
+(2.)~each parameter of every state is copied only a bounded number of times. 
+Both of these properties can easily be reduced to the finiteness problem
+of ranges of compositions of (nondeterministic) mtts~\cite{DBLP:journals/iandc/DrewesE98}.
+It is also proved that if a proper mtt is \emph{not} finite copying, then its
+translation is \emph{not} of LSI.
+
+To decide both the LHI and LSHI properties, we introduce a new normal form
+called ``depth-proper''. An mtt is depth-proper if each parameter of every state
+appears at infinitely many different depths (for different input trees).
+The proof of this normal form is similar to the one of input-properness, but
+is more complicated. Technically speaking all our mtts are always equipped
+with look-ahead. The original proof of the proper form of~\cite{DBLP:journals/iandc/AhoU71}
+was wrong, because they had not realized that due to the change of look-ahead,
+states that were input-proper in the original transducer, may become non-input-proper
+in the new constructed transducer. To solve this issue, it was shown in~\cite{DBLP:journals/siamcomp/EngelfrietM03}
+that the construction has to be iterated, and that this iteration terminates after at
+most $|Q|$-many iterations and yields an input-proper mtt (where $Q$ is the set of
+states of the given original mtt).
+In the case of input-properness, only the look-ahead changes in each iteration of the construction.
+Our construction of a depth-proper mtt also needs to be iterated due to the change of
+look-ahead, however, we also add new states in each iteration. This complicates the 
+termination proof and we are not able to present a simple bound such as $|Q|$ for our iteration. 
+
+Given a depth-proper mtt, we can decide the LSHI and LHI properties as follows.
+First, we consider input trees which contain exactly one special marked input leaf
+(it will be marked by a state $p$ of the look-ahead automaton, to act as a place-holder for
+any input tree for which the look-ahead automaton arrives in state $p$).
+For such input trees, the mtt produces output trees which still contain (nested) state calls
+to the special input leaf. We say that the mtt has the ``finite nesting'' property, if
+there is a bound on the number of nested state calls that appear on any path of such output trees.
+We can decide whether or not an mtt is finite nesting, similar as before: we change the mtt
+to nondeterministically output any path of nested states of any such output tree. The 
+original mtt is finite nesting if and only if the range
+of this transducer is finite (the latter is decidable, as mentioned above).
+We can also show that if the mtt is \emph{not} finite nesting, then the given translation
+if \emph{not} LSHI.
+In a similar way we can deal with LHI: here we consider that \emph{each} leaf of
+an input tree is marked by a look-ahead state and then proceed exactly as for LSHI.
+
+For the last result, consider two (total) attributed tree transducers.
+We know that their translations are of
+linear size-to-number-of-distinct-output-subtrees increase (``LSOI'').
+We now convert these transducers into equivalent mtts (following, e.g.,
+the construction in the proof of Lemma~5.11 of~\cite{DBLP:journals/iandc/EngelfrietM99}).
+We obtain two total mtts that are of LSOI.
+Consider first that these transducers $M_1,M_2$ are not equivalent, i.e., there exists
+some input tree $s$ such that the output $M_1(s)$ of $M_1$ is not equal to the output $M_2(s)$ of $M_2$. 
+We construct a new transducer $M$ which takes as input trees of the form $a^n(s')$.
+It outputs a full binary tree of height $n$, at the leaves of which are all possible
+cons-like list of the trees $M_1(s')$ and $M_2(s')$. This causes that the translation of $M$
+is not of LSOI (in particular, taking $s'=s$). On the other hand, if $M_1$ and $M_2$ are equivalent,
+then all those cons-like trees are equal and hence $M$ is of LSOI.  
+
+\section{Preliminaries}
+
+The set $\{0,1,\dots \}$ of natural numbers is denoted by $\mathbb{N}$.
+For $k\in\mathbb{N}$ we denote by $[k]$ the set
+$\{1,\dots,k\}$; thus $[0]=\emptyset$.
+A ranked alphabet (set) consists of an alphabet (set) $\Sigma$ together
+with a mapping $\text{rank}_{\Sigma}: \Sigma\to\mathbb{N}$
+that assigns each symbol $\sigma\in\Sigma$ a natural number called its ``rank''.
+We will write $\sigma^{(k)}\in\Sigma$ to denote that $\sigma\in\Sigma$ and
+$\text{rank}_{\Sigma}(\sigma)=k$.
+By $\Sigma^{(k)}$ we denote the symbols of $\Sigma$ that have rank $k$.
+
+The set $T_\Sigma$ of (finite, ranked, ordered) trees over $\Sigma$ is the smallest
+set $S$ such that if $\sigma\in\Sigma^{(k)}$, $k\geq 0$, and
+$s_1,\dots,s_k\in S$, then also $\sigma(s_1,\dots,s_k)\in S$.
+We will write $\sigma$ instead of $\sigma()$.
+For a tree $s=\sigma(s_1,\dots,s_k)$ with $\sigma\in\Sigma^{(k)}$, $k\geq 0$,
+and $s_1,\dots,s_k\in T_\Sigma$, we define 
+the set $V(s)\subseteq\mathbb{N}^*$ of nodes of $s$ as
+$\{\varepsilon\}\cup \{ iu\mid i\in[k], u\in V(s_i)\}$.
+Thus, $\varepsilon$ denotes the root node of $s$, and
+for a node $u$, $ui$ denotes the $i$-th child of $u$.
+For $u\in V(s)$ we denote by $s[u]$ the label of $u$ in $s$ and
+by $s/u$ the subtree rooted at $u$.
+Formally, let $s=\sigma(s_1,\dots,s_k)$ and define 
+$s[\epsilon]=\sigma$,
+$s[iu]=s_i[u]$, 
+$s/\varepsilon=s$, and
+$s/iu=s_i/u$ for $\sigma\in\Sigma^{(k)}$, $k\geq 0$,
+$s_1,\dots,s_k\in T_\Sigma$, $i\geq 1$ and $u\in\mathbb{N}$ such that $iu\in V(s)$.
+
+We fix two special sets of symbols: the set $X=\{x_1,x_2,\dots \}$ of
+variables and the set $Y=\{y_1,y_2,\dots\}$ of parameters.
+For $k\geq 1$ let $X_k=\{x_1,\dots,x_k\}$ and $Y_k=\{y_1,\dots,y_k\}$.
+Let $A$ be a set that is disjoint from $\Sigma$. Then the set $T_\Sigma(A)$ of
+trees over $\Sigma$ indexed by $A$ is defined as $T_{\Sigma'}$ where
+$\Sigma'=\Sigma\cup A$ and $\text{rank}_{\Sigma'}(a)=0$ for $a\in A$ and 
+$\text{rank}_{\Sigma'}(\sigma)=\text{rank}_{\Sigma}$ for $\sigma\in\Sigma$.
+
+For a ranked alphabet $\Sigma$ and a set $A$ the ranked set
+$\<\Sigma,A>$  consists of all symbols $\<\sigma,a>$ with $\sigma\in\Sigma$ and
+$a\in A$; the rank of $\<\sigma,a>$ is defined as $\text{rank}_\Sigma(\sigma)$.
+
+\subsection{Tree Substitution}
+
+Let $\Sigma$ be a ranked alphabet and let $s,t\in T_\Sigma$.
+For $u\in V(s)$ we define the tree $s[u\leftarrow t]$ that is obtained
+from $s$ by replacing the subtree rooted at node $u$ by the tree $t$.
+Let $\sigma_1,\dots,\sigma_n\in\Sigma^{(0)}$, $n\geq 1$ be pairwise distinct symbols
+and let $t_1,\dots,t_n\in T_\Sigma$. Then $t[\sigma_i\leftarrow t_i\mid i\in[n]]$
+is the tree obtained from $t$ by replacing each occurence of $\sigma_i$ by
+the tree $t_i$. We have defined trees as particular stings, and this is just
+ordinary string substitution (because we only replace symbols of rank zero).
+We refer to this as ``first-order tree substitution''.
+
+In ``second-order tree substitution'' it is possible to replace internal nodes $u$, i.e.,
+subtrees of $s$ by new trees. These new trees use parameters to indicate where
+the ``dangling'' subtrees $s/ui$ of the node $u$ are to be placed.
+Let $\sigma_1\in\Sigma^{(k_1)},\dots, \sigma_n\in\Sigma^{(k_n)}$ be pairwise distinct symbols 
+with $n\geq 1$ and
+$k_1,\dots,k_n\in\mathbb{N}$ and let $t_i\in T_\Sigma[Y_{k_i}]$ for $i\in[n]$.
+Let $s\in T_\Sigma$.
+Then $s[\![\sigma_i\leftarrow t_i\mid i\in[n]]\!]$ denotes the tree
+that is inductively defined as (abbreviating $[\![\sigma_i\leftarrow t_i\mid i\in[n]]\!]$ by
+$[\![\dots ]\!]$) follows:
+for $s=\sigma(s_1,\dots,s_k)$,
+if $\sigma\not\in\{\sigma_1,\dots,\sigma_n\}$ then $s[\![\dots]\!]=\sigma(s_1[\![\dots]\!],
+\dots,s_k[\![\dots]\!])$ and if $\sigma=\sigma_j$ for some $\nu\in[n]$ then
+$s[\![\dots]\!]=t_\nu[y_j\leftarrow s_j[\![\dots]\!]\mid j\in[k]]$.
+
+\subsection{Macro Tree Transducers}
+
+A \emph{tree automaton} $A$ is given by a tuple
+$(P,\Sigma,h)$ where $P$ is a finite set of states, $\Sigma$ is a ranked alphabet,
+and $h$ is a collection of mappings $h_\sigma:P^k\to P$ where $\sigma\in\Sigma^{(k)}$
+and $k\geq 0$. The extension of $h$ to a mapping $\hat{h}:T_\Sigma\to P$
+is defined recursively as $h_\sigma(\hat{h}(s_1),\dots,\hat{h}(s_k))$ for every $\sigma\in\Sigma^{(k)}$,
+$k\geq 0$, and $s_1,\dots,s_k$. For every $p\in P$ we define the set $L_p$ of trees
+in $T_\Sigma$ as $\{ s\in T_\Sigma\mid \hat{h}(s)=p\}$.
+
+A (total, deterministic) \emph{macro tree transducer with look-ahead} (``mttr'') $M$ is given by a tuple
+$(Q,P,\Sigma,\Delta,q_0,R,h)$, where
+\begin{itemize}
+\item $Q$ is a ranked alphabet of \emph{states},
+\item $\Sigma$ and $\Delta$ are ranked alphabet of \emph{input} and \emph{output symbols},
+\item $(P,\Sigma,h)$ is a tree automaton (called the \emph{look-ahead automaton} of $M$),
+\item $q_0\in Q^{(0)}$ is the \emph{initial state},
+\item and $R$ is the \emph{set of rules}, where for each $q\in Q^{(m)}$, $m\geq 0$,
+$\sigma\in\Sigma^{(k)}, k\geq 0$, and $p_1,\dots, p_k\in P$ there is exactly one rule of the form 
+\[
+\<q,\sigma(x_1:p_1,\dots,x_k:p_k)>(y_1,\dots,y_m) \to t
+\]
+with $t\in T_{\Delta\cup \< Q,X_k>}[Y_m]$.
+The right-hand side $t$ of such a rule is denoted by
+$\text{rhs}_M(q,\sigma,\<p_1, \dots,p_k>)$
+\end{itemize}
+
+The semantics of an mttr $M$ (as above) is defined as follows.
+We define the derivation relation $\Rightarrow_M$ as follows.
+For two trees $\xi_1,\xi_2\in T_{\Delta\cup\< Q,T_\Sigma>}(Y)$,
+$\xi_1\Rightarrow\xi_2$ if there exists a node $u$ in $\xi_1$
+with $\xi_1/u=\<q,s>(t_1,\dots,t_m)$, $q\in Q$, $s\in T_\Sigma$, and
+$t_1,\dots,t_m\in T_{\Delta\cup\<Q,T_\Sigma>}$ and 
+$\xi_2=\xi_1[u\leftarrow\zeta]$ where $\zeta$ equals
+\[
+\text{rhs}_M(q,\sigma,\<\hat{h}(s_1),\dots,\hat{h}(s_k)>)[\![\<q',x_i>\leftarrow \<q',s_i>\mid q'\in Q,i\in[k]]\!]
+[y_j\leftarrow t_j\mid j\in[m]].
+\]
+
+Since $\Rightarrow_M$ is confluent and terminating, there is for every $\xi_1$ a unique
+tree $\xi_2$ such that $\xi_1\Rightarrow_M^* \xi_2$.
+For every $q\in Q^{(m)}$, $m\geq 0$ and $s\in T_\Sigma$ we define the
+\emph{$q$-translation of $s$}, denoted by $M_q(s)$, as the unique tree $t$ in $T_\Delta(Y_m)$ such that
+$\<q,s>(y_1,\dots, y_m)\Rightarrow_M^* t$.
+
+We denote the translation realize by $M$ also by $M$, i.e., 
+$M=M_{q_0}$ and for every $s\in T_\Sigma$,
+$M(s)=M_{q_0}(s)$ is the unique tree $t\in T_\Delta$
+such that $\< q_0,s>\Rightarrow_M^* t$.
+
+%\documentclass[11pt]{article}
+%
+%\topmargin=0cm
+%\headheight=0cm
+%\headsep=0cm
+%\oddsidemargin=0cm
+%\textheight=24cm
+%\textwidth=16cm
+%\evensidemargin=0cm
+%
+%\usepackage{amsmath,amsthm,mathabx}
+%\usepackage{cleveref}
+%\usepackage{stmaryrd}
+%\usepackage{amsfonts}
+%\usepackage{cite}
+%%\binoppenalty=-1000\relax
+%%\relpenalty=-8000\relax
+%
+%\newcommand{\N}{\mathbb{N}}
+%\newcommand{\wleq}{\preccurlyeq}
+%\newcommand{\wless}{\prec}
+%\DeclareMathOperator{\mdepth}{mdepth}
+%
+%%\theoremstyle{plain}
+%\theoremstyle{definition}
+%\newtheorem{dfn}{Definition}[section]
+%\newtheorem{thm}[dfn]{Theorem}
+%\newtheorem{lem}[dfn]{Lemma}
+%
+%\newtheoremstyle{claim}{}{}{\rmfamily}{}{\itshape}{:}{ }{\underline{\thmname{#1}\thmnumber{ #2}\thmnote{ #3}}}
+%\theoremstyle{claim}
+%%\newtheorem{clm}[dfn]{Claim}
+%\newtheorem{clm}{Claim}
+%
+%\crefname{thm}{Theorem}{Theorems}
+%\crefname{lem}{Lemma}{Lemmata}
+%
+%\newcommand\ab{\allowbreak}
+%
+%\newcommand\lcop[1]{\left\lfloor{#1}\right\rfloor}
+%\newcommand\paras[1]{\mathsf{ps}(#1)}
+%\newcommand\nop{\$}
+%\newcommand\pout{\mathit{pOut}}
+%\newcommand\rhsnop[1]{\left\lceil{#1}\right\rceil}
+%\newcommand\ot{\leftarrow}
+%\newcommand\eps{\varepsilon}
+%\newcommand\rhs{\mathsf{rhs}}
+%\def\<#1>{\left\langle #1\right\rangle}
+%\newcommand\stpair[1]{\<\!\<#1>\!>}
+%%\newcommand\sosubst[2]{\left[\!\left[#1\ot #2\right]\!\right]}
+%%\newcommand\sosubst[2]{[\![#1\ot #2]\!]}
+%%\newcommand\sosubst[2]{\left\llbracket #1\ot #2\right\rrbracket}
+%%\newcommand\sosubst[2]{{\renewcommand\mmid{\mid}\llbracket #1\ot #2\rrbracket}}
+%\newcommand\sosubst[2]{\llbracket #1\ot #2\rrbracket}
+%\newcommand\sosub[1]{\llbracket #1\rrbracket}
+%%\newcommand\subst[2]{\left[#1\ot #2\right]}
+%\newcommand\subst[2]{[#1\ot #2]}
+%%\newcommand\mmid{\;\middle|\;}
+%\newcommand\mmid{\mid}
+%\DeclareMathOperator{\rank}{rank}
+%
+%\begin{document}
+%
+%\section{Depth proper normal form}
+
+\section{Depth proper normal form}
+
+Because the LSHI and LHI properties of MTTs pertain to the growth of the height of the output, those properties are linked to the nesting of state calls in the output. For example a MTT that is finite-nesting is trivially LSHI, the converse is however not true because some state calls do not always increase the height of the output tree. The goal of this normal form is to remove those states that have a bound on the amount of height they contribute to the output, i.e.\ the depth at which they use their parameters. This normal form will allow us to characterize LSHI and LHI by finite-nesting constraints. 
+
+To obtain this \emph{Depth-proper normal form} we first show in section \ref{ssec:remove_improper_states} how to remove those state calls which have a bound on the depth at which a parameter occurs in their output (we call them \emph{improper state calls}). This process involves adding new look-ahead states which predict the paths (of bounded depth) at which these parameters will appear in the output. This allows us to compute early the branches of the output leading to the parameter, we then add helper states which will compute other branches of the output. 
+
+In order to remove \emph{improper state calls}, we have altered the transducer in a way that may introduce new \emph{improper state calls} (similarly to the normal form in \cite{DBLP:journals/siamcomp/EngelfrietM03}). In subsection \ref{ssec:normal_form_termination} we show that by iterating the process of removing improper state calls we eventually obtain a MTT without any improper state calls, i.e.\ a MTT in \emph{depth-proper normal form}. 
+
+% Charles' version:
+%Finite-nesting of state calls constrain how the height of the output tree grows with respect to the input. As such, this family of properties make for good candidate characterizations of LSHI and LHI MTTs. Sadly, the equivalence doesn't hold when there are states which only output their parameters at a bounded depth : those can be nested arbitrarily many times without breaking the LSHI / LHI bounds. We thus seek to find a normal form for MTTs that doesn't use any such states, allowing us to directly relate the LSHI and LHI properties to different forms of finite-nesting.
+
+%In this section, we first show how to remove these problematic state calls, and then how this can be iterated to yield the normal form we want.
+
+\subsection{Removing improper state calls}\label{ssec:remove_improper_states}
+
+First, we need to recognise that for a given state call may never appear in
+any derivation if the rules of the MTT don't allow it. We use the general notion of
+"reachability" defined in \cite{DBLP:journals/iandc/EngelfrietM99} to formalise which improper state calls actually appear in
+practice, and recall the following definition : 
+
+\begin{dfn}
+Let $M = (Q, P, \Sigma, \Delta, q_0, R, h)$ be a $\MTTR$. The extension of $M$,
+denoted by $\hat{M}$, is the $\MTTR (Q, P, \hat{\Sigma}, \hat{\Delta}, q_0,
+\hat{R}, \hat{h})$, where $\hat{\Sigma} = \Sigma \cup \{p^{(0)} \mmid p \in P\},
+\hat{\Delta} = \Delta \cup \stpair{Q, P}, \hat{R} = R \cup \{\apa{q,p}(y_1, \dots,
+y_m) \rightarrow \stpair{q, p}(y_1, \dots,y_m) \mmid \<q,p> \in \<Q, P>^{(m)}\},
+\hat{h}_p() = p$ for $p \in P$, and $\hat{h}_\sigma(p_1, \dots, p_k) =
+h_\sigma(p_1, \dots, p_k)$ for $\sigma \in \Sigma^{(k)}, k \geq 0,$ and $p_1,
+\dots, p_k \in P$.
+\end{dfn}
+
+$\hat{M}$ extends the behavior of $M$ to process symbols of the look-ahead.
+These symbols $p \in P$ take on the same role as subtrees $t \in L_p$, and
+intuitively, if $\stpair{q, p}$ appears in $\hat{M}(s)$ with $s \in T_\Sigma$,
+then replacing $p$ with $t_p \in L_p$ in $s$ yiels a tree $s'$ such that $\<q, t_p>$
+appears in the derivation of $M(s')$. We say that a state call $\stpair{q, p}$
+is \emph{reachable} if and only if there exists a tree $ s \in T_\Sigma(P)$ such that
+$\stpair{q, p}$ appears in $\hat{M}(s)$.
+
+For any given state where a parameter appears only at bounded depth in the output, there are only finitely many output tree branches leading to this parameter. With the help of our look-ahead, we can guess from the input tree which of these branches will be produced, and forgo the state call by immediately producing them.
+
+The \emph{least common output form with parameters} 
+\(\lcop{s}_{Y'} \in T_{\Delta\cup\<Q, X_k>\cup\{\nop^{(0)}\}}(Y)\) expresses this idea of output tree branches.
+For each \(s\in T_{\Delta\cup\<Q, X_k>}(Y)\), it is obtained from \(s\) by replacing all occurrences of subtrees that do not
+contain any parameter \(y\in Y'\) with \(\nop\).
+Let us write \(\paras{s}\subseteq{Y}\) for the set of parameters occurring in
+\(s\in T_{\Delta\cup\<Q, X>}(Y)\).
+Then we can define \(\lcop{s}_{Y'}\) inductively as follows:
+\begin{align*}
+	\lcop{s}_{Y'} &= 
+	\begin{cases}
+		y_i &
+		\text{if \(s = y_i \in Y'\)}
+		\\
+		\delta(\lcop{s_1}_{Y'},\dots,\lcop{s_n}_{Y'}) &
+		\text{if \(\paras{s} \ne \emptyset\) and \(s = \delta(s_1,\dots,s_n)\)}
+		\\
+		\nop & \text{if \(\paras{s} = \emptyset\)}
+	\end{cases}
+\end{align*}
+For convenience,
+we define \(\pout_M((q,Y'),p)\) to be the set \(\left\{\lcop{M_q(s)}_{Y'} \mmid s\in
+L_p\right\}\). For simplicity, we also write $\pout_M((q, y), p)$ instead of
+$\pout_M((q,\{y\}), p)$ and $\lcop{s}_y$ instead of $\lcop{s}_{\{y\}}$.
+If a state call $\<q, x_i>$ appears in a right-hand side
+$\rhs_M(q,\sigma,\<p_1,\dots,p_k>)$ and $y \in Y$ is such that $\pout((q,y),
+p_i)$ is finite, we call the state call $\<q, x_i>$ "improper" and the
+parameter $y$ one of its "depth-bounded" parameter.
+
+If parameters could appear at arbitrary depth during the derivation of the
+ouput, then by the non-deletion property, they would be able to also appear at
+arbitrary depth in the ouput. For this reason, improperness of state calls
+propagates through rule right-hand sides to the other state calls making use of
+their depth-bounded parameters. The following lemma formalises this fact.
+
+\begin{lem}\label{thm:finpout}
+	Let \(M=(Q,P,\Sigma,\Delta,q_0,R,h)\) be a nondeleting mtt with look-ahead.
+	Let \(q\in Q\), \(\sigma\in\Sigma^{(k)}\), \(k\ge1\), $y \in Y$,and \(p,p_1,\dots,p_k\in P\) such that
+	\(p = h_\sigma(p_1,\dots,p_k)\) and \(L_{p_j}\ne\emptyset\) for every \(j\in [k]\).
+	If \(\<r,x_i>\in \<Q,X_k>\) occurs in
+	\(\lcop{\rhs_M(q,\sigma,\<p_1,\dots,p_k>)}_y\) at position $u$, with $r \in
+	Q^{(m)}$ and \(\pout((q,y),p)\) is finite,
+	then \(\forall l \in [m], \lcop{\rhs_M(q,\sigma,\<p_1,\dots,p_k>)}_y[ul] \neq \$
+	\Rightarrow \pout((r,y_l),p_i)\) is finite.
+\end{lem}
+%
+\begin{proof}
+	For $j \in [k]-\{i\}$ fix trees $s_j \in T_\Sigma$ with $h(s_j)=p_j$. Let
+	$\xi=\zeta\sosub{\ldots}$ with $\zeta=\rhs_M(q,\sigma,\< p_1,\ldots,p_k>)$ and
+	$\sosub{\ldots}=\sosubst{\<q',x_j>}{M_{q'}(s_j) \mmid q'\in Q,j\in
+		[k]-\{i\}}$. By the definition of $\pout_M((q,y),p)$, Lemma 3.5 from
+	\cite{DBLP:journals/siamcomp/EngelfrietM03}, and
+	associativity of second-order tree
+	substitutions,$O=\{\lcop{M_q(\sigma(s_1,\ldots,s_k))}_y\mmid s_i\in L_{p_i}\}=
+	\{\lcop{\xi\sosub{s_i}}_y \mmid s_i\in L_{p_i}\}$, where $\sosub{s_i}$ denotes the
+	subsitution $\sosubst{\<q',x_i>}{M_{q'}(s_i) \mmid q'\in Q}$ is a subset of
+	$\pout_M((q,y),p)$ and hence finite. Since $M$ is nondeleting, both
+	$\sosub{\ldots}$ and $\sosub{s_i}$ are nondeleting by Lemma 3.11 from 
+	\cite{DBLP:journals/siamcomp/EngelfrietM03}. Hence, by Lemma 2.1 from \cite{DBLP:journals/siamcomp/EngelfrietM03}, $\xi$ has a subtree $\<r,
+	x_i>(\xi_1,\ldots,\xi_m)$, where $m = \rank_Q(r)$. Again by the same Lemma 2.1,
+	$\xi\sosub{s_i}$ has a substree $\<r,x_i>(\xi_1,\ldots,\xi_m)\sosub{s_i} =
+	M_r(s_i)[y_j \ot \xi_j\sosub{s_i} \mmid j\in [m]]$. Letting Y' be the set
+$\{y_l\in Y \mmid \lcop{\rhs_M(q,\sigma,\<p_1,\dots,p_k>)}_y[ul] \neq \$ \}$, we thus
+have, for every $t\in
+	\pout_M((r,Y'),p_i)$ (i.e., $t=\lcop{M_r(s_i)}_{Y'}$ for some $s_i\in L_{p_i}$) the tree
+	$t[y_j \ot \xi_j\sosub{s_i} \mmid j\in [m]]$ is a subtree of
+	$\lcop{\xi\sosub{s_i}}_y$, i.e., it is a subtree of a tree in the finite set $O$. This
+	implies finiteness of $\pout_M((r,Y'),p_i)$, which is equivalent to finiteness
+of $\pout_M((r, y_l), p_i)$ for all $y_l \in Y'$.
+\end{proof}
+
+Recall the definition of $\pout((q,y), p)$ we gave, which is the set
+$\{\lcop{M_q(s)}_y \mmid s \in L_p\}$. We can now define what is means for a
+given $\MTTR$ to be depth-proper.
+\begin{dfn}
+Let $M = (Q, P, \Sigma, \Delta, R, h)$ be a $\MTTR$. $M$ is depth-proper if and
+only if, for all reachable state call $\stpair{q,p}$, the parameters of $q$ can appear
+at arbitrary depth in the output $M_q(L_p)$. Formally, we write $\forall q \in
+Q, \forall p \in P, \stpair{q,p} $ is reachable $ \Rightarrow \forall y \in Y,
+\pout((q, y), p) $ is infinite.
+\end{dfn}
+For each \(p\in P\),
+we define \(F_p = \left\{ (q, y)\in Q*Y \mmid \text{\(\pout_M((q,y),p)\) is
+	finite} \right\}\), and $F_p^1 = \left\{q \in Q \mmid \exists y \in Y, (q,y) \in
+F_p\right\}$. For convenience, for all $q\in Q$, we write $F_p(q)$ for the set
+$\{y \in Y \mmid (q,y) \in F_p\}$.
+
+We introduce the notation $\pout^f((q,Y), p)$ which is the same as $\pout$
+except that all signs $\nop$ have been replaced by sets of (indexes of)
+parameters of $q$. Formally, it is defined as $\{s \in
+T_{\Sigma \cup \mathcal{P}([rank_M(q)])^{(0)}} \mmid s[u \leftarrow \nop \mmid
+s/u \in \mathcal{P}([rank_M(q)])] \in \pout((q,Y), p)\}$.
+Let \(\Phi_p\) be the set of mappings \(\varphi\) from \(F^1_p\)
+to \(T_{\Delta\cup\mathcal{P}(\N)^{(0)}}(Y)\)
+such that \(\varphi(r)\in\pout^f_M((r, F_p(r)),p)\).
+%so that 
+%\{ \varphi: F_p\to T_{\Delta\cup\{\nop^{(0)}\}}(Y) \mid
+\(\Phi_p\) is finite for every \(p\in P\) because the different $\pout$ are by
+definition finite if we take $q \in F^1_p$, and the cardinality of $\pout^f$ is
+a finite factor away from that of $\pout$.
+
+We will now construct a mtt \(\pi(M)\) equivalent to \(M\)
+where there is no occurrence of any improper state call in a right-hand side.
+Like stated previously, the look-ahead is enriched with new information, so we
+can guess the branches leading to depth-bounded parameters and skip improper
+state calls. But we still need to reconstruct the rest of the output tree
+afterwards. This is achieved by introducing helper states $\hat{Q}$.
+Every call to a helper states produces a missing branch, and uses only some part
+of the non depth-bounded parameters. We need to not give them the ones they
+don't use if we want to keep the non-deleting property. Thus, the lookahead is
+augmented with information about which non depth-bounded is needed in which
+branch.
+
+\begin{dfn}
+Let $M = (Q,P,\Sigma,\Delta,R,h)$. Then the mtt
+\(\pi(M)=(Q',P',\Sigma,\Delta,R',h')\) is given as follows.  Let \(Q'\) be \(Q
+\cup \hat{Q}\)
+where \\
+\(\hat{Q}=\left\{(p,r,t/v,u)^{(n)}\mmid p\in P, r\in F^1_p,
+t\in\pout((r,F_p(r)),p), t/vu =
+\nop, n\in [rank_M(q)]\right\}\).
+Let \(P'\) be 
+\(\left\{(p,\varphi) \mmid \varphi \in \Phi_p\right\}\).
+For every \(q\in Q\), \(\sigma\in\Sigma\), and \((p_1,\varphi_1),\dots,(p_k,\varphi_k)\in P'\),
+let the rule
+\begin{align*}
+	\<q, \sigma(x_1,\dots,x_k)>(y_1,\dots,y_m) &\to \zeta_q\Theta
+	&\<(p_1,\varphi_1),\dots,(p_k,\varphi_k)>
+\end{align*}
+be in \(R'\), 
+where 
+\(\zeta_q=\rhs_M(q, \sigma, \<p_1,\dots,p_k>)\)
+%a rule \((\<q, \sigma(x_1,\dots,x_k)>(y_1,\dots,y_m) \to \zeta_q ~
+%\<p_1,\dots,p_k>)\) is in \(R\),
+and
+\(\Theta\) is a second-order tree substitution given as
+%\(\sosubst{\<r,x_i>}%
+%{\varphi_i(r) \left[u \ot \<(p_i,r,\varphi_i(r),u),x_i> \mid \varphi_i(r)/u = \nop\right] \mid r\in F_{p_i}, i\in[k]}\).
+\(\sosubst{\<r,x_i>}%
+{t \left[u \ot \<(p_i,r,t,u),x_i>(y_i, i \in t/u) \mmid t/u \in \mathcal{P}(\N)\right] \mmid r\in F^1_{p_i}, t=\varphi_i(r), i\in[k]}\).
+%%\(\sosubst{\<r,x_i>}{\rhsnop{\varphi_i(r)} \mid r\in F_{p_i}, i\in[k]}\)
+%%with an auxiliary function \(\rhsnop{t}\) for \(t\in T_{\Delta\cup\{\$^{(0)}\}}\)
+%where every occurrence of \(\nop\) at path \(u\) of \(\varphi_i(r)\) is replaced
+%with \(\<(p_i,r,t,u), x_i>\)
+%
+%%Formally the function \(\rhsnop{t}\) is defined 
+%%as \(\rhsnop{t}=\rhsnop{t}_t^{\eps}\) where
+%%\begin{align*}
+%%\rhsnop{\nop}_t^{u} &= \<(p_i,r,t,u),x_i>
+%%\\
+%%\rhsnop{y_j}_t^{u} &= y_j
+%%\\
+%%\rhsnop{\delta(t_1,\dots,t_n)}_t^{u} &=
+%%\delta(\rhsnop{t_1}_t^{u1},\dots,\rhsnop{t_n}_t^{un})
+%%\text.
+%%\end{align*}
+For every \((p,r,t,u)\in\hat{Q}\) and \(\sigma\in\Sigma\),
+let the rule 
+\begin{align*}
+	\<(p,r,t,u)(y_1, \dots, y_l), \sigma(x_1,\dots,x_k)> &\to \phi(\zeta_r, t, u)
+	&\<(p_1,\varphi_1),\dots,(p_k,\varphi_k)>
+\end{align*}
+be in \(R'\),
+where 
+\(\zeta_r=\rhs_M(r,\sigma,\<p_1,\dots,p_k>)\)
+%\(\<r, \sigma(x_1,\dots,x_k)>(y_1,\dots,y_m) \to \zeta_r\) is in \(R\)
+and the function \(\phi(\zeta, t, u)\) is defined by 
+\begin{align*}
+	%\phi(y_j, t', u') &= y_j 
+	%\\
+	\phi(\zeta, \nop, \eps) &= \zeta
+	\\
+	\phi(\<q,x_j>, t, u) &= \<(p_j,q,t,u),x_j>(y_1,\dots,y_l) &&\text{where \(t\ne\nop\)}
+	\\
+	\phi(\delta(\zeta_1,\dots,\zeta_n), \delta(t_1,\dots,t_n), iu)
+	&= \phi(\zeta_i, t_i, u)\text.
+\end{align*}
+\end{dfn}
+Note that \(\phi(\zeta, t, u)\) may be partial. No rule is constructed if its right-hand side is not defined.
+In addition, let \(h'_\sigma((p_1,\varphi_1),\dots,(p_k,\varphi_k)) = (p, \varphi)\),
+where \(p = h_\sigma(p_1,\dots,p_k)\),
+\(\varphi = \{ q\mapsto\lcop{\zeta_q\Theta'}_{F_p(q)} \mmid q\in F^1_p, 
+\zeta_q=\rhs_M(q,\sigma,\<p_1,\dots,p_k>)\}\),
+and 
+\(\Theta'\) is a second-order tree substitution given as
+\(\sosubst{\<r,x_i>}{\varphi_i(r) \mmid r\in F^1_{p_i}, i\in[k]}\).
+
+The following lemma shows that $\varphi$
+is indeed one of the finitely many functions in $\Phi_p$, which is needed
+because we need to be sure the look-ahead has only finitely many states, and also that
+$\varphi$ indeed contains the branches leading to the depth-bounded parameters
+for every $q \in Q$ such that its call on $x_i$ would be improper.
+
+\begin{clm}\label{clm:pi-ra}
+	%\begin{lem}
+	%Let \(M=(Q,P,\Sigma,\Delta,R,h)\) be a nondeleting mtt with look-ahead,
+	%\(\pi(M)=(Q',P',\Sigma,\Delta,R',h')\), and \(s\in T_\Sigma\).
+	If \(h'(s) = (p, \varphi)\), 
+	then \(p = h(s)\) and \(\varphi(q) = \lcop{M_q(s)}_{F_p(q)}\) for every \(q\in
+F^1_p\).\\
+\end{clm}
+\begin{proof}
+	The claim is shown by induction on \(s\). 
+	Let \(s=\sigma(s_1,\dots,s_k)\) with \(\sigma\in\Sigma^{(k)}\)
+	and \(s_1,\dots,s_k\in T_\Sigma\),
+	and \(h'(s_i)=(p_i,\varphi_i)\) for every \(i\in[k]\).
+	By the definition of \(h'\) and the induction hypothesis, 
+	for every \(q\in F_p\),
+	we have \(p = h(s)\) and
+	\begin{align*}
+		\varphi(q) &=
+		\lcop{\zeta_q\Theta'}
+		\\&=
+		\lcop{\zeta_q\sosubst{\<r,x_i>}{\varphi_i(r)\mid r\in F_p, i\in[k]}}
+		\\&=
+		\lcop{\zeta_q\sosubst{\<r,x_i>}{\lcop{M_r(s_i)}\mid r\in F_p, i\in[k]}}
+		\\&= 
+		\lcop{M_q(s)}
+	\end{align*}
+	where \(\zeta_q=\rhs_M(q,\sigma,\<p_1,\dots,p_k>)\).
+\end{proof}
+%
+%\begin{align*}
+%&\pi(M)_{(p,r,t/v,u)}(s)
+%\\&=\rhs_{\pi(M)}((p,r,t/v,u),\sigma,\<(p_1,\varphi_1),\dots,(p_k,\varphi_k)>)
+%\sosubst{\<q',x_i>}{\pi(M)_{q'}(s_i)\mid q'\in Q, i\in[k]]}
+%\\&=
+%\phi(\rhs_{M}(r,\sigma,\<p_1,\dots,p_k>),t/v,u)
+%\sosubst{\<q',x_i>}{\pi(M)_{q'}(s_i)\mid q'\in Q, i\in[k]]}
+%\\&=
+%\end{align*}
+%(We need the lemma about \(\phi\) here.)
+%
+%\begin{align*}
+%&(t/v)\subst{u}{\pi(M)_{(p,r,t/v,u)}(s) \mmid t/vu=\nop}
+%\\&=
+%(\lcop{M_r(s)}/v)\subst{u}{\pi(M)_{(p,r,\lcop{M_r(s)}/v,u)}(s) \mmid \lcop{M_r(s)}/vu=\nop}
+%\\&=
+%(\lcop{M_r(s)}\subst{vu}{\pi(M)_{(p,r,\lcop{M_r(s)}/v,u)}(s) \mmid \lcop{M_r(s)}/vu=\nop})/v
+%\end{align*}
+
+We now verify that the definition for the right-hand sides of helper state rules
+is sound. We show that all recursive calls are defined by assuming that we can't
+apply the last rule, and proving that then one of the other two must necessarily
+apply.
+
+\begin{clm}
+	For all \( (p,r,t,u) \in \hat{Q}, (p_1,\dots, p_k) \in P^k \) and $\sigma \in
+	\Sigma$ such that $p=h_\sigma(p_1, \dots, p_k)$, and defining $
+	\zeta_r = \rhs_M(r, \sigma, \<p_1,\dots,p_k>)$, \( \phi(\zeta_r, t, u) \)
+	is well-defined.
+\end{clm}
+
+\begin{proof}
+	First, let us quickly verify that the computation of the value of $ \phi $ eventually
+	terminates. Initially, $t$ and $u$ come from a state $(p, r, t, u)
+\in \hat{Q}$, so $t/u = \nop$ by definition. This holds true after every
+recursive call, and because every recursive call also stricly decreases the
+length of the third parameter $u$, the recursion must eventually end, thanks to
+the existence of the ground case $\phi(\zeta,\nop,\epsilon)=\zeta$.
+
+Now we just need to verify that all cases are covered. The computation of
+$\varphi$ can be understood as synchronous exploration of the first and second
+arguments $\zeta$ and $t$ following the path given by the third argument $u$. We
+show that at any point were the two trees differ (that is, we cannot apply the
+third rule to continue exploring if we ever get there), then the
+computation should either stop by application of the first or second rule, or
+should've stopped for the same reason earlier.
+
+This is formalised as $
+\forall u \in \N^*, \zeta[u] \neq t[u]
+	\Rightarrow \exists v \wleq u, \zeta[v] = \<q, x> $ or $ t[v] = \$ $, and we
+will actually prove its contrapositive.
+	Let then $ u \in \N^* $. If $u$ is absent in either $ pos(\zeta) $ or $ pos(t) $,
+	take $u'$ to be the longest strict prefix of $u$ such that $u' \in pos(\zeta) \cap
+	pos(t) $, and $ i \in \N $ such that $ u'i \wleq u $. Then $ u'i $ is in only
+	one set of the two sets $ pos(\zeta) $ and $ pos(t) $, we must have by necessity
+	that $ \zeta[u'] \neq t[u'] $, because their degrees are different. We have thus
+	reduced our problem to the case where $ u \in pos(t) \cap pos(\zeta) $.
+	Because $(p, r, t, u) \in \hat{Q}$, we know $ \exists Y' \subseteq Y,
+	s_1,\dots,s_k \in L_{p_1},\dots,L_{p_k}, t = \lcop{M_r(\delta(s_1,
+		\dots,s_k)}_{Y'} $. Note $ s = \delta(s_1,\dots,s_k)$. To prove the
+	contrapositive, assume $ \forall v \wleq u, \zeta[v] \neq \<q, x> $ and $ t[v]
+	\neq \$ $. By definition of $ \lcop{.} $, this means that $ \paras{t/u} \neq
+	\emptyset $, and as such $ \forall v \wleq u, t[v] = M_r(s)[v] $. Applying lemma
+	3.5 from \cite{DBLP:journals/siamcomp/EngelfrietM03} to $M_r(s)$, we get $M_r(s) = \zeta\sosubst{\<q,
+		x_i>}{M_q(s_i)}$. We conclude by repeated applications of the definition of
+	second-order substitutions : $ \delta(t_1,\dots,t_n)\sosubst{\delta'}{t'} =
+	\delta(t_1\sosubst{\delta'}{t'},\dots,t_n\sosubst{\delta'}{t'}$ if $ \delta \neq
+	\delta' $ along the path to node $u$, proving $M_r(s)[u] =
+	\zeta\sosubst{\<q,x_i>}{M_q(s_i)}[u] = \zeta[u]$, and thus $t[u]=\zeta[u]$,
+	proving the contrapositive.
+	We can now show that $\phi$ is well-defined : by our observation, any call on
+	$\phi$ such that $\zeta[u] \neq t[u]$ is either such that one of
+	the two other rules apply (if $v=u$), or impossible (if $v \wless u$ then the
+	recursive calls should have stopped sooner at $v$).
+	
+\end{proof}
+
+\begin{lem}\label{lem:pi-eq}
+	Let \(M=(Q,P,\Sigma,\Delta,R,h)\) be a nondeleting mtt with look-ahead.
+	For \(q\in Q\) and \(s\in T_\Sigma\), 
+	we have \(\pi(M)_q(s) = M_q(s)\).
+\end{lem}
+%
+\begin{proof}
+	We prove the statement by induction on \(s\in T_\Sigma\).
+	Let \(t=\lcop{M_r(s)}\) and \(r\in F_p\) with \(p=h(s)\).
+	Then \(t\subst{u}{\pi(M)_{(p,r,t,u)}(s) \mmid t/u=\nop} = M_r(s) \).
+	More generally, we have 
+	\((t/v)\subst{u}{\pi(M)_{(p,r,t/v,u)}(s) \mmid t/vu=\nop} = M_r(s)/v \)
+	for every path \(v\) of \(t\).
+	
+	Let \(s=\sigma(s_1,\dots,s_k)\) with \(\sigma\in\Sigma^{(k)}\) and \(s_1,\dots,s_k\in T_\Sigma\),
+	and \(h'(s_i) = (p_i, \varphi_i)\) for every \(i\in[k]\).
+	From the induction hypothesis, we have \(\pi(M)_{q}(s_i) = M_{q}(s_i)\) for every \(q\in Q\) and \(i\in[k]\).
+	In addition, \(p_i = h(s_i)\) and \(\varphi_i(r) = \lcop{M_{r}(s_i)}\) holds for \(r\in F_{p_i}\) and \(i\in[k]\)
+	because of \cref{clm:pi-ra}.
+	By the definition of \(\pi(M)\),
+	we have
+	\begin{align*}
+		&\pi(M)_q(s) 
+		\\&=
+		\rhs_{\pi(M)}(q,\sigma,\<(p_1,\varphi_1),\dots,(p_k,\varphi_k)>)
+		\sosubst{\<r,x_i>}{\pi(M)_r(s_i)\mmid r\in Q', i\in [k]}
+		\\&=
+		\rhs_{M}(q,\sigma,\<p_1,\dots,p_k>)
+		\hspace{-.4em}\begin{array}[t]{l}
+			\sosubst{\<r,x_i>}{t\left[u \ot \<(p_i,r,t,u),x_i> \mmid t/u = \nop\right] 
+				\mmid r\in F_{p_i}, t=\varphi_i(r), i\in [k]}\\
+			\sosubst{\<q',x_i>}{\pi(M)_r(s_i)\mmid q'\in Q', i\in [k]}
+		\end{array}
+		\\&=
+		\rhs_{M}(q,\sigma,\<p_1,\dots,p_k>)
+		\hspace{-.4em}\begin{array}[t]{l}
+			\sosubst{\<r,x_i>}{t\left[u \ot \<(p_i,r,t,u),x_i> \mmid t/u = \nop\right] 
+				\mmid r\in F_{p_i}, t=\lcop{M_r(s_i)}, i\in [k]}\\
+			\sosubst{\<q',x_i>}{\pi(M)_r(s_i)\mmid q'\in Q', i\in [k]}
+		\end{array}
+		\\&=
+		\rhs_{M}(q,\sigma,\<p_1,\dots,p_k>)
+		\hspace{-.4em}\begin{array}[t]{l}
+			\sosubst{\<q',x_i>}{\pi(M)_r(s_i)\mmid q'\in Q\setminus F_{p_i}, i\in [k]}\\
+			\sosubst{\<r,x_i>}{t\left[u \ot \<(p_i,r,t,u),x_i> \mmid t/u = \nop\right]
+				\mmid r\in F_{p_i}, t=\lcop{M_r(s_i)}, i\in [k]}\\
+			\sosubst{\<\hat{q},x_i>}{\pi(M)_{\hat{q}}(s_i)\mmid \hat{q}\in \hat{Q}, i\in [k]}
+		\end{array}
+		\\&=
+		\rhs_{M}(q,\sigma,\<p_1,\dots,p_k>)
+		\hspace{-.4em}\begin{array}[t]{l}
+			\sosubst{\<q',x_i>}{M_r(s_i)\mmid q'\in Q\setminus F_{p_i}, i\in [k]}\\
+			\sosubst{\<r,x_i>}{t\left[u \ot \pi(M)_{(p_i,r,t,u)}(s_i) \mmid t/u = \nop\right]
+				\mmid r\in F_{p_i}, t=\lcop{M_r(s_i)}, i\in [k]}
+		\end{array}
+		\\&=
+		\rhs_{M}(q,\sigma,\<p_1,\dots,p_k>)
+		\hspace{-.4em}\begin{array}[t]{l}
+			\sosubst{\<q',x_i>}{M_r(s_i)\mmid q'\in Q\setminus F_{p_i}, i\in [k]}\\
+			\sosubst{\<r,x_i>}{M_r(s_i)\mmid r\in F_{p_i}, i\in [k]}
+		\end{array}
+		\\&=
+		\rhs_{M}(q,\sigma,\<p_1,\dots,p_k>)
+		\sosubst{\<q',x_i>}{M_r(s_i)\mmid q'\in Q, i\in [k]}
+		\\&=
+		M_q(s)\text.
+	\end{align*}
+	
+\end{proof}
+
+\subsection{Iterated removal of improper states terminates}\label{ssec:normal_form_termination}
+
+Having proved that our application preserves the semantics of MTTs, we still
+need to show that it yields a depth-proper MTT as output. This isn't actually
+true, and we will need to iterate our transformation to actually obtain a
+depth-proper MTT. To understand why, remember that our transformation splits our
+initial look-ahead states into multiple look-ahead states that recognise a
+partition of the same language (a look-ahead state $p$ is split into $(p,
+\phi)$). A state that was depth-proper in $M$ with respect to look-ahead state
+$p$ may then have only finitely many least common output with parameters with
+respect to any look-ahead state $(p, \phi)$ in $\pi(M)$. Another problem is that
+helper states from $\hat{Q}$ may not be depth-proper when they are created.
+
+What we will show instead is that iteration of $\pi$ yields a fixed point of
+$\pi$ after only finitely many steps, and that any fixed point of $\pi$ is
+indeed depth-proper.
+The proof of termination is done by showing with downwards induction that for
+any stricly positive arity, helper states with this arity eventually stop being
+introduced by iteration of $\pi$. When we eventually introduce only
+parameter-less helper states, which are by definition already depth-proper, an
+adaptation of the argument from \cite{DBLP:journals/siamcomp/EngelfrietM03} can be used.
+
+Let then $M = M_0$ be a MTT, and define $(M_n)_{n \in \N}$ by the relation
+$M_{n+1} = \pi(M_n)$. Also let $M_n = (Q_n, P_n, \Sigma, \Delta, R_n, h_n) $ and
+$d \geq 2$. Assuming that $\forall e \geq d, \forall n \in \N, Q_n^{(e)} \subseteq
+Q_0^{(e)} $, we will show that $\exists n_0 \in \N, \forall e \geq d-1, \forall n
+\geq n_0, Q_n^{e} \subseteq Q_0^{e}$.  First, observe that $ \forall n \in \N,
+\forall p \in P_n, \forall (p, \phi) \in P_{n+1}, F_p \cap Q_0 \subseteq F_{(p,
+	\phi)} \cap Q_0 \subseteq Q_0 $. This is because $ \forall r \in Q_0, \pout(r,
+(p, \phi)) \subseteq \pout(r, p) $. Since $Q_0$ is a finite set, then every
+infinite sequence $ (F_{p_n}) $ with $ p_n \in P_n $ and $p_n \in p_{n+1}$ must
+become stationary at one point. Let $n_0' \in \N$ such that $\forall n \geq n_0',
+\forall p \in P_n, \forall (p, \phi) \in P_{n+1}, F_p \cap Q_0 = F_{(p, \phi)}
+\cap Q_0 $. By definition of $\Theta$, there is no rule $\<q, \sigma(x_1, \dots,
+x_k)> \rightarrow \zeta \<p_1, \dots, p_k>$ in $R_{n_0'}$ such that $\exists q \in
+Q_{n_0'}, \exists i, \exists y, \<q, x_i> \in \zeta$ and $(q,y) \in F_{p_i}$,
+i.e. $\exists q \in Q_{n_0' +1}, \exists i, \exists y, \<q, x_i> \in \zeta$ and
+$(q,y) \in F_{p_i}\cap Q_{n_0'}$. Furthermore, by the definition of $\pi$, any call
+to a state of $Q_{n_0'}$ appearing in the right hand side of a rule of $R_n$ for
+$n > n_0'+1$ must appear in the right hand side of a rule of $R_{n_0'+1}$. We now
+know by the fact that $F_p = F_{(p, \phi)}$ for $n \geq n_0'$ that there is no
+call to a state $q \in Q_0 \subseteq Q_{n_0}$ that is rewritten by $\Theta$ in a
+rule from $R_n, n\geq n_0+1$, and because $Q_0$ contains by hypothesis all
+states of arity $\geq d$ and helper states come from states of strictly higher
+arity, then no helper states of arity $\geq d-1$ are introduced in $Q_n, n \geq
+n_0$, i.e $\forall e \geq d-1, \forall n \in \N, Q^{(e)}_n \subseteq Q^{(e)}_n$
+
+To conclude, first observe for any arbitrary MTT $M$ that if $d$ is the maximal
+arity of any state of $Q$, then it is already a given that $\forall e \geq d,
+\forall n \in \N, Q^{(e)}_n \subseteq Q^{(e)}_n$. Applying the previous result
+in a induction yields d values $n_1, \dots, n_{d}$ such that $\forall e\geq
+1, \forall n \geq \sum_i n_i, Q^{(e)}_n \subseteq Q^{(e)}_{\sum_i n_i}$.
+Define $\sigma = \sum_i n_i$. We can partially apply our previous proof to
+$M_\sigma$, yielding the existence of a $n_0 \in \N$ such that $R_{\sigma+n_0}$
+contains no rule $\<q, \sigma(x_1, \dots, x_k)> \rightarrow \zeta \<p_1, \dots
+p_k>$ such that $\exists q \in Q_\sigma, \exists i, \exists y, \<q, x_i> \in
+\zeta$ and $(q,y) \in F_{p_i}$. Because by construction of $\sigma$,
+$Q_{\sigma+n_0} \setminus Q_{\sigma} \subseteq Q_{\sigma +n_0}^{(0)}$ are two sets
+containing only depth-proper states, then we finally conclude that $M_{\sigma
+	+n_0}$ is depth-proper.
+
+
+
+
+
+
+%\bibliography{bibli.bib}{}
+%\bibliographystyle{plain}
+
+%\end{document}
+
+
+% the syntax for setting root file depends on your editor (first one is for Texstudio)
+% !TeX root = ../main.tex
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "../main"
+%%% End:
+
+
+%required definitions:
+%	- tree contexts
+%	- Paths
+%	- size and height of trees
+% - Provisional output, and their size S() and height H(): The height of a provisional output is defined inductively, similarly to the height of trees, with $H(q(X, t_1, \dots, t_n)) = 1+ \mathrm{max}(0,H(t_1), \dots, H(t_n))$. 
+% - \mathrm{Depth}(y_i,q(t))
+%	- \mathrm{dom}
+%	- \mathrm{Prefix}
+%	- width of unranked trees
+%	- t_{\uparrow u}[X], t_{\uparrow u_1, u_2}[X_1,X_2], t_{\downarrow u} (=t|_{u})
+
+%Todo:
+%	- more detail on the decidability theorem
+%	- check again that all required definitions are present
+%	- more detail on theorem \ref{the:loop_finding}
+%	- check %cursor things (use Ctrl + f "%cursor" to see small things that can still be improved)
+
+
+\section{Deciding LSHI}\label{sec:decision_LSHI}
+
+The Linear input Size to output Height Increase (LSHI) property is defined similarly to the Linear Size Increase (LSI) property from \cite{DBLP:journals/siamcomp/EngelfrietM03}:
+
+\begin{definition}
+	A MTT $M$ is of \emph{Linear input Size to output Height Increase} (LSHI) if there exists a bound $b \in \N$ such that, for all input tree $t$ of size $n$, the height of $M(t)$ is less than $b*n$. 
+\end{definition}
+
+In this section we first characterize the LSHI property of MTTs under Depth-proper normal form as those that are finite-nesting, then we use this characterization to decide whether a MTT is LSHI. The finite-nesting property is defined as follows:
+
+\begin{definition}
+	A MTT $M$ is \emph{finite-nesting} if there is a bound $b \in \N$ such that, for all input tree-context $t[X]$ with variable $X$, in the provisional output of $M(t[X])$, states of $M$ applied to $X$ appear nested (i.e.\ along a same output path) at most $b$ times. 
+	
+	A MTT is \emph{infinite-nesting} if it is not \emph{finite-nesting}. 
+\end{definition}
+
+\subsection{LSHI characterization}\label{ssec:LSHI_char}
+
+This subsection is dedicated to proving the following theorem:
+
+\begin{theorem}\label{the:LSHI_char}
+	Any MTT in Depth-proper normal form is LSHI (Linear input Size to output Height Increase) if and only if it is finite-nesting. 
+\end{theorem}
+
+We first prove that any finite-nesting MTT $M$ in Depth-proper normal form is LSHI. The idea here is that, for each path in an output tree, each input node can only contribute a bounded number of nodes to that output path. Given an input node $u$ and an output path $v$, the finite-nesting property tells us that the number of occurrences of states applied to $u$ along path $v$ in the output is bounded by some integer $n$. So the number of nodes along path $v$ whose origin is $u$ is bounded by $n$ times the maximum size of the right-hand side of rules of $M$. Formally: 
+
+\begin{claim}\label{cla:finite-nesting_is_LSHI}
+	Given a MTT $M$ in Depth-proper normal form, if $M$ is finite-nesting then $M$ is LSHI. 
+\end{claim}
+
+\begin{proof}
+	We note $n \in \N$ the nesting bound of $M$, i.e.\ $n$ is such that for all input tree-context $C[X]$ where variable $X$ occurs once in $C$, along each path in the provisional output $M(C(X))$ there are at most $n$ occurrences of a state of $M$ applied to $X$. 
+	
+	Now we look at the provisional outputs $M(C[X_1, \dots, X_k])$ where each variable $X_i$ occurs once in $C$, and how the height of such a provisional output increases when we substitute $X_1$ with a tree-context $\sigma(Y_1, \dots, Y_m)$ where $\sigma$ is an output tree symbol of arity $m$. 
+%	The height of a provisional output is defined inductively, similarly to the height of trees, with $H(q(X, t_1, \dots, t_n)) = 1+ \mathrm{max}(0,H(t_1), \dots, H(t_n))$. 
+	
+	By definition of $n$, the height of $M(C[X_1, \dots, X_k])$ increases, through the substitution $[X_1 \leftarrow \sigma(Y_1, \dots, Y_m)]$, by at most $n.c$, where $c$ is the maximum height of a right-hand-side of rule of $M$. 
+	
+	For all input tree $t$, the output $M(t)$ can be computed from the provisional output $M(X)$ by successive substitutions of the form $[X \leftarrow \sigma(Y_1, \dots, Y_m)]$ where $\sigma$ is an output tree symbol of arity $m$. The number of substitutions needed is the size $|t|$ of $t$. The height of $M(X)$ is constant. The height of the provisional output increases by at most $b.c$ after each substitution, so the height of $M(t)$ is at most linear in the size of input tree $t$. Therefore $M$ is LSHI. 
+\end{proof}
+
+Proving the converse implication requires more work. The general idea is that any infinite-nesting MTT must have a kind of loop we call \emph{nesting generator loop}. Such a loop can be pumped to contradict the LSHI property. 
+
+
+\subsubsection*{Nesting generator loops}
+
+Nesting generator loops are defined so as to be the most general type of loop which can induce infinite-nesting: a generator state $q_0$ calls itself and a generated state $q$ by nesting them, and the generated state $q$ calls itself on the same loop. 
+
+\begin{definition}\label{def:nesting_loop}
+	A \emph{nesting generator loop} in MTT $M$ is given by a tuple $(C[X],p,q_0,q)$ where: 
+	\begin{itemize}
+		\item $C[X]$ is an input tree-context with variable $X$
+		\item $p$ is a look-ahead state such that, noting $L_p$ the set of input trees with look-ahead $p$, there exists $t \in L_p$ with $C(t) \in L_p$
+		\item $q_0$ and $q$ are states of $M$ such that there exists an input tree-context $C_0[X]$ so that $q_0(X)$ appears in the provisional output of $M(C_0[X])$ when $X$ has look-ahead $p$
+		\item We have the following nesting properties in the provisional outputs of $q$ and $q_0$ on input $C(X_p)$ where $X_p$ is an input tree variable with look-ahead $p$:
+		\begin{itemize}
+			\item in the provisional output $M_q(C(X_p))$, there exists a parameter $y_i$ of $q$ such that $y_i$ appears in the $i$-th argument of $q(X_p)$
+			\item in the provisional output $M_{q_0}(C(X_p))$, either $q_0(X_p)$ appears in the $i$-th argument of $q(X_p)$, or there exists a parameter $y_j$ of $q_0$ such that a single occurrence of $y_j$ appears in the $j$-th argument of $q_0(X_p)$ and in the $i$-th argument of $q(X_p)$. 
+		\end{itemize}
+	\end{itemize}
+\end{definition}
+
+The look-ahead state $p$ is important because without it we cannot pump the loop. Note that states $q_0$ and $q$ and parameters $y_i$ and $y_j$ are not necessarily distinct. When $q_0 = q$ and $y_i = y_j$, the loop allows to produce a nesting of states exponential in the number of times we pump the loop. In the general case however, pumping this loop $n$ times produces a number of nested state calls $q(X)$ linear in $n$. 
+
+
+We start by proving that a \emph{nesting generator loop} in a MTT $M$ in Depth-proper normal form necessarily breaks the LSHI property (i.e.\ $M$ cannot be LSHI). 
+
+\begin{claim}\label{cla:loop_breaks_LSHI}
+	Given a MTT $M$ in Depth-proper normal form, if $M$ has a \emph{nesting generator loop} then $M$ is not LSHI. 
+\end{claim}
+
+\begin{proof}
+	By definition of the nesting generator loop, we have tree-contexts $C_0$ and $C$ such that, in the provisional output of $M(C_0(C(X_p)))$, $q_0(X_p)$ and $q(X_p)$ appear nested.
+	
+	Moreover, by pumping the loop, we increase the nesting of $q(X_p)$, i.e.\ $q(X_p)$ appears $n$-times along a single path in the provisional output of $M(C_0(C^n(X_p)))$ for all $n \in \N$. This notably implies that $M$ is not finite-nesting. 
+	
+	So, for all $t \in L_p$, the height of $M(C_0(C^n(t)))$ is at least $n$ times the maximum depth of parameter $y_i$ in $q(t)$. The size of the input $C_0(C^n(t))$ is:
+	\[S(C_0(C^n(t))) = S(C_0) + n.S(C) + S(t)\]
+	The height of the output is:
+	\[H(M(C_0(C^n(t)))) \geq n.\mathrm{Depth}(y_i,q(t)) \]
+	If $M$ was LSHI there would be a bound $b \in \N$ such that, for all $n \in \N$:
+	\[b.(S(C_0) + n*S(C) + S(t)) \geq H(M(C_0(C^n(t)))) \geq n.\mathrm{Depth}(y_i,q(t))\]
+	This means that $b \geq \mathrm{Depth}(y_i,q(t)) / S(C)$ for all $t \in L_p$. Since $M$ is in Depth-proper normal form, there is no bound on the depth of $y_i$ in $q(t)$ for $t \in L_p$. Then such a $b$ cannot exist, therefore $M$ is not LSHI. 
+\end{proof}
+
+The last step in proving theorem \ref{the:LSHI_char} is to show that if a MTT $M$ in Depth-proper normal form is \emph{infinite-nesting} then it has a \emph{nesting generator loop}. For this we look at how states of $M$ call each other, more specifically we define a notion of state call trees, and we express the \emph{infinite-nesting hypothesis} as a condition on those state call trees. We will then prove that this condition implies the existence of a \emph{nesting generator loop}. 
+
+\subsubsection*{State call trees}
+
+For each input tree $t$, we can look at the state calls on the nodes of $t$ as a larger unranked tree whose root is the call of the initial state on the root of $t$, and each node corresponds to the call of a state on a node of $t$. 
+
+To facilitate the definition of state call trees, we define from $M$ a new $\MTTR$ noted $M^{\#}$ where each state $q$ adds a node labeled $\#_q$ at the root of its output, i.e.\ we replace each right-hand side $t$ by $\#_q(t)$ where $\#_q$ is a new output symbol of arity $1$ and $q$ is the state on the left side of the rule. 
+Here we consider each occurrence of $\#_q$ as one "state call", we discuss this choice after the definition: 
+
+\begin{definition}
+	For all input tree $t$, we note $\mathrm{Origin}(t,M^\#(t))$ the \emph{origin semantics} of the computation of $M^\#$ on tree $t$. We define it as the set of pairs of paths $(u,v) \in P(t) \times P(M^\#(t))$ such that the node at path $v$ in $M^\#(t)$ was produced by the node at path $u$ in $t$. 
+	
+	We call \emph{state call tree} of $M$ on $t$ the unranked tree $\SC(t)$ defined by:
+	\begin{itemize}
+		\item the set of nodes is $N = \{(u,v) \in \mathrm{Origin}(t,M^\#(t)) \mid \exists q \in Q, M^\#(t)|_v = \#_q\}$
+		\item the root is $(\epsilon, \epsilon)$
+		\item for all node $(u,v) \in N \setminus \{(\epsilon, \epsilon)\}$, the parent node of $(u,v)$ is $(u',v')$ where: 
+		\begin{itemize}
+			\item $u'$ is the longest strict prefix of $u$ (i.e.\ $\exists i \in \N, u'.i = u$)
+			\item $v'$ is the longest strict prefix of $v$ such that $(u',v') \in N$
+		\end{itemize}
+	\end{itemize}
+\end{definition}
+
+Intuitively, each node corresponds to a state call, and the parent of a state call $q(t_i)$ is the state call $q'(a(t_1, \dots, t_n))$ which induces it (so $q(X_i)$ is in the right-hand side of a rule of $M^\#$ whose left side is $q'(a(X_1, \dots, X_n), \dots)$). 
+
+Considering each occurrence of $\#_q$ in the output as a state call can be counter-intuitive. This is because when a state call $q(t)$ appears in an argument of another state call $q'(t)$ and the state $q'$ makes several copies of this argument, the corresponding $\#_q$ will occur several times in the output. With our definition we consider each occurrence of $\#_q$ as a different \emph{state call}. 
+
+Since we are only looking at nesting properties in this paper, we will only look at state calls occurring along a same path in the output tree. Because state calls along a same output path have different arguments, they cannot be copies of each other, and so this choice does not change anything for the proofs in this paper. 
+
+\subsubsection*{The infinite-nesting hypothesis for state call trees}
+
+The infinite-nesting property of $M$ can be expressed as a property of its state call trees. Given an input tree $t$, a path $u$ in $t$ and a path $v$ in $M^\#(t)$, the nesting along path $v$ of states on the input node at path $u$ is the number of nodes in the state call tree $\SC(t)$ of the form $(u,v')$ where $v'$ is a prefix of $v$. This allows us to characterize the infinite-nesting property in terms of state call trees. This will later allow us to find a \emph{nesting generator loop}. 
+
+The nesting number on an input tree $t$ on input path $u$ along output path $v$ can be expressed as the width of a trimmed version of the state call tree on $t$ (by \emph{width} here we mean the number of nodes of a same depth):
+
+\begin{definition}
+	We call state call tree trimmed on input path $u$ along output path $v$, and we note $\SC(t,u,v)$, the tree obtained from $\SC(t)$ by keeping nodes in $\mathrm{Prefix}(u) \times \mathrm{Prefix}(v)$ and removing the others. 
+\end{definition}
+
+We get the lemma:
+
+\begin{lemma}\label{lem:LSHI_unbounded_width}
+	The transducer $M$ is infinite-nesting if and only if, for all integer $n \in \N$, there exists a trimmed state call tree $\SC(t,u,v)$ of width $\geq n$. 
+\end{lemma}
+
+\begin{proof}%cursor: more detail here
+	By definition of infinite-nesting and trimmed state calls $\SC(t,u,v)$. 
+\end{proof}
+
+\subsubsection*{Finding loops in state call trees}
+
+We now give a theorem implying that if trimmed state call trees are of unbounded width, then there exists a nesting generator loop. However, we keep this theorem more general because it will also be used in the characterization of the LHI property. 
+
+\begin{theorem}\label{the:loop_finding}
+	Given an infinite set $S$ of rooted unranked trees whose nodes have labels in a finite set $Q$, under the following two hypotheses:
+	\begin{itemize}
+		\item Bounded arity: there is a bound $m$ on the arity of nodes in trees of $S$, 
+		\item Unbounded width: for all $n \in \N$ there exist a tree $t_n \in S$ and a depth $d \in \N$ such that there are at least $n$ nodes of depth $d$ in $t_n$, 
+	\end{itemize}
+	There must exist a tree $t \in S$ with the following pattern: 
+	\begin{center}
+		\includegraphics[width=7cm, height=7cm]{pictures/1_loop_shape.jpg}
+	\end{center}
+	
+	More formally, there must exist 5 nodes $N_{q_0}, N_{q}, N_{q_0,0}, N_{q, 0}, N_{q, 1}$ of $t$ such that:
+	\begin{itemize}
+		\item we have the following depth equations, noting $d(N) \in \N$ the depth of node $N$:
+		\[d(N_{q_0}) = d(N_{q})\]
+		\[d(N_{q_0, 0}) = d(N_{q, 0}) = d(N_{q, 1})\]
+		\item we have the following label equations, noting $L(N) \in Q$ the label of node $N$:
+		\[L(N_{q_0}) = L(N_{q_0, 0}) = q_0 \in Q\]
+		\[L(N_{q}) = L(N_{q, 0}) = L(N_{q, 1}) = q \in Q\]
+		\item there are the following paths in $t$, noting $N_1 \to N_2$ if there is a path from $N_1$ to $N_2$:
+		\[N_{q_0} \to N_{q_0, 0}\]
+		\[N_{q_0} \to N_{q, 0}\]
+		\[N_{q} \to N_{q, 1}\]
+	\end{itemize}
+\end{theorem}
+
+The notation choice of $q_0$ and $q$ obviously hints that the labeling is linked to the states corresponding to the state calls. But we will need to add more information in this labeling, both for the characterization of LSHI and LHI. As a first corollary of this theorem, we get that infinite-nesting implies the existence of a nesting generator loop:
+
+\begin{claim}\label{cla:LSHI_loop}
+	Any infinite-nesting MTT $M$ has a \emph{nesting generator loop}. 
+\end{claim}
+
+\begin{proof}
+	For each trimmed state call tree $\SC(t,u,v)$, to each node $(u',v')$ we give the label $L((u',v')) = (q,p,i)$ where:
+	\begin{itemize}
+		\item $q \in Q$ is the state of $M$ such that $M^\#(t)|_{v'} = \#_q$
+		\item $p \in P$ is the look-ahead state of $t|_{u'}$
+		\item $i$ is the index of the argument of $q$ whose root node occurs along path $v$ in the output $M^\#(t)$ if it exists, otherwise $i=0$. In other words, if there is a state call $(u',v'')$ with $v' < v'' \leq v$ then this state call appears in $M^\#(t_{\uparrow u'})$ below the state call $(u',v')$ in its $i$-th argument; and $i=0$ otherwise. 
+	\end{itemize}
+	The added look-ahead and argument information is necessary to imply the existence of a nesting generator loop. 
+	
+	We can now apply theorem \ref{the:loop_finding} to the set of labeled $\SC(t,u,v)$ because:
+	\begin{itemize}
+		\item the trees have \emph{unbounded width} according to Lemma \ref{lem:LSHI_unbounded_width}, 
+		\item the trees have \emph{bounded arity} because the arity is bounded by the maximum state nesting in the rules of $M$, 
+		\item the nodes of trees are labeled in the \emph{finite set} $Q \times P \times [0, n]$ where $n$ is the maximum number of parameters of states of $M$.
+	\end{itemize}
+	
+	The theorem gives us a tree $\SC(t,u,v)$ and in it five nodes $(u_1,v_1), (u_1,v_2), (u_2,v_3), (u_2,v_4), (u_2,v_5)$ labeled respectively $(q_0,p,j),(q,p,i),(q_0,p,j),(q,p,i),(q,p,i)$ (the equalities between the $u_1$, $u_2$ and $p$ come from the depth equalities). 
+	
+	By definition of the labels, if there exists two nodes $(u',v')$ and $(u',v'')$ with $v' < v''$ then the label of $(u',v')$ is $(q',p',i')$ with $i' \neq 0$. This applies to $(u_2,v_4)$ and $(u_2,v_5)$: since $v_4$ and $v_5$ are both prefixes of $v$, either $v_4 < v_5$ or $v_5 < v_4$, in either case $i \neq 0$. 
+	
+	Then we have the \emph{nesting generator loop} $(C[X],p,q_0,q)$ with $C[X] = (t_{\uparrow u_2}[X])|_{u_1}$ and:
+	\begin{itemize}
+		\item there exists $t|_{u_2} \in L_p$ such that $C(t|_{u_2}) = t|_{u_1} \in L_p$ 
+		\item there exists $t_{\uparrow u_1}[X]$ such that for all variable $X_p$ of look-ahead $p$: $q_0(X_p)$ appears in $M^\#(t_{\uparrow u_1}(X_p))$, 
+		\item because $(u_1,v_2)$ is an ancestor node of $(u_2,v_5)$ in $\SC(t,u,v)$ and $(u_1,v_2)$ and $(u_2,v_5)$ both have label $(q,p,i)$ with $i \neq 0$, parameter $y_i$ must appear in $M^{\#}_q(C(X_p))$ in the $i$-th argument of $q(X_p)$, 
+		\item because $(u_1,v_1)$ is an ancestor node of $(u_2,v_3)$ and $(u_2,v_4)$ in $\SC(t,u,v)$, and because $(u_1,v_1)$, $(u_2,v_3)$ and $(u_2,v_4)$ have labels $(q_0,p,j), (q,p,i)$ and $(q_0,p,j)$ respectively, we have two cases depending on whether $j = 0$ or not:
+		\begin{itemize}
+			\item if $j\neq 0$ then, in $M^{\#}_{q_0}(C(X_p))$, a single occurrence of parameter $y_j$ appears in the $j$-th argument of $q_0(X_p)$ and in the $i$-th argument of $q(X_p)$, 
+			\item if $j=0$ then, in $M^{\#}_{q_0}(C(X_p))$, $q_0(X_p)$ appears in the $i$-th argument of $q(X_p)$. 
+		\end{itemize}
+	\end{itemize}
+\end{proof}
+
+Theorem \ref{the:LSHI_char} is therefore a consequence of claims \ref{cla:LSHI_loop}, \ref{cla:loop_breaks_LSHI} and \ref{cla:finite-nesting_is_LSHI}: any MTT in Depth-proper normal form is LSHI (Linear input Size to output Height Increase) if and only if it is finite-nesting. 
+
+
+\subsection{Deciding LSHI}
+
+We can now use Theorem \ref{the:LSHI_char} to give an algorithm to decide the LSHI property of MTT$^R$. Given a MTT$^R$ $M$ we compute its Depth-proper normal form, then decide if it is finite-nesting:
+
+\begin{corollary}
+	The LSHI property is decidable for MTT$^R$. 
+\end{corollary}
+
+\begin{proof}
+	Given $M$ a MTT$^R$, we can decide if $M$ is LSHI by checking if the Depth-proper normal form $M'$ of $M$ is finite-nesting. 
+	
+	The finite-nesting problem can be reduced to the finiteness of ranges of Macro tree transducers, which is known to be decidable. 
+	
+%	we can reduce it to the decision of finiteness of ranges of transducers (that is also how the "finite copying" property is proved in the 2003 paper; that paper does talk about generator loops, but that is inside of a pumping argument, and not for deciding something).
+%	E.g., for LHI, we construct a *nondeterministic* MTT which outputs monadic trees which are all possible nestings of states in any tree t = M(s[u \leftarrow h(s/u)] where u is a node of the input tree s and h(s/u) is the look-ahead state attained at the subtree s/u. E.g., if in the tree "t" there is a state q_3 that appears in a parameter position of state q_2 which in turn appears in a parameter position of state q_1, then the new transducer (which has as nullary input symbols also the set P of look-ahead states) outputs the monadic tree q_1(q_2(q_3(e))), i.e., it has as output symbols all states (of rank 1) plus the nullary sumbol "e".
+%	This is how the decision of linear size increase in the 2003 paper works and in a very similar way we can also decide LSHI.
+	
+\end{proof}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{Deciding LHI}\label{sec:decision_LHI}
+
+The structure of this section is the same as section \ref{sec:decision_LSHI}. Replacing the LSHI with the LHI property entails slight changes in the type of nesting we use to characterize LHI, the type of loops we look for, and more minute details in the proofs. But the main ideas are very similar. 
+
+The Linear Height Increase (LHI) property is defined similarly to the Linear Size Increase (LSI) property from \cite{DBLP:journals/siamcomp/EngelfrietM03} and Linear input Size to output Height Increase (LSHI) property:
+
+\begin{definition}
+	A MTT $M$ is \emph{Linear Height Increase} (LHI) if there exists a bound $b \in \N$ such that, for all input tree $t$ of height $h$, the height of $M(t)$ is less than $b*h$. 
+\end{definition}
+
+In this section we first characterize the LHI property of MTTs under Depth-proper normal form as those that are both finite-nesting and \emph{finite-multi-leaf-nesting} (or finite-ML-nesting), then we will use this characterization to decide whether a MTT is LHI. The finite-ML-nesting property is defined as follows:
+
+\begin{definition}
+	A MTT $M$ is \emph{finite ML-nesting} if there is a bound $b \in \N$ such that, for all input tree-context $t[X_1, \dots, X_n]$ with variables $X_1, \dots, X_n$, in the provisional output of $M(t[X_1, \dots, X_n])$, states of $M$ applied to variables $X_1, \dots , X_n$ appear nested (i.e.\ along a same output path) at most $b$ times. 
+	
+	A MTT is \emph{infinite ML-nesting} if it is not \emph{finite ML-nesting}. 
+\end{definition}
+
+\subsection{LHI characterization}\label{ssec:LHI_char}
+
+This subsection is dedicated to proving the following theorem:
+
+\begin{theorem}\label{the:LHI_char}
+	Any MTT in Depth-proper normal form is LHI (Linear Height Increase) if and only if it is finite-ML-nesting. 
+\end{theorem}
+
+We first prove that any finite-ML-nesting MTT $M$ in Depth-proper normal form is LHI. The idea is that an anti-chain of nodes in the input tree (i.e.\ set of nodes that are not ancestors of each other) can only contribute a bounded number of nodes to each output path. Given an anti-chain $A$ of input nodes and an output path $v$, the finite-ML-nesting property tells us that the number of occurrences of states applied to nodes in $A$ along path $v$ in the output is bounded by some integer $n$. So the number of nodes along path $v$ with origin in $A$ is bounded by $n$ times the maximum size of the right-hand side of rules of $M$. Formally: 
+
+\begin{claim}\label{cla:finite-ML-nesting_is_LHI}
+	Given a MTT $M$ in Depth-proper normal form, if $M$ is finite-ML-nesting then $M$ is LHI. 
+\end{claim}
+
+\begin{proof}
+	We note $b \in \N$ the ML-nesting bound of $M$. %i.e.\ $b$ is such that for all input tree-context $C[X]$ where variable $X$ occurs once in $C$, along each path in the provisional output $M(C(X))$ there are at most $b$ occurrences of a state of $M$ applied to $X$. 
+	
+	We look at the provisional outputs $M(C[X_1, \dots, X_k])$ where each variable $X_i$ occurs once in $C$, and how the height of such a provisional output increases when we apply a substitution $\mathfrak{S}$ of height $1$, i.e.\ a substitution where each $X_i$ is substituted with a tree of the form $\sigma(Y_1, \dots, Y_m)$ where $\sigma$ is an output tree symbol of arity $m$. The height of a provisional output is defined inductively, similarly to the height of trees, with $H(q(X, t_1, \dots, t_n)) = 1+ \mathrm{max}(0,H(t_1), \dots, H(t_n))$. 
+	
+	By definition of $b$, the height of $M(C[X_1, \dots, X_k])$ increases, through the substitution $\mathfrak{S}$ by at most $b.c$, where $c$ is the maximum height of a right-hand-side of rule of $M$. 
+	
+	For all input tree $t$, the output $M(t)$ can be computed from the provisional output $M(X)$ by successive substitutions of height $1$. The number of substitutions needed is the height $H(t)$ of $t$. The height of $M(X)$ is constant. The height of the provisional output increases by at most $b.c$ after each substitution, so the height of $M(t)$ is at most linear in the height of input tree $t$. Therefore $M$ is LHI. 
+\end{proof}
+
+Proving the converse implication requires more work. The general idea is that any infinite-ML-nesting MTT must have either a nesting generator loop \ref{def:nesting_loop} or a new kind of loop we call \emph{nesting generator loop}. Either type of loop can be pumped to contradict the LHI property. 
+
+\subsubsection*{ML-nesting generator loops}
+
+ML-nesting generator loops are defined so as to be the most general type of loop which can induce infinite-ML-nesting: a generator state $q_0$ calls itself and a generated state $q$ by nesting them. The difference with nesting generator loops is that the calls to $q_0$ and $q$ should not be on the same subtree. 
+
+\begin{definition}\label{def:ML-nesting_loop}
+	A \emph{ML-nesting generator loop} in MTT $M$ is given by a tuple $(C[X_1,X_2],p_0,p,q_0,q)$ where: 
+	\begin{itemize}
+		\item $C[X_1,X_2]$ is an input tree-context with variables $X_1$ and $X_2$, 
+		%		\item $C[X]$ is an input tree-context with variable $X$
+		\item $p_0$ and $p$ are look-ahead states such that, noting $L_{p_0}$ and $L_p$ the sets of input trees with look-ahead $p_0$ and $p$ respectively, there exists $t_0 \in L_{p_0}$ 
+		%		and $t_1,t_2 \in L_p$ 
+		such that: $C(t_0,t_1) \in L_{p_0}$ %and $C(t_2) \in L_p$, 
+		\item $q_0$ and $q$ are states of $M$ such that there exists an input tree-context $C_0[X]$ so that $q_0(X)$ appears in the provisional output of $M(C_0[X])$ when $X$ has look-ahead $p_0$
+		\item In the provisional output $M_{q_0}(C(X_{p_0},X_p))$ where $X_{p_0}$ and $X_p$ are input tree variables with look-ahead $p_0$ and $p$ respectively, we have either:
+		\begin{itemize}
+			\item $q_0(X_{p_0})$ appears in an argument of $q(X_p)$
+			%		in the provisional output $M_q(C(X_p))$, there exists a parameter $y_i$ of $q$ such that $y_i$ appears in the $i$-th argument of $q(X_p)$
+			\item a single occurrence of a parameter $y_i$ of $q_0$ appears in the $i$-th argument of $q_0(X_{p_0})$ and in an argument of $q(X_p)$. 
+		\end{itemize}
+	\end{itemize}
+\end{definition}
+
+Note that a nesting generator loop is not an ML-nesting generator loop. For this reason we will prove that the existence of either of these two kinds of loops in a Depth-proper transducer contradicts the LHI property. 
+
+\begin{claim}\label{cla:loop_breaks_LHI}
+	Given a MTT $M$ in Depth-proper normal form, if $M$ has either a \emph{nesting generator loop} or a \emph{ML-nesting generator loop} then $M$ is not LHI. 
+\end{claim}
+
+\begin{proof}
+	If there exists a \emph{nesting generator loop} then, according to claim \ref{cla:loop_breaks_LSHI}, $M$ is not LSHI and therefore not LHI. \\
+	We now assume that there exists a \emph{ML-nesting generator loop}. By definition of such loops, we have tree-contexts $C_0$ and $C$ such that, in the provisional output of $M(C_0(C(X_{p_0},X_p)))$, $q_0(X_{p_0})$ and $q(X_p)$ appear nested.
+	We note $C^n(X_{p_0},X_p)$ the input tree \\
+	$C( \dots C(C(X_{p_0},X_p),X_p) \dots ,X_p)$ where $C$ is pumped $n$ times, and we note $y_j$ the argument of $q$ on which $q(X_p)$ is nesting in the loop. 
+	
+	Moreover, by pumping the loop, we increase the nesting of $q(X_p)$, i.e.\ $q(X_p)$ appears $n$-times along a single path in the provisional output of 
+	$M(C_0(C^n(X_{p_0},X_p)))$ where $C$ is pumped $n$ times. This notably implies that $M$ is not finite-ML-nesting. 
+	
+	So, for all $t_0 \in L_{p_0}, t \in L_p$, the height of $M(C_0(C^n(t_0,t)))$ is at least $n$ times the maximum depth of the parameter $y_i$ in $q(t)$. The height of the input $C_0(C^n(t_0,t))$ is:
+	\[H(C_0(C^n(t_0,t))) \leq d_{C_0} + n.d_C + \mathrm{max}(H(t_0),H(t))\]
+	where $d_{C_0}$ is the depth of $X$ in $C_0[X]$ and $d_C$ is the maximum depth of $X_{p_0}$ or $X_p$ in $C(X_{p_0},X_p)$. 
+	The height of the output is:
+	\[H(M(C_0(C^n(t)))) \geq n.\mathrm{Depth}(y_i,q(t)) \]
+	If $M$ was LHI there would be a bound $b \in \N$ such that, for all $n \in \N$:
+	\[b.(d_{C_0} + n.d_C + \mathrm{max}(H(t_0),H(t))) \geq H(M(C_0(C^n(t)))) \geq n.\mathrm{Depth}(y_i,q(t))\]
+	This means that $b \geq \mathrm{Depth}(y_i,q(t)) / d_C$ for all $t \in L_p$. Since $M$ is in Depth-proper normal form, there is no bound on the depth of $y_i$ in $q(t)$ for $t \in L_p$. Then such a $b$ cannot exist, therefore $M$ is not LHI. 
+\end{proof}
+
+The last step in proving theorem \ref{the:LHI_char} is to show that if a MTT $M$ in Depth-proper normal form is \emph{infinite-ML-nesting} then it has either a \emph{nesting generator loop} or a \emph{ML-nesting generator loop}. Similarly to the LSHI case, we look at the structure of state calls. 
+
+\subsubsection*{The infinite-ML-nesting property for state call trees}
+
+Similarly to the infinite-nesting property, the infinite-ML-nesting property can be expressed as a property of state call trees. 
+%cursor: transpose from here
+Given an input tree $t$, a path $u$ in $t$ and a path $v$ in $M^\#(t)$, the nesting along path $v$ of states on the input node at path $u$ is the number of nodes in the state call tree $\SC(t)$ of the form $(u,v')$ where $v'$ is a prefix of $v$. This allows us to characterize the infinite-nesting property in terms of state call trees. This will later allow us to find a \emph{nesting generator loop}. 
+
+The nesting number on an input tree $t$ on input path $u$ along output path $v$ can be expressed as the width of a trimmed version of the state call tree on $t$ (by \emph{width} here we mean the number of nodes of a same depth):
+
+\begin{definition}
+	We call state call tree trimmed on input path $u$ along output path $v$, and we note $\SC(t,u,v)$, the tree obtained from $\SC(t)$ by keeping nodes in $\mathrm{Prefix}(u) \times \mathrm{Prefix}(v)$ and removing the others. 
+\end{definition}
+
+We get the lemma:
+
+\begin{lemma}\label{lem:LHI_unbounded_width}
+	The transducer $M$ is infinite-nesting if and only if, for all integer $n \in \N$, there exists a trimmed state call tree $\SC(t,u,v)$ of width $\geq n$. 
+\end{lemma}
+
+\begin{proof}%cursor: more detail here
+	By definition of infinite-nesting and trimmed state calls $\SC(t,v)$. 
+\end{proof}
+%cursor: to here
+By using lemma \ref{lem:LHI_unbounded_width} and theorem \ref{the:loop_finding}, we can now prove the following claim:
+
+\begin{claim}\label{cla:LHI_loop}
+	Any infinite-ML-nesting MTT $M$ has a \emph{ML-nesting generator loop}. 
+\end{claim}
+
+\begin{proof}
+	If $M$ is infinite-nesting then, by Claim \ref{cla:LSHI_loop}, it has a \emph{nesting generator loop}. From now on we assume that $M$ is not infinite nesting, i.e.\ there is a bound on the nesting of state calls from a same input node. 
+	
+	To detect ML-nesting of state calls, we trim state call trees along a path of the output tree (to look at ML-nesting state calls), but forcing state calls to fork with respect to the input tree (so that two different state calls $(u,v)$ and $(u',v')$ have $u \neq u'$). 
+	Formally, for all input tree $t$, output path $v \in M^\#(t)$ and partial function $f: P(t) \rightarrow \mathrm{Prefix}(v)$ such that:
+	\[\forall u \in \mathrm{dom}(f), ~~ (u,f(u)) \in \SC(t) ~~ \text{ and }\]
+	\[\forall u' \in \mathrm{Prefix}(u), ~~ (u',f(u')) \text{ is an ancestor of } (u,f(u)) \text{ in } \SC(t)\]
+	we note $\SC(t,v,f)$ the tree obtained from $\SC(t)$ by keeping nodes in $(u,f(u))$ and removing the others (by definition of $\SC(t)$, this is still a tree rooted in $(\epsilon,\epsilon)$). 
+	
+	For each such $\SC(t,v,f)$, to each node $(u',v')$ we give the label $L((u,v')) = (q,p,i)$ where:
+	\begin{itemize}
+		\item $q \in Q$ is the state of $M$ such that $M^\#(t)|_{v'} = \#_q$
+		\item $p \in P$ is the look-ahead state of $t|_{u'}$
+		\item $i$ is the index of the argument of $q$ whose root node occurs along path $v$ in the output $M^\#(t)$ if it exists, otherwise $i=0$. In other words, if there is a state call $(u',v'')$ with $v' < v'' \leq v$ then this state call appears in $M^\#(t_{\uparrow u'})$ below the state call $(u',v')$ in its $i$-th argument; and $i=0$ otherwise. 
+	\end{itemize}
+	In the label, we add the argument index in order to get the proper form of the ML-nesting generator loop. 
+	
+	We can now apply theorem \ref{the:loop_finding} to the set of labeled $\SC(t,v,f)$ because:
+	\begin{itemize}
+		\item the trees have \emph{unbounded width} because $M$ is infinite ML-nesting and the width of $\SC(t,v,f)$ is the maximum ML-nesting of state calls along output path $v$ and there is a bound on the nesting of state calls for the same input node, %cursor: need to explain more here
+		\item the trees have \emph{bounded arity} because the arity is bounded by the maximum state nesting in the rules of $M$, 
+		\item the nodes of trees are labeled in the \emph{finite set} $Q \times P \times [0, n]$ where $n$ is the maximum number of parameters of states of $M$.
+	\end{itemize}
+	
+	The theorem gives us a tree $\SC(t,v)$ and in it five nodes $(u_0,v_0), (u_1,v_1), (u_2,v_2), (u_3,v_3)$ and $(u_4,v_4)$ labeled respectively $(q_0,p_0,j),(q,p,i),(q_0,p_0,j),(q,p,i),(q,p,i)$. 
+	
+	By definition of the labels, if there exists two nodes $(u',v')$ and $(u'',v'')$ at the same depth in $\SC(t,v,f)$ with $v' < v''$ then the label of $(u',v')$ is $(q',p',i')$ with $i' \neq 0$. This applies to $(u_3,v_3)$ and $(u_4,v_4)$: since $v_3$ and $v_4$ are both prefixes of $v$, either $v_3 < v_4$ or $v_4 < v_3$, in either case we have $i \neq 0$. 
+	
+	Then we have the \emph{ML-nesting generator loop} $(C_0[X_1,X_2],C[X],p_0,p,q_0,q)$ with \\
+	$C_0[X_1,X_2] = (t_{\uparrow u_2,u_3}[X_1,X_2])|_{u_0}$ and $C[X] = (t_{\uparrow u_4}[X])|_{u_1}$ and:
+	\begin{itemize}
+		\item there exists $t|_{u_2} \in L_{p_0}$ and $t|_{u_3}, t|_{u_4} \in L_p$ such that $C_0(t|_{u_2},t|_{u_3}) = t|_{u_0} \in L_{p_0}$ and $C(t|_{u_4}) = t|_{u_1} \in L_p$ 
+		\item there exists $t_{\uparrow u_0}[X]$ such that for all variable $X$ of look-ahead $p_0$: $q_0(X)$ appears in $M(t_{\uparrow u_0}(X))$, 
+		\item because $(u_1,v_1)$ is an ancestor node of $(u_4,v_4)$ in $\SC(t,u,v)$, both with label $(q,p,i)$ with $i \neq 0$, parameter $y_i$ must appear in $M_q(C(X_p))$ in the $i$-th argument of $q(X_p)$ when $X_p$ is a variable of look-ahead $p$, 
+		\item because $(u_0,v_0)$ is an ancestor node of $(u_2,v_2)$ and $(u_3,v_3)$ in $\SC(t,u,v)$ with labels $(q_0,p_0,j), (q,p,i)$ and $(q_0,p_0,j)$ respectively, we have two cases depending on whether $j = 0$ or not:
+		\begin{itemize}
+			\item if $j\neq 0$ then, in $M_{q_0}(C_0(X_{p_0},X_p))$, a single occurrence of parameter $y_j$ appears in the $j$-th argument of $q_0(X_{p_0})$ and in the $i$-th argument of $q(X_p)$, 
+			\item if $j=0$ then, in $M_{q_0}(C_0(X_{p_0},X_p))$, $q_0(X_{p_0})$ appears in the $i$-th argument of $q(X_p)$. 
+		\end{itemize}
+	\end{itemize}
+\end{proof}
+
+Theorem \ref{the:LHI_char} is therefore a consequence of claims \ref{cla:LHI_loop}, \ref{cla:loop_breaks_LHI} and \ref{cla:finite-ML-nesting_is_LHI}: any MTT in Depth-proper normal form is LHI (Linear Height Increase) if and only if it is finite-ML-nesting. 
+
+
+\subsection{Deciding LHI}
+
+We can now use Theorem \ref{the:LHI_char} to give an algorithm to decide the LHI property of MTT$^R$. Given a MTT$^R$ $M$ we compute its Depth-proper normal form, then decide if it is finite-nesting:
+
+\begin{corollary}
+	The LHI property is decidable for MTT$^R$. 
+\end{corollary}
+
+\begin{proof}
+	Given $M$ a MTT$^R$, we can decide if $M$ is LHI by checking if the Depth-proper normal form $M'$ of $M$ is finite-ML-nesting. 
+	
+	Similarly to finite-nesting property, the finite-ML-nesting property can be reduced to the finiteness of ranges of Macro tree transducers, which is known to be decidable. 
+	
+%	we can reduce it to the decision of finiteness of ranges of transducers (that is also how the "finite copying" property is proved in the 2003 paper; that paper does talk about generator loops, but that is inside of a pumping argument, and not for deciding something).
+%	E.g., for LHI, we construct a *nondeterministic* MTT which outputs monadic trees which are all possible nestings of states in any tree t = M(s[u \leftarrow h(s/u)] where u is a node of the input tree s and h(s/u) is the look-ahead state attained at the subtree s/u. E.g., if in the tree "t" there is a state q_3 that appears in a parameter position of state q_2 which in turn appears in a parameter position of state q_1, then the new transducer (which has as nullary input symbols also the set P of look-ahead states) outputs the monadic tree q_1(q_2(q_3(e))), i.e., it has as output symbols all states (of rank 1) plus the nullary sumbol "e".
+%	This is how the decision of linear size increase in the 2003 paper works and in a very similar way we can also decide LSHI.
+	
+\end{proof}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% the syntax for setting root file depends on your editor (first one is for Texstudio)
+% !TeX root = ../main.tex
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "../main"
+%%% End:
+%\documentclass[12pt]{article}
+%
+%\topmargin=0cm
+%\headheight=0cm
+%\headsep=0cm
+%\oddsidemargin=0cm
+%\textheight=22cm
+%\textwidth=16.6cm
+%\evensidemargin=0cm
+%\usepackage{amsmath,amssymb,amsthm}
+%\usepackage{cleveref}
+%\usepackage{comment}
+%\usepackage{enumerate}
+%\allowdisplaybreaks
+%
+%%% For TikZs
+%\usepackage[dvipdfmx]{graphicx}
+%\usepackage{tikz}
+
+%\input{macro}
+%\newcommand\LMTT{\text{LMTT}}
+%\newcommand\LSI{\text{LSI}}
+%\newcommand\LSOI{\text{LSOI}}
+%\newcommand\LBIS{\text{LBIS}}
+%\newcommand\MSOTT{\text{MSOTT}}
+
+%\theoremstyle{plain}
+%\theoremstyle{definition}
+%\newtheorem{defn}{Definition}
+%\newtheorem{thm}[defn]{Theorem}
+%\newtheorem{lem}[defn]{Lemma}
+%\newtheorem{prp}[defn]{Proposition}
+
+
+%\theoremstyle{definitionn}
+%\newtheorem{dfn}{Definition}
+
+%\newcommand\dom[1]{\mathit{dom}(#1)}
+%\newcommand\rhs{\mathit{rhs}}
+%\newcommand\Nat{\mathbb{N}}
+%\newcommand\Size[1]{\mathrm{size}(#1)}
+%\newcommand\Rank[1]{\mathrm{rank}(#1)}
+%\newcommand\Maxr[1]{\mathrm{maxrank}(#1)}
+%\newcommand\Root[1]{\mathrm{root}(#1)}
+%\newcommand\Sub[1]{\mathrm{sub}(#1)}
+
+%\DeclareSymbolFont{bbsymbol}{U}{bbold}{m}{n} 
+%\DeclareMathSymbol\comp{\mathbin}{bbsymbol}{"3B}
+%\newcommand\hole{\scalebox{0.7}{\(\square\)}}
+%
+%\begin{document}
+%
+%\title{From MTT to ATT --- Sendai Notes (2)}
+%\author{By Sebastian and Keisuke}
+%\maketitle
+
+%\begin{defn}
+%Let \(\Sub{t}\) be the set of subtrees of \(t\).
+%\begin{itemize}
+%\item
+%\(f:T_\Sigma\to T_\Delta\) is said to be \emph{linear size increase (LSI)}
+%if there exists \(c>0\) such that \(|f(t)|\le c\cdot|t|\) for all \(t\in T_\Sigma\).
+%\item
+%\(f:T_\Sigma\to T_\Delta\) is said to be \emph{linear bounded input (LBI)}
+%if there exists \(c>0\) such that \(|t|\le c\cdot|f(t)|\) for all \(t\in T_\Sigma\).
+%\item 
+%\(f:T_\Sigma\to T_\Delta\) is said to be
+%\emph{linear size-to-number-of-distinct output subtree increase (LSOI)}
+%if there exists \(c>0\) such that \(|\Sub{f(t)}|\le c\cdot|t|\) for all \(t\in T_\Sigma\).
+%\item
+%\(f:T_\Sigma\to T_\Delta\) is said to be 
+%\emph{linear bounded input on the number of distinct output subtrees (LBIS)}
+%if there exists \(c>0\) such that \(|t|\le c\cdot|\Sub{f(t)}|\) for all \(t\in T_\Sigma\).
+%\item 
+%\(f:T_\Sigma\to T_\Delta\) is said to be
+%\emph{linear subtree increase (LSTI)}
+%if there exists \(c>0\) such that \(|\Sub{f(t)}|\le c\cdot|\Sub{t}|\) for all \(t\in T_\Sigma\).
+%\item 
+%\(f:T_\Sigma\to T_\Delta\) is said to be
+%\emph{linear bounded subtree (LBST)}
+%if there exists \(c>0\) such that \(|\Sub{t}|\le c\cdot|\Sub{f(t)}|\) for all \(t\in T_\Sigma\).
+%\end{itemize}
+%\end{defn}
+%
+%\begin{prp}
+%Let \(f:T_\Sigma\to T_\Delta\) be a function.
+%Then
+%\begin{itemize}
+%\item if \(f\) is LSI, then it is LSOI;
+%\item if \(f\) is LSTI, then it is LSOI;
+%\item if \(f\) is LBIS, then it is LBI;
+%\item if \(f\) is LBST, then it is LBI;
+%\item LSI, LBI, LBIS, and LSTI are closed under composition.
+%\end{itemize}
+%\end{prp}
+%
+%\begin{lem}
+%\label{lem:comp-lsoi}
+%Let \(f:T_\Sigma\to T_\Delta\) and \(g:T_\Delta\to T_\Gamma\) be
+%tree transformations such that
+%\(f\comp g\) is LSOI and \(g\) is LBIS.
+%Then \(f\) is LSI.
+%\end{lem}
+%%
+%\begin{proof}
+%Since \(g\) is LBIS, there exists \(c\) such that
+%\(|t| \le c\cdot|\Sub{g(t)}|\) for all \(t\in T_\Delta\).
+%In particular, we have \(|f(t)| \le c\cdot|\Sub{g(f(t))}|\) for all \(t\in T_\Sigma\).
+%Furthermore, since \(f\comp g\) is LSOI, there exists \(c'\) such that
+%\(|\Sub{g(f(t))}|\le c'\cdot|t|\) for all \(t\in T_\Sigma\).
+%Therefore, 
+%\(|f(t)|\le c\cdot|\Sub{g(f(t))}|\le cc'\cdot|t|\) for all \(t\in T_\Sigma\),
+%and hence \(f\) is LSI.
+%\end{proof}
+%
+%\begin{lem}
+%Suppose that \(\MTT^2\cap\LSOI\subseteq\MTT\comp(\LMTT\cap\LBIS)\).
+%Then we have \(\MTT^2\cap\LSOI = \MTT\cap\LSOI\).
+%\end{lem}
+%%
+%\begin{proof}
+%\begin{align*}
+%\MTT^{2}\cap\LSOI &\subseteq (\MTT\comp(\LMTT\cap\LBIS))\cap\LSOI
+%\\&\subseteq ((\MTT\cap\LSI)\comp\LMTT)\cap\LSOI
+%\\&\subseteq (\MSOTT\comp\LMTT)\cap\LSOI
+%\\&\subseteq (\MSOTT\comp\ATTR)\cap\LSOI
+%\\&\subseteq \ATTR\cap\LSOI
+%\\&\subseteq \MTT\cap\LSOI
+%\end{align*}
+%\end{proof}
+%
+%\begin{lem}
+%Let \(f:T_\Sigma\to T_\Delta\) and \(g:T_\Delta\to T_\Gamma\) be
+%tree transformations such that
+%\(f\comp g\) is LSOI and \(g\) is LBST.
+%Then \(f\) is LSOI.
+%\end{lem}
+%%
+%\begin{proof}
+%Since \(g\) is LBST, there exists \(c\) such that
+%\(|\Sub{t}| \le c\cdot|\Sub{g(t)}|\) for all \(t\in T_\Delta\).
+%In particular, we have \(|\Sub{f(t)}| \le c\cdot|\Sub{g(f(t))}|\) for all \(t\in T_\Sigma\).
+%Furthermore, since \(f\comp g\) is LSOI, there exists \(c'\) such that
+%\(|\Sub{g(f(t))}|\le c'\cdot|t|\) for all \(t\in T_\Sigma\).
+%Therefore, 
+%\(|\Sub{f(t)}|\le c\cdot|\Sub{g(f(t))}|\le cc'\cdot|t|\) for all \(t\in T_\Sigma\),
+%and hence \(f\) is LSOI.
+%\end{proof}
+
+\section{Complexity of Deciding LSOI}
+
+In this section we consider \emph{linear size-to-number-of-distinct-output-subtrees increase} (``LSOI'').
+Let us first define LSOI more formally.
+Let $\tau$ be a total function from $T_\Sigma$ to $T_\Delta$ for some
+ranked alphabets $\Sigma,\Delta$.
+For a tree $t$ let us define its set $\text{sub}(t)$ of subtrees 
+as $\{ t/u\mid u\in V(t)\}$.
+Then $\tau$ is of \emph{LSOI} if there exists a number $c$ such that for
+every input tree $s\in T_\Sigma$ it holds that $|\text{sub}(\tau(s))|\leq c\cdot |s|$.
+
+Without explaining details about attributed tree transducers, the intuition is: with each node of the
+input tree a fixed number of attributes are associated and attributes define output trees in
+terms of other attributes. This implies that there can only be at most the product of the number
+of attributes and the size of the input tree many distinct output subtrees. Therefore
+the translation of every attributed tree transducer is of LSOI.
+Since every attributed transducer can be transformed into an equivalent macro tree transducer
+(even without look-ahead, see, e.g., the proof of Lemma~6.1 of~\cite{DBLP:series/eatcs/FulopV98})
+it suffices to consider mtts that are of LSOI.
+Here, we do not need look-ahaed. In our terminology, an ``mtt'' is an mttr
+$(Q,P,\Sigma,\Delta,q_0,R,h)$ for which $(P,\Sigma,h)$ is the trivial automaton with $P=\{p\}$ and
+$\hat{h}(s)=p$ for every $s\in T_\Sigma$. 
+
+\begin{thm}
+\label{thm:lsoi-hard}
+The decision problem whether a given mtt is of LSOI is as hard as
+the equivalence problem of mtts that are of LSOI.
+\end{thm}
+
+\begin{proof}
+Let \(M_1=(\Sigma,\Delta,Q_1,q_1,R_1)\)
+and \(M_2=(\Sigma,\Delta,Q_2,q_2,R_2)\)
+be LSOI MTTs to be decided their equivalence \(M_1=M_2\), i.e.,
+%\(\dom{M_1}=\dom{M_2}\) and 
+\(M_1(t)=M_2(t)\) for every \(t\in T_\Sigma\). %\(t\in\dom{M_1}\).
+Without loss of generality, we assume that \(Q_1\) and \(Q_2\) are disjoint.
+We construct an MTT \(M\) which should be LSOI if and only if \(M_1=M_2\).
+
+Let \(M=(\Sigma',\Delta',Q,q_0,R)\) be an MTT where
+\begin{itemize}
+\item
+\(\Sigma' = \Sigma\cup\{a^{(1)}\}\) with \(a\not\in\Sigma\)
+\item
+\(\Delta' = \Delta\cup\{f^{(2)},e^{(0)}\}\) with \(f,e\not\in\Delta\)
+\item
+\(Q = Q_1\cup Q_2\cup \{q_0^{(0)},q^{(3)}\}\) with \(q_0,q\not\in Q_1\cup Q_2\)
+\item
+\(R = R_1\cup R_2
+\begin{array}[t]{l@{~}l}
+%\cup & \{q_0(a(x)) \to f(q(x,q_1(x),q_2(x),f(q_1(x),e)),q(x,q_1(x),q_2(x),f(q_2(x),e))) \}
+\cup & \{\<q_0,a(x)> \to \<q,x>(\<q_1,x>,\<q_2,x>,e)\}
+\\
+\cup & \{\<q_0,\sigma(x_1,\dots,x_n)> \to e \mid \sigma\in\Sigma \}
+\\
+\cup & \{\<q,a(x)>(y_1,y_2,y_3) \to f(\<q,x>(y_1,y_2,f(y_1,y_3)),\<q,x>(y_1,y_2,f(y_2,y_3))) \}
+\\
+\cup & \{\<q,\sigma(x_1,\dots,x_n)>(y_1,y_2,y_3) \to y_3 \mid \sigma\in\Sigma \}
+\\
+%\cup & \{q_i(a(x)) \to q_i(x) \mid i\in\{1,2\} \}
+%\cup & \{q_1(a(x)) \to q_1(x),~ q_2(a(x)) \to q_2(x)\}
+%\\
+%\cup & \{p(a(x),y_1,\dots,y_m) \to e \mid p\in (Q_1\cup Q_2)\setminus\{q_1,q_2\}\} 
+\cup & \{\<q',a(x)>(y_1,\dots,y_m) \to \<q',x>(y_1,\dots,y_m) \mid q'\in Q_1^{(m)}\cup Q_2^{(m)}\}
+\end{array}
+\)
+\end{itemize}
+Now we shall make the semantics of \(M\) clear.
+If the root symbol of an input tree \(t\) is not \(a\),
+then \(M(t)=e\).
+If the root symbol of an input tree is \(a\),
+it has the form of \(a^{n+1}(t)\) with \(n\in\N\), \(t\in T_{\Sigma'}\) and \(\Root{t}\in\Sigma\).
+In the case where \(t\) contains \(a\),
+we have \(M(a^{n+1}(t))=M(a^{n+1}(t'))\)
+where \(t'\) is obtained by skipping all \(a\)'s in \(t\).
+Thereby, we need to consider the case where \(t\) does not contain \(a\), that is, \(t\in T_\Sigma\).
+We can see that
+\(M(a^{n+1}(t))\) with \(t\in T_\Sigma\) is 
+a full binary tree of height \(n\) whose leaves are replaced with `cons-list-like` trees
+that are determined by the reversed Dewey path to the root~(\Cref{fig:expdewey}).
+If the path to a leaf is \(i_1.i_2.\dots.i_{n-1}.i_n\) with \(i_k\in\{1,2\}\),
+then the leaf is replaced with a tree
+\(f(t_{i_n},f(t_{i_{n-1}},\dots
+f(t_{i_2},f(t_{i_1},e))\dots))\)
+where \(t_1=M_1(t)\) and \(t_2=M_2(t)\).
+
+First, suppose that \(M_1\ne M_2\).
+Since our transducers are total (i.e., the domains of $M_1$ and of $M_2$ 
+coincide and equal $T_\Sigma$), there must exist a tree \(t\in T_\Sigma\)
+such that \(M_1(t)\ne M_2(t)\).
+Then considering \(t'=a^{n+1}(t)\) with \(n\in\N\),
+the output tree \(M(a^{n+1}(t))\) is a full binary tree of height \(n\)
+whose ``leaves'' all contain distinct output trees; hence the number of subtrees is 
+at least \(2^n\).
+Therefore, the MTT \(M\) is not of LSOI.
+
+On the other hand, suppose that \(M_1=M_2\).
+We only consider the case where the input has the form of \(a^{n+1}(t)\) with \(t\in T_\Sigma\)
+because the other cases do not increase the size of the output more that this case.
+Then 
+\(M(a^{n+1}(t))\) with \(t\in T_\Sigma\) is 
+a full binary tree of height \(n\) 
+whose leaves are replaced with the cons-list-like trees.
+Note that all of the replaced trees are equal 
+because \(M_1=M_2\).
+Therefore all the nodes of the full binary tree that are on the same level
+are roots of the same subtree.
+Since \(M_1\) and \(M_2\) are of LSOI,
+the number of subtrees of the output tree \(M(a^{n+1}(t))\) is
+linear in \(n+\Size{t}\), that is, linear in \(\Size{a^{n+1}(t)}\).
+Therefore, the MTT \(M\) is of LSOI.
+%\end{comment}
+\end{proof}
+
+\def\Tcons#1[#2]#3#4{node {#1} [sibling distance = 5mm, level distance = 10mm] 
+                     edge from parent [#2]
+                     child {node {#3}}
+                     child {#4}
+                     child {node {} edge from parent [draw=none]}}
+\def\Tvdots#1#2{node {#1} [level distance = 4mm]
+                child {node {\(\vdots\)} edge from parent [draw = none] [level distance = 6mm]
+                       child {#2}}}
+
+\begin{figure}
+\begin{center}
+\begin{tikzpicture}
+\node {\(f\)} [sibling distance = 48mm, level distance = 5mm]
+ child {node {\(f\)} [sibling distance = 24mm]
+        child {\Tvdots{\(f\)}{
+                 node {} edge from parent [draw=none] 
+                 [sibling distance = 32mm, level distance = 0mm]
+                 child {node [xshift = 20mm] {} edge from parent [draw=none]
+                        [sibling distance = 10mm, level distance = 10mm]
+                        child {\Tcons{\(f\)}[]{\(t_1\)}{
+                                \Tcons{\(f\)}[]{\(t_1\)}{
+                                 \Tvdots{\(f\)}{
+                                  \Tcons{\(f\)}[draw=none]{\(t_1\)}{node {\(e\)}}
+                                  }
+                                 }
+                                }                         
+                               }
+                         child {\Tcons{\(f\)}[]{\(t_2\)}{
+                                 \Tcons{\(f\)}[]{\(t_1\)}{
+                                  \Tvdots{\(f\)}{
+                                   \Tcons{\(f\)}[draw=none]{\(t_1\)}{node {\(e\)}}
+                                   }
+                                  }
+                                 }                         
+                               }                            
+                          }                  
+                 child {node [xshift = 10mm] {} edge from parent [draw=none]
+                        [sibling distance = 10mm, level distance = 10mm]
+                        child {\Tcons{\(f\)}[]{\(t_1\)}{
+                                \Tcons{\(f\)}[]{\(t_2\)}{
+                                 \Tvdots{\(f\)}{
+                                  \Tcons{\(f\)}[draw=none]{\(t_1\)}{node {\(e\)}}
+                                  }
+                                 }
+                                }                         
+                               }
+                         child {\Tcons{\(f\)}[]{\(t_2\)}{
+                                 \Tcons{\(f\)}[]{\(t_2\)}{
+                                  \Tvdots{\(f\)}{
+                                   \Tcons{\(f\)}[draw=none]{\(t_1\)}{node {\(e\)}}
+                                   }
+                                  }
+                                 }                         
+                               }                            
+                          }        
+                 child {node [xshift = -10mm, yshift = -5mm] {\(\cdots\)} edge from parent [draw=none]}
+                }
+               }
+        child {\Tvdots{\(f\)}{node {} edge from parent [draw=none]}}
+        }
+ child {node {\(f\)} [sibling distance = 24mm]
+         child {\Tvdots{\(f\)}{node {} edge from parent [draw=none]}}
+         child {\Tvdots{\(f\)}{
+                 node {} edge from parent [draw=none] [level distance = 0mm]
+                 child {node [xshift = 10mm, yshift = -5mm] {} edge from parent [draw=none] 
+                        child {node {\(\cdots\)} edge from parent [draw=none]}
+                       }
+                 child {node [xshift = 0mm] {} edge from parent [draw=none]
+                        [sibling distance = 10mm, level distance = 10mm]
+                        child {\Tcons{\(f\)}[]{\(t_1\)}{
+                                \Tcons{\(f\)}[]{\(t_2\)}{
+                                 \Tvdots{\(f\)}{
+                                  \Tcons{\(f\)}[draw=none]{\(t_2\)}{node {\(e\)}}
+                                  }
+                                 }
+                                }                         
+                               }
+                         child {\Tcons{\(f\)}[]{\(t_2\)}{
+                                 \Tcons{\(f\)}[]{\(t_2\)}{
+                                  \Tvdots{\(f\)}{
+                                   \Tcons{\(f\)}[draw=none]{\(t_2\)}{node {\(e\)}}
+                                   }
+                                  }
+                                 }                         
+                               }                            
+                          }
+                }
+               }
+        };
+\end{tikzpicture}
+\end{center}
+\caption{The tree \(M(a^{n+1}(t))\) for \(t\in T_\Sigma\) 
+where \(t_1=M_1(t)\) and \(t_2=M_2(t)\)}
+\label{fig:expdewey}
+\end{figure}
+
+As mentioned above, every attributed tree transducer can be (effectively) realized by
+an mtt that is of LSOI. Therefore, we obtain from Theorem~\ref{thm:lsoi-hard}
+the following corollary.
+
+\begin{corollary}
+The decision problem whether a given mtt is of LSOI is as hard as
+the equivalence problem of attributed tree transducers.
+\end{corollary}
+
+\section{Conclusions}
+
+We have proven that for a given macro tree transducer (with look-ahead) it
+is decidable whether or not it has linear height increase (LHI) and,
+whether or not it has linear size-to-height increase (LSHI).
+Both decision procedures rely on a novel normal form that is called
+``depth-proper'' normal form. Roughly speaking the normal form requires
+that each parameter of every state of the transducer appears at
+arbitrary depth in output trees generate by that state (and for a given
+look-ahead state). Our constrution
+of the normal form removes parameters that only appear at a bounded number
+of depths. Once in depth-normal form, we can reduced the check for LHI and LSHI
+to the finiteness of ranges of mtts.
+
+Both LHI and LSHI are natural properties and have several useful applications.
+For instance, if an mtt is not of LHI, then we know that it cannot be realized
+by a top-down or a bottom-up tree transducers. And, if an mtt is not of LSHI, then
+we know that it cannot be realized by any attributed tree transducers.
+
+The most prevailing open problem is to solved the conjecture (see Introduction) that
+the translation of an mtt can be realized by an attributed tree transducer if and only
+if the translation is of LSOI (linear size-to-number-of-distinct-output-subtrees).
+In this paper we merely shows that \emph{deciding} if an mtt is of LSOI is as
+hard as deciding equivalence of attributed transducers (a long standing difficult open problem).
+We believe that the depth-proper normal form will be helpful in solving the conjecture.
+Intuitively, loops need to be considered which produced arbitary number of copies of
+states with parameters. In these loops we can exclude certain state nestings, due to
+the normal form.
+
+Another interesting open problem is the question whether or not the mtt hierarchy
+(generated by sequential compositions of mtts) collapses for LSHI or for LHI.
+By this we mean (in the case of LSHI), whether or not there exists some number $n$ such that
+$\cup \{ \text{MTT}^k \mid k\geq 1 \} \cap \text{LSHI} \subseteq \text{MTT}^n$.
+Note that for linear size increase, the hierarchy collapses~\cite{DBLP:journals/acta/EngelfrietIM21}
+to level one, i.e., $n=1$.
+Another question is, whether $(\text{MTT}\cap\text{LSHI})^{k+1}\supsetneq (\text{MTT}\cap\text{LSHI})^k$.
+To see that this indeed holds, consider compositions of the translation that takes a binary
+tree $s$ as input and outputs a full binary tree of height $|s|$.
+The corresponding question for LHI is open. 
+We do have a candidate translation that would show (for level two) both, that a two-fold composition of
+mtts of LHI can do strictly more than a single mtt, and, that two-fold compositions
+that are of LHI are strictly more than a single mtt:
+input trees are monadic trees of the form $a^n(e)$ and output trees are full binary
+trees of height $n$, at the leaves of which are monadic trees that represent the
+the Dewey paths of those ``leaves'' of the binary tree.
+E.g.
+$a(a(e))$ is translated to
+\[
+f(f(1(1(e)), 1(2(e))), f(2(1(e)), 2(2(e)))).
+\]
+Note that if we output \emph{reverse} such Dewey paths, then the translation
+indeed can be realized by a single mtt (see, e.g., Fig.~6.2 in~\cite{DBLP:series/eatcs/FulopV98}).
+Thus, the second transducer of the composition reverses the reverse Dewey paths.
+
+\begin{thebibliography}{10}
+
+\bibitem{DBLP:journals/iandc/AhoU71}
+Alfred~V. Aho and Jeffrey~D. Ullman.
+\newblock Translations on a context-free grammar.
+\newblock {\em Inf. Control.}, 19(5):439--475, 1971.
+
+\bibitem{DBLP:journals/jcss/BloemE00}
+Roderick Bloem and Joost Engelfriet.
+\newblock A comparison of tree transductions defined by monadic second order
+  logic and by attribute grammars.
+\newblock {\em J. Comput. Syst. Sci.}, 61(1):1--50, 2000.
+
+\bibitem{DBLP:journals/iandc/DrewesE98}
+Frank Drewes and Joost Engelfriet.
+\newblock Decidability of the finiteness of ranges of tree transductions.
+\newblock {\em Inf. Comput.}, 145(1):1--50, 1998.
+
+\bibitem{DBLP:journals/mst/Engelfriet75}
+Joost Engelfriet.
+\newblock Bottom-up and top-down tree transformations - {A} comparison.
+\newblock {\em Math. Syst. Theory}, 9(3):198--231, 1975.
+
+\bibitem{DBLP:journals/corr/Engelfriet14}
+Joost Engelfriet.
+\newblock Context-free grammars with storage.
+\newblock {\em CoRR}, abs/1408.0683, 2014.
+
+\bibitem{DBLP:journals/acta/EngelfrietIM21}
+Joost Engelfriet, Kazuhiro Inaba, and Sebastian Maneth.
+\newblock Linear-bounded composition of tree-walking tree transducers: linear
+  size increase and complexity.
+\newblock {\em Acta Informatica}, 58(1-2):95--152, 2021.
+
+\bibitem{DBLP:journals/iandc/EngelfrietM99}
+Joost Engelfriet and Sebastian Maneth.
+\newblock Macro tree transducers, attribute grammars, and {MSO} definable tree
+  translations.
+\newblock {\em Inf. Comput.}, 154(1):34--91, 1999.
+
+\bibitem{DBLP:journals/siamcomp/EngelfrietM03}
+Joost Engelfriet and Sebastian Maneth.
+\newblock Macro tree translations of linear size increase are {MSO} definable.
+\newblock {\em {SIAM} J. Comput.}, 32(4):950--1006, 2003.
+
+\bibitem{DBLP:journals/jcss/EngelfrietS77}
+Joost Engelfriet and Erik~Meineche Schmidt.
+\newblock {IO} and {OI.} {I}.
+\newblock {\em J. Comput. Syst. Sci.}, 15(3):328--353, 1977.
+
+\bibitem{DBLP:journals/jcss/EngelfrietS78}
+Joost Engelfriet and Erik~Meineche Schmidt.
+\newblock {IO} and {OI.} {II}.
+\newblock {\em J. Comput. Syst. Sci.}, 16(1):67--99, 1978.
+
+\bibitem{DBLP:journals/jcss/EngelfrietV85}
+Joost Engelfriet and Heiko Vogler.
+\newblock Macro tree transducers.
+\newblock {\em J. Comput. Syst. Sci.}, 31(1):71--146, 1985.
+
+\bibitem{DBLP:journals/iandc/FiliotMRT18}
+Emmanuel Filiot, Sebastian Maneth, Pierre{-}Alain Reynier, and Jean{-}Marc
+  Talbot.
+\newblock Decision problems of tree transducers with origin.
+\newblock {\em Inf. Comput.}, 261:311--335, 2018.
+
+\bibitem{fis68}
+M.~J. Fischer.
+\newblock {\em Grammars with Macro like Productions}.
+\newblock PhD thesis, 1968.
+\newblock See also {\it Proc. 9th Sympos. on SWAT}, pp. 131-142, 1968.
+
+\bibitem{DBLP:journals/actaC/Fulop81}
+Zolt{\'{a}}n F{\"{u}}l{\"{o}}p.
+\newblock On attributed tree transducers.
+\newblock {\em Acta Cybern.}, 5(3):261--279, 1981.
+
+\bibitem{DBLP:series/eatcs/FulopV98}
+Zolt{\'{a}}n F{\"{u}}l{\"{o}}p and Heiko Vogler.
+\newblock {\em Syntax-Directed Semantics - Formal Models Based on Tree
+  Transducers}.
+\newblock Monographs in Theoretical Computer Science. An {EATCS} Series.
+  Springer, 1998.
+
+\bibitem{DBLP:reference/hfl/GecsegS97}
+Ferenc G{\'{e}}cseg and Magnus Steinby.
+\newblock Tree languages.
+\newblock In Grzegorz Rozenberg and Arto Salomaa, editors, {\em Handbook of
+  Formal Languages, Volume 3: Beyond Words}, pages 1--68. Springer, 1997.
+
+\bibitem{DBLP:journals/mst/Knuth68}
+Donald~E. Knuth.
+\newblock Semantics of context-free languages.
+\newblock {\em Math. Syst. Theory}, 2(2):127--145, 1968.
+
+\bibitem{DBLP:journals/mst/Rounds70}
+William~C. Rounds.
+\newblock Mappings and grammars on trees.
+\newblock {\em Math. Syst. Theory}, 4(3):257--287, 1970.
+
+\bibitem{DBLP:journals/jcss/Thatcher70}
+James~W. Thatcher.
+\newblock Generalized sequential machine maps.
+\newblock {\em J. Comput. Syst. Sci.}, 4(4):339--367, 1970.
+
+\bibitem{th70}
+James~W. Thatcher.
+\newblock There's a lot more to finite automata theory than you would have
+  thought.
+\newblock In {\em Proc. 4th Ann. Princeton Conf. on Informations Sciences and
+  Systems}, pages 263--276, 1970.
+\newblock Also published in revised form under the title ``Tree automata: an
+  informal survey'' in Currents in the Theory of Computing (ed. A. V. Aho),
+  Prentice-Hall, 1973, 143--172.
+
+\end{thebibliography}

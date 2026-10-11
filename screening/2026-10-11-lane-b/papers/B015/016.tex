@@ -1,0 +1,2288 @@
+\documentclass{article}
+
+
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2024
+
+
+% ready for submission
+% \usepackage{neurips_2024}
+
+
+% to compile a preprint version, e.g., for submission to arXiv, add add the
+% [preprint] option:
+    \usepackage[preprint,nonatbib]{neurips_2024}
+
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+%     \usepackage[final]{neurips_2024}
+
+
+% to avoid loading the natbib package, add option nonatbib:
+% \usepackage[nonatbib]{neurips_2024}
+
+% \usepackage{natbib}
+
+\usepackage[pagebackref=true]{hyperref}  % hyperlinks
+\renewcommand*{\backrefalt}[4]{%
+    \ifcase #1 \footnotesize{(Not cited.)}%
+    \or        \footnotesize{(Cited on page~#2)}%
+    \else      \footnotesize{(Cited on pages~#2)}%
+    \fi}
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+% \usepackage{xcolor}         % colors
+
+
+
+
+\usepackage{natbib}
+% \bibliographystyle{abbrvnat}
+\usepackage{sidecap}
+\renewcommand{\bibname}{References}
+\renewcommand{\bibsection}{\section*{\bibname}}
+
+\usepackage{xcolor}         % colors
+%\usepackage{subfig}
+%\usepackage{graphicx}
+
+\input{macros}
+
+\title{Gradient Clipping Improves AdaGrad\\ when the Noise Is Heavy-Tailed}
+
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the
+% lines. Using \AND forces a line break at that point. So, if LaTeX puts 3 of 4
+% authors names on the first line, and the last on the second line, try using
+% \AND instead of \And before the third author name.
+
+
+\author{%
+  Savelii Chezhegov \\
+  MIPT, ISP RAS \\
+  \And
+  Yaroslav Klyukin\\
+  MIPT\\
+  \And
+  Andrei Semenov\\
+  MIPT\\
+  \And
+  Aleksandr Beznosikov\\
+  MIPT, ISP RAS\\
+  \And
+  Alexander Gasnikov\\
+  Innopolis University, MIPT, Skoltech\\
+  \And
+  Samuel Horv\'ath\\
+  MBZUAI\\
+  \And
+  Martin Tak\'a\v{c}\\
+  MBZUAI\\
+  \And
+  Eduard Gorbunov\thanks{Corresponding author: \texttt{eduard.gorbunov@mbzuai.ac.ae}}\\
+  MBZUAI
+  % examples of more authors
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \AND
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+  Methods with adaptive stepsizes, such as \algname{AdaGrad} and \algname{Adam}, are essential for training modern Deep Learning models, especially Large Language Models. Typically, the noise in the stochastic gradients is heavy-tailed for the later ones. Gradient clipping provably helps to achieve good high-probability convergence for such noises. However, despite the similarity between \algname{AdaGrad}/\algname{Adam} and \algname{Clip-SGD}, the high-probability convergence of \algname{AdaGrad}/\algname{Adam} has not been studied in this case. In this work, we prove that \algname{AdaGrad} (and its delayed version) can have provably bad high-probability convergence if the noise is heavy-tailed. To fix this issue, we propose a new version of \algname{AdaGrad} called \algname{Clip-RAdaGradD} (Clipped Reweighted \algname{AdaGrad} with Delay) and prove its high-probability convergence bounds with polylogarithmic dependence on the confidence level for smooth convex/non-convex stochastic optimization with heavy-tailed noise. Our empirical evaluations, including NLP model \revision{fine-tuning}, highlight the superiority of clipped versions of \algname{AdaGrad}/\algname{Adam} in handling the heavy-tailed noise.
+\end{abstract}
+
+
+\section{Introduction}\label{section:intro}
+
+Stochastic first-order optimization methods such as Stochastic Gradient Descent (\algname{SGD}) \citep{robbins1951stochastic} are the methods of choice in training modern Machine Learning (ML) and Deep Learning (DL) models \citep{shalev2014understanding, goodfellow2016deep}. There are multiple reasons for that, including but not limited to their simplicity, computation cost, memory usage, and generalization. However, standard \algname{SGD} is rarely used due to its sensitivity to the choice of stepsize. Therefore, methods such as \algname{AdaGrad} \citep{streeter2010less, duchi2011adaptive} and \algname{Adam} \citep{kingma2014adam}, which use adaptive\footnote{Throughout the paper, we use the word ``adaptivity'' in its general meaning: stepsizes are adaptive if they depend on the (stochastic) gradients or function values. We emphasize that, in this sense, an adaptive method can still have parameters affecting its convergence.} stepsizes, are much more popular in the DL community \revision{\citep{vaswani2017attention,you2019large,nikishina2022cross,moskvoretskii2024large}}. In particular, \algname{Adam}-type methods are not just easier to tune but they also typically achieve much better results in terms of the model performance than \algname{SGD} in the training of Large Language Models (LLMs) \citep{devlin2019bert, zhang2020adaptive}.
+
+In the attempt to explain the later phenomenon, \citet{zhang2020adaptive} consider the noise distribution in the stochastic gradients appearing in the pre-training of the BERT model \citep{devlin2019bert} 
+% and in the training of ResNet50 \citep{he2016deep} on ImageNet \citep{russakovsky2015imagenet} 
+and show that (i) the gradient noise is heavy-tailed in this case, (ii) \algname{Adam} significantly outperforms \algname{SGD} (with momentum), (iii) \algname{Clip-SGD} \citep{pascanu2013difficulty} also converges better than \algname{SGD} for such problems, and (iv) \algname{Clip-SGD} is provably convergent (in-expectation) when the noise has bounded $\alpha$-th moment for some $\alpha \in (1,2]$ while \algname{SGD} can diverge for $\alpha < 2$. Moreover, gradient clipping also plays a central role in the recent advances on the \emph{high-probability convergence} of stochastic methods under the heavy-tailed noise \citep{gorbunov2020stochastic, cutkosky2021high, sadiev2023high, nguyen2023improved}. Taking into account the similarities between \algname{Adam} and \algname{Clip-SGD} (the former one can be seen as \algname{Clip-SGD} with momentum and iteration-dependent clipping level), one can conjecture that \algname{Adam} enjoys good theoretical high-probability convergence when the gradient noise is heavy-tailed. 
+If this was true, it would be perfectly aligned with the observations from \citep{zhang2020adaptive} about the connection between the noise in the gradients and \algname{Adam}'s performance.
+
+However, there are no theoretical results showing the high-probability convergence with \emph{polylogarithmic dependence on the confidence level} of \algname{Adam} under the heavy-tailed noise and even in the case of the bounded variance. Even for simpler \revision{``twin''}\footnote{The existing convergence results for \algname{Adam} \revision{often require} the choice of parameters that make \algname{Adam} very similar to \algname{AdaGrad} with momentum \citep{defossez2022simple}; see more details in Section~\ref{section:related}.} such as \algname{AdaGrad} there exists a similar gap in the literature. Moreover, \citet{mosbach2020stability} apply gradient clipping even for \algname{Adam} in the fine-tuning of BERT and ALBERT \citep{lan2019albert}  models. However, \citet{mosbach2020stability} do not report the results that can be achieved by \algname{Adam} without clipping. Therefore, it remains unclear whether and when the gradient clipping is needed for \algname{AdaGrad}/\algname{Adam} and whether \algname{AdaGrad}/\algname{Adam} enjoy desirable high-probability convergence under the heavy-tailed noise.
+
+In this work, we address this gap in the literature. More precisely, we consider the following questions:
+\begin{gather*}
+    \textit{Does the high-probability complexity of \algname{AdaGrad} without clipping has}\\
+    \textit{polylogarithmic dependence on the confidence level under the heavy-tailed noise?}\\
+    \textit{Does clipping improve the convergence of \algname{AdaGrad}/\algname{Adam} under the heavy-tailed noise?}
+\end{gather*}
+We provide a negative answer to the first question and a positive answer to the second one.
+
+\subsection{Our Contributions}\label{section:contribution}
+
+The main contributions of this work are summarized below.
+
+\begin{itemize}
+    \item \textbf{Negative results for \algname{AdaGrad}.} We show that the high-probability complexities of \algname{AdaGrad} and its variant with delay by \citet{li2020high} do not have polylogarithmic dependence on the confidence level in the worst case when the noise is heavy-tailed. In particular, we design an example of a convex stochastic optimization problem such that the noise is heavy-tailed and the high-probability convergence complexity of \algname{AdaGrad} has the inverse-power dependence on the target accuracy and confidence level.
+
+    \item \textbf{Clipping fixes \algname{AdaGrad}.} To address the above issue of \algname{AdaGrad}, we propose a version with clipping, reweighting, and delay called \algname{Clip-RAdaGradD} (Algorithm~\ref{alg:ada-norm-clip-delay}). We derive high-probability complexity results for \algname{Clip-RAdaGradD} in the case of smooth convex/non-convex optimization with the heavy-tailed noise having bounded $\alpha$-th moment with $\alpha \in (1,2]$. The obtained results have the desired polylogarithmic dependence on the confidence level. Moreover, in the non-convex case, the complexity of \algname{Clip-RAdaGradD} in the non-convex case is optimal up to logarithmic factors and matches the complexity of \algname{Clip-SGD} in the convex case up to logarithmic factors.
+
+    \item \textbf{Numerical experiments.} We conducted numerical experiments for synthetic and real-world problems. More precisely, we illustrate the superiority of different versions of \algname{AdaGrad} with clipping (including \algname{Clip-RAdaGradD}) to the non-clipped versions of \algname{AdaGrad} on a simple quadratic problem with additive heavy-tailed noise in the gradients. Next, we also test \algname{Adam} with and without clipping on the fine-tuning of ALBERT Base model \citep{lan2019albert} on CoLa and RTE datasets \citep{wang2018glue} and observe that \algname{Adam} with clipping significantly outperforms \algname{Adam} without clipping when the noise is heavy-tailed.
+\end{itemize}
+
+% The listed results are provided in Sections~\ref{section:failure}, \ref{section:convergence}, and \ref{section:experiments}, respectively. 
+
+\subsection{Preliminaries}\label{section:preliminaries}
+
+In this section, we formalize the \revision{considered} setup. We focus on unconstrained minimization problems
+% \begin{equation}
+%     \min\limits_{x\in \R^d}\left\{ f(x) := \EE_{\xi\sim \cD}\left[f_{\xi}(x)\right] \right\} \label{eq:main_problem}
+% \end{equation}
+\begin{equation}
+    \min\limits_{x\in \R^d}f(x), \label{eq:main_problem}
+\end{equation}
+where the differentiable function $f(x)$ is accessible through the calls of stochastic first-order oracle returning an approximation $\nabla f_{\xi}(x)$ of $\nabla f(x)$. Here $\xi$ is a random variable following some distribution $\cD$ that may be dependent on $x$ and time. In the simplest scenario, $f_{\xi}(x)$ is a loss function on the data sample $\xi$ and $f(x) = \E_{\xi\sim \cD}[f_{\xi}(x)]$  is a population risk \citep{shalev2014understanding}.
+
+\paragraph{Notation.} Here, we discuss the notation, which is quite standard in this work. We use $\EE_{\xi}[\cdot]$ to denote an expectation w.r.t.\ random variable $\xi$. All norms are standard Euclidean ones: $\norm{x} = \sqrt{\langle x, x \rangle}$. The ball centered at $x$ with a radius $R$ is defined as $B_R(x) := \{y \in \R^d \mid \norm{y-x} \leq R\}$. We also use $x^*$ to denote (any) solution of \eqref{eq:main_problem} and $f_* := \inf_{x\in \R^d}f(x)$. Clipping operator with clipping level $\lambda > 0$ is defined as $\clip(x,\lambda) := \min\{1, \nicefrac{\lambda}{\|x\|}\}x$ for $x\neq 0$ and $\clip(x,\lambda) := 0$ for $x = 0$.
+
+
+\paragraph{Assumptions.} We start with the assumption\footnote{Similarly to \citep{sadiev2023high}, for our results, it is sufficient to make all the assumptions only on some set $Q$. This set is typically bounded and depends on some metric of sub-optimality of the starting point, e.g., the distance from the starting point to the optimum. We emphasize that our assumptions are strictly weaker than corresponding ones for $Q = \R^d$. To achieve this kind of generality, we prove that the proposed method does not leave some set $Q$ with high probability.} about the noise.
+
+\begin{assumption}\label{asm:heavy-tailed}
+    There exists set $Q \subseteq \R^d$ and $\sigma \geq 0, \alpha \in (1,2]$ such that the oracle satisfies
+    \begin{align}
+        \E\left[\nabla f_{\xi}(x)\right] =  \nabla f(x),\quad \E\left[\norm{\nabla f_{\xi}(x) - f(x)}^\alpha\right] \leq \sigma^\alpha. \label{eq:bounded_alpha_mom}
+    \end{align}
+\end{assumption}
+
+The above assumption is used in many recent works \citep{zhang2020adaptive, cutkosky2021high, sadiev2023high, nguyen2023improved}. When $\alpha < 2$, it allows the stochastic gradients to have unbounded variance, e.g., the noise can have L\'evy $\alpha$-stable distribution. When $\alpha = 2$, it reduces to the standard bounded variance assumption \citep{nemirovski2009robust, ghadimi2012optimal, ghadimi2013stochastic,takavc2013mini}.
+
+
+Next, we make a standard assumption about the smoothness of the objective function.
+\begin{assumption}\label{asm:smoothness}
+    There exists set $Q \subseteq \R^d$ and $L>0$ such that for all $x,y \in Q$
+    \begin{align}
+        \norm{\nabla f(y) - \nabla f(x)} \leq L\norm{y - x},\quad \sqn{\nabla f(x)} \leq 2L(f(x) - f_*). \label{eq:smooth}
+    \end{align}
+\end{assumption}
+We emphasize that the second part of \eqref{eq:smooth} follows from the first part if $Q = \R^d$. However, in more general situations, this is not always the case; see \citep[Appendix B]{sadiev2023high} for further details. Interestingly, when $Q$ is a compact set, function $f$ can have non-Lipschitz gradients (e.g., polynomially growing with $x$) on $\R^d$, see also \citep{patel2022global, patel2022gradient}.
+
+Finally, for some of our results, we assume that the objective is convex.
+\begin{assumption}[Optional]\label{asm:convexity}
+    There exists set $Q \subseteq \R^d$ such that for all $x,y \in Q$
+    \begin{align}
+        f(y) \geq f(x) + \ev{\nabla f(x), y - x}.  \label{eq:convex}
+    \end{align}
+\end{assumption}
+
+\paragraph{Why high-probability convergence?} The vast majority of the existing literature on stochastic optimization focuses on the in-expectation convergence guarantees only. In particular, for some metric $\cP(x)$ quantifying the output's quality, e.g., $\cP(x) = f(x) - f(x^*)$, $\sqn{\nabla f(x)}$, $\sqn{x - x^*}$, such guarantees provide upper bounds on the number of iterations/oracle calls required for a method to find $x$ such that $\EE[\cP(x)] \leq \varepsilon$. However, during recent years, \emph{high-probability convergence} guarantees have been gaining a lot of attention as well. Such guarantees give upper bounds on the number of iterations/oracle calls required for a method to find $x$ such that $\PP\{\cP(x) \leq \varepsilon\} \geq 1-\delta$, where $\delta$ is usually called confidence level or failure probability. One can argue that using Markov's inequality, one can easily deduce a high-probability guarantee from an in-expectation one: if $\EE[\cP(x_{K(\varepsilon\delta)})] \leq \varepsilon\delta$, where $x_{K(\varepsilon\delta)}$ is an output of the method after $K(\varepsilon\delta)$ iterations/oracle calls, then $\PP\{\cP(x_{K(\varepsilon\delta)}) > \varepsilon\} < \nicefrac{\EE[\cP(x_{K(\varepsilon\delta)})]}{\varepsilon} \leq \delta$. Unfortunately, for many methods such as \algname{SGD} \citep{ghadimi2013stochastic} $K(\varepsilon)$ has inverse-power dependence on $\varepsilon$ implying that $K(\varepsilon\delta)$ has inverse-power dependence on $\varepsilon\delta$, leading to a noticeable deterioration when $\delta$ is small. Therefore, deriving high-probability complexities with \emph{polylogarithmic dependence on $\delta$} requires a separate and thorough consideration and analysis. Moreover, such bounds more accurately reflect the methods' behavior than in-expectation ones \citep{gorbunov2020stochastic}.
+
+\subsection{Related Work}\label{section:related}
+
+\paragraph{High-probability convergence.} The first results showing the high-probability convergence of \algname{SGD} and its variants are derived under the sub-Gaussian noise assumption for convex and strongly convex problems by \citet{nemirovski2009robust, ghadimi2012optimal, harvey2019simple} for non-convex problems by \citet{li2020high}. Although the distribution of the noise is near-sub-Gaussian in some cases, like in the training of ResNet50 \citep{he2016deep} on ImageNet \citep{russakovsky2015imagenet} as shown by \citet{zhang2020adaptive}, this assumption does not cover even the distributions with bounded variance. To relax the sub-Gaussian noise assumption, \citet{nazin2019algorithms} consider a truncated version of Stochastic Mirror Descent, which is closely related to \algname{Clip-SGD}, and prove its high-probability complexity with polylogarithmic dependence on $\delta$ under bounded variance assumption for convex smooth problems on the bounded domain. In the strongly convex case, \citet{davis2021low} propose a general approach for obtaining high-probability convergence based on the robust distance estimation and show accelerated high-probability rates in the strongly convex case. Next, for the unconstrained problems, \citet{gorbunov2020stochastic} prove the first high-probability convergence results for \algname{Clip-SGD} and the first accelerated high-probability rates in the convex case for a version of \algname{Clip-SGD} with Nesterov's momentum \citep{nesterov1983method}. \revision{This result is generalized to the problems with H\"older-continuous gradients by \citet{gorbunov2021near}.} \citet{cutkosky2021high} derive the first high-probability convergence results under Assumption~\ref{asm:heavy-tailed} with $\alpha < 2$ for a version of \algname{Clip-SGD} with normalization and Polyak's momentum \citep{polyak1964some} in the case of non-convex problems with bounded gradient. \citet{sadiev2023high} remove the bounded gradient assumption in the non-convex case and also prove the first high-probability convergence results under Assumption~\ref{asm:heavy-tailed} for \algname{Clip-SGD} and its accelerated version in the convex and strongly convex cases. \citet{nguyen2023improved} provide improved results in the non-convex case under Assumption~\ref{asm:heavy-tailed} and also improved the dependency on the logarithmic factors in the convergence bounds. The generalization to the composite and distributed optimization problems is developed by \citet{gorbunov2023high}. \revision{It is also worth mentioning \citep{jakovetic2023nonlinear, puchkin2024breaking} who consider potentially heavier noise than in Assumption~\ref{asm:heavy-tailed} through utilizing the additional structure of the noise such as (near-)symmetry. This direction is further explored by \citet{kornilov2024zeroth} and adjusted to the case of the zeroth-order stochastic oracle.}
+
+
+\paragraph{{\algname{AdaGrad}} {\color{black}and} {\algname{Adam}}.} \algname{AdaGrad}\footnote{The original \algname{AdaGrad} is described in formula \eqref{eq:adagrad_cw}. However, for the sake of simplicity, we use the name \algname{AdaGrad} to describe a ``scalar'' version of \algname{AdaGrad} also known as \algname{AdaGrad-Norm} \citep{ward2020adagrad}, see Algortihm~\ref{alg:adagrad} for the pseudocode.} \citep{streeter2010less, duchi2011adaptive} has the following update-rule
+\begin{gather}
+    x_{t+1} = x_t - \frac{\gamma}{b_t}\nabla f_{\xi_t}(x_t),\quad \text{where}\quad  b_t = \sqrt{b_{t-1}^2 + (\nabla f_{\xi_t}(x_t))^2} \tag{\algname{AdaGrad-CW}} \label{eq:adagrad_cw}
+    % \\
+    % b_t = \sqrt{b_{t-1}^2 + (\nabla f_{\xi_t}(x_t))^2}, \label{eq:bt_adagrad_cw}
+\end{gather}
+where all operations (taking a square and taking a square root of a vector, division by a vector) are performed coordinate-wise. The method is analyzed in many works, including \citep{streeter2010less, duchi2011adaptive, zou2018weighted, chen2018convergence, ward2020adagrad, defossez2022simple, faw2022power} to name a few. However, the high-probability convergence of \algname{AdaGrad} is studied under restrictive assumptions such as almost surely sub-Gaussian noise \citep{li2020high, liu2023high} or without such an assumption but with inverse-power dependence on the confidence level $\delta$ \citep{wang2023convergence}. In contrast, our results for \algname{Clip-RAdaGradD} hold under Assumption~\ref{asm:heavy-tailed} and have polylogarithmic dependence on the confidence level $\delta$.
+
+\algname{Adam} \citep{kingma2014adam} can be seen as a modification of \algname{AdaGrad} with an exponential moving average \revision{$b_t^2$} of the squared stochastic gradients 
+% for estimating $b_t^2$ 
+and with Polyak's momentum \citep{polyak1964some}:
+\begin{gather}
+    x_{t+1} = x_t - \frac{\gamma}{b_t} m_t, \tag{\algname{Adam}} \label{eq:adam}\\
+    m_t = \beta_1 m_{t-1} + (1-\beta_1)\nabla f_{\xi_t}(x_t),\quad   b_t = \sqrt{\beta_2 b_{t-1}^2 + (1-\beta_2)(\nabla f_{\xi_t}(x_t))^2}, \label{eq:bt_adam}
+\end{gather}
+where all operations (taking a square and taking a square root of a vector, division by a vector) are performed coordinate-wise. Although the original proof by \citet{kingma2014adam} has a flaw spotted by \citet{reddi2019convergence}, one can still show the convergence of \algname{Adam} when $\beta_2$ goes to $1$ \citep{defossez2022simple, zhang2022adam, wang2022provable}, which is aligned with practice since \algname{Adam} is often used with $\beta_2$ close to $1$, e.g., $\beta_2 = 0.999$. That is, in the analysis of \algname{Adam}, the standard choice of $\beta_2$ is $\beta_2 = 1 - \nicefrac{1}{K}$, where $K$ is the total number of steps. Therefore, as noticed by \citet{defossez2022simple}, \algname{AdaGrad} and \algname{Adam} are ``twins''. Indeed, taking $\beta_1 = 0$ (no momentum) and $\beta_2 = 1 - \nicefrac{1}{K}$ in \eqref{eq:bt_adam} we get that $b_t^2 = (1 - \nicefrac{1}{K})^{t+1}b_{-1}^2 + \frac{1}{K}\sum_{k=0}^{t}(1 - \nicefrac{1}{K})^{t-k}(\nabla f_{\xi_k}(x_k))^2 = \Theta\left(b_{-1}^2 + \frac{1}{K}\sum_{k=0}^{t}(\nabla f_{\xi_k}(x_k))^2\right)$ since $(1 - \nicefrac{1}{K})^{t-k} \leq e^{-1}$ for $0 \leq k \leq t \leq K$. Thus, up to the rescaling of $\gamma$ and $b_{-1}^2$ the effective stepsize of \algname{Adam} is $\Theta(\cdot)$ of the effective stepsize of \algname{AdaGrad-CW} \revision{(though the points where the gradents are calculated can be quite different for these two methods)}. Therefore, we focus only on \algname{AdaGrad} in theory. The high-probability convergence of \algname{Adam} is studied by \citet{li2023convergence} under bounded noise and sub-Gaussian noise assumptions.
+
+% Gradient clipping has many useful properties. In particular, originally, it was introduced to handle exploding gradients problem in the training of RNNs and to stabilize the convergence \citep{pascanu2013difficulty, goodfellow2016deep}. Clipping is also used to achieve better results under $(L_0, L_1)$-smoothness \citep{zhang2019gradient}, in the construction of robust aggregation rules in distributed learning \citep{karimireddy2021learning}, and for ensuring differential privacy \citep{abadi2016deep}.
+
+
+\section{Failure of \algname{AdaGrad} and \algname{AdaGradD}}\label{section:failure}
+
+\begin{minipage}{0.49\textwidth}
+    \begin{algorithm}[H]
+   \caption{\algname{AdaGrad}}
+   \label{alg:adagrad}
+   \centering
+\begin{algorithmic}[1]
+  \REQUIRE Stepsize $\gamma > 0$, starting point $x_0 \in \R^d$, initial constant $b_{-1} \geq 0$
+   \FOR{$t=0,1,\dotsc$}
+        \STATE $b_t = \sqrt{b_{t-1}^2 + \sqn{\nabla f_{\xi_t}(x_t)}}$
+        \STATE $x_{t+1} = x_t - \frac{\gamma}{b_{t}}\nabla f_{{\xi_t}}(x_t)$
+   \ENDFOR
+\end{algorithmic}
+\end{algorithm}
+\end{minipage}
+\hfill
+\begin{minipage}{0.49\textwidth}
+  % \vspace{-2.2mm}
+    \begin{algorithm}[H]
+   \caption{\algname{AdaGrad} with Delay (\algname{AdaGradD})}
+   \label{alg:adagradD}
+   \centering
+\begin{algorithmic}[1]
+  \REQUIRE Stepsize $\gamma > 0$, starting point $x_0 \in \R^d$, initial constant $b_{0} > 0$
+   \FOR{$t=0,1,\dotsc$}
+   % \vspace{1.1mm}
+        \STATE $b_{t+1} = \sqrt{b_{t}^2 + \sqn{\nabla f_{\xi_t}(x_t)}}$
+    % \vspace{1.1mm}
+        \STATE $x_{t+1} = x_t - \frac{\gamma}{b_{t}}\nabla f_{{\xi_t}}(x_t)$
+   \ENDFOR
+\end{algorithmic}
+\end{algorithm}
+\end{minipage}
+
+Our main negative result about the convergence of \algname{AdaGrad} and its delayed version -- \algname{AdaGradD} \citep{li2020high} -- is provided below.
+
+\begin{theorem}\label{thm:AdaGrads_failure_main}
+    For any $\sigma > 0$ and sufficiently small $\varepsilon, \delta \in (0,1)$, there exist problems \eqref{eq:main_problem} such that Assumptions~\ref{asm:heavy-tailed}, \ref{asm:smoothness} with $L = 1$, \ref{asm:convexity}, hold, $\alpha = 2$, and for the iterates produced by \algname{AdaGrad}/\algname{AdaGradD} with $\gamma \leq \nicefrac{1}{L}$ and $x_0$ such that $\norm{x_0 - x^*} \gg \gamma L$ we have the following implication:
+    \begin{equation}
+        \PP\left\{f(x_t) - f(x^*) \geq \varepsilon\right\} \leq \delta \quad \Longrightarrow \quad t = \Omega\left(\mathrm{poly}(\varepsilon^{-\nicefrac{1}{2}}, \delta^{-\nicefrac{1}{2}})\right). \label{eq:inverse_power_dependence}
+    \end{equation}
+    In other words, the complexity of \algname{AdaGrad}/\algname{AdaGradD} has inverse-power dependence on $\delta$.
+\end{theorem}
+\begin{proof}[Sketch of the proof]
+    To construct our example, we consider the Huber loss function \citep{huber1992robust}
+\begin{align}
+    \label{eq:huber}
+    f(x) = \begin{cases}
+        \frac{1}{2}x^2, \qquad & \text{if } \abs{x} \leq \nu,\\
+        \nu\left(\abs{x} - \frac{1}{2}\nu\right), \qquad &\text{otherwise,}
+    \end{cases}
+\end{align}
+and design two specific sequences of noises (one for \algname{AdaGrad} and the second one for \algname{AdaGradD}). For \algname{AdaGrad}, we consider a discrete additive noise for the first step such that Markov's inequality holds as equality, and for the remaining steps, noise equals zero. Then, with high probability, $b_t$ becomes large after the first step, which slowdowns the method. As for \algname{AdaGradD}, similarly to \citet{sadiev2023high}, we add the noise only to the last step: since $b_t$ is constructed using the norm of the previous stochastic gradient, the noise is independent of the stepsize and can spoil the last iterate. See the complete proof and further details in  Appendix~\ref{appendix:proofs_failure}.
+\end{proof}
+
+Interestingly, in the above example, it is sufficient to consider the noise with bounded variance to show that the high-probability convergence rates of \algname{AdaGrad}/\algname{AdaGradD} depend polynomially on $\varepsilon^{-1}$ and $\delta^{-\nicefrac{1}{2}}$. Moreover, following a similar argument to \citep[Remark 1]{zhang2020adaptive}, one can show the non-convergence of \algname{AdaGradD} when $\alpha < 2$. We also conjecture that for $\alpha < 2$ one can show even worse dependence on $\varepsilon$ and $\delta$ for \algname{AdaGrad} (or even non-convergence) since $b_t$ will grow with high probability even faster in this case. Nevertheless, the negative result of Theorem~\ref{thm:AdaGrads_failure_main} provides necessary evidence that \algname{AdaGrad}/\algname{AdaGradD} do not achieve desired high-probability convergence rates and motivates us to apply clipping to \algname{AdaGrad}/\algname{AdaGradD}.
+
+\section{High-Probability Convergence of \algname{AdaGrad} with Clipping} \label{section:convergence}
+
+\begin{algorithm}
+   \caption{\colorbox{green!20}{Clipped} \colorbox{blue!20}{Reweighted} \algname{AdaGrad} with Delay (\algname{Clip-RAdaGradD})}
+   \label{alg:ada-norm-clip-delay}
+\begin{algorithmic}[1]
+  \REQUIRE Stepsize $\gamma > 0$, reweighting factor $\eta \geq 0$, level of clipping $\lambda > 0$, starting point $x_0 \in \R^d$, initial constant $b_0 > 0$
+   \FOR{$t=0,1, \dotsc$}
+        \STATE \label{line:new_bt} $b_{t+1} = \sqrt{b_{t}^2 +\text{\colorbox{blue!20}{$\eta$}}\cdot\text{\colorbox{green!20}{$\sqn{\clip\left(\nabla f_{\xi_t}(x_t), \lambda\right)}$}}}$
+        \STATE \label{line:new_update} $x_{t+1} = x_t - \frac{\gamma}{b_{t}}\text{\colorbox{green!20}{$\clip\left(\nabla f_{\xi_t}(x_t), \lambda\right)$}}$
+   \ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{New method.} We propose a new modification of \algname{AdaGradD} -- Clipped Reweighted \algname{AdaGrad} with Delay (\algname{Clip-RAdaGradD}, Algorithm~\ref{alg:ada-norm-clip-delay}). In contrast to \algname{AdaGradD}, \algname{Clip-RAdaGradD} clips the stochastic gradients for calculating the scaling factor $b_t$ (Line~\ref{line:new_bt}) and for the update step itself (Line~\ref{line:new_update}). Moreover, we introduce a reweighting factor $\eta$ to control the scale of $b_t$. Interestingly, when $\eta = 0$, \algname{Clip-RAdaGradD} reduces to \algname{Clip-SGD}, and when $\eta = 1$, \algname{Clip-RAdaGradD} is equivalent to \algname{Clip-AdaGradD}. Thus, \algname{Clip-RAdaGradD} can be seen as an interpolation between \algname{Clip-SGD} and \algname{Clip-AdaGradD}. As we show later, for our theoretical results, we use $\eta \sim \gamma^2$, while in practice, the method works well for different values of $\eta$.
+
+\paragraph{Convergence results.} We derive high-probability convergence for \algname{Clip-RAdaGradD} in the convex and non-convex cases. The following theorem gives the main result for convex objectives.
+
+\begin{theorem}[Convergence in the convex case]\label{thm:main_result_cvx_main}
+    Let $K > 0$ and $\delta \in (0,1]$ and Assumptions~\ref{asm:heavy-tailed}, \ref{asm:smoothness}, and \ref{asm:convexity} hold for $Q = B_{2R}(x^*)$ for some $R \geq \norm{x_0 - x^*}$. Assume that 
+    % $\gamma = \Theta\left(\min\left\{\nicefrac{b_{0}}{L A}, \nicefrac{R b_{0}}{\sigma (K+1)^{\nicefrac{1}{\alpha}} A^{\frac{\alpha - 1}{\alpha}}}\right\}\right)$, $\lambda = \Theta\left(\nicefrac{b_{-1}R}{\gamma A}\right)$, and $\eta = \gamma^2$, 
+    \begin{gather}
+        \gamma = \Theta\left(\min\left\{\frac{b_{0}}{L A}, \frac{R b_{0}}{\sigma (K+1)^{\frac{1}{\alpha}} A^{\frac{\alpha - 1}{\alpha}}}\right\}\right),\quad \lambda = \Theta\left(\frac{b_{0}R}{\gamma A}\right),\quad \eta = \frac{\gamma^2}{R^2},
+    \end{gather}
+    where $A = \ln\left(\nicefrac{4(K+1)}{\delta}\right)$. Then, to guarantee $f(\overline{x}_K) - f(x^*) \leq \varepsilon$ with probability at least $1 - \delta$ for $\overline{x}_K = \tfrac{1}{K+1}\sum_{t=0}^K x_t$ \algname{Clip-RAdaGradD} requires the following number of iterations/oracle calls:
+    \begin{equation}
+        K = \widetilde{O}\left(\max\left\{ \frac{LR^2}{\varepsilon}, \left(\frac{\sigma R}{\varepsilon}\right)^{\frac{\alpha}{\alpha - 1}} \right\}\right) \label{eq:complexity_cvx}
+    \end{equation}
+    Moreover, with probability at least $1-\delta$, all iterates $\{x_t\}_{t=0}^K$ stay in $Q$.
+\end{theorem}
+
+
+Next, we present our main result for \algname{Clip-RAdaGradD} in the non-convex case.
+
+\begin{theorem}[Convergence in the non-convex case]\label{thm:main_result_non_cvx_main}
+    Let $K > 0$ and $\delta \in (0,1]$ and Assumptions~\ref{asm:heavy-tailed} and \ref{asm:smoothness} hold for $Q = \left\{x \in \R^d \mid \exists y \in \R^d: \ f(y) \leq f_* + 2\Delta \text{ and } \norm{x - y} \leq \nicefrac{\sqrt{\Delta}}{20\sqrt{L}}\right\}$ for some $\Delta \geq f(x) - f_*$. Assume that 
+    % $\gamma = \Theta\left(\min\left\{\nicefrac{b_{0}}{L A}, \nicefrac{b_0\sqrt{\Delta}}{\sqrt{L}\sigma (K+1)^{\frac{\alpha}{3\alpha - 2}}A^{\frac{\alpha - 1}{\alpha}} }, \nicefrac{b_0 L^{\frac{2-\alpha}{2(\alpha-1)}}\Delta^{\frac{\alpha}{2(\alpha-1)}}}{\sigma^{\frac{\alpha}{\alpha-1}} (K+1)^{\frac{\alpha}{3\alpha - 2}}A^{\frac{\alpha - 1}{\alpha}} }\right\}\right)$, $\lambda = \Theta\left(\nicefrac{b_{-1}R}{\gamma A}\right)$, and $\eta = \gamma^2$, 
+    \begin{gather}
+        \gamma = \Theta\left(\min\left\{\frac{b_{0}}{L A}, \frac{b_0\sqrt{\Delta}}{\sqrt{L}\sigma (K+1)^{\frac{\alpha}{3\alpha - 2}}A^{\frac{\alpha - 1}{\alpha}} }, \revision{\frac{b_0 \Delta^{\frac{\alpha}{2\alpha-1}}}{\sigma^{\frac{2\alpha}{2\alpha-1}} L^{\frac{\alpha-1}{2\alpha-1}} (K+1)^{\frac{\alpha}{3\alpha-2}} A^{\frac{2\alpha-2}{2\alpha-1}}}}\right\}\right),\\
+        \lambda = \Theta\left(\frac{b_0\sqrt{\Delta}}{\sqrt{L}\gamma A (K+1)^{\frac{\alpha - 1}{3\alpha - 2}}}\right),\quad \eta = \frac{L\gamma^2}{\Delta},
+    \end{gather}
+    where $A = \ln\left(\nicefrac{4(K+1)}{\delta}\right)$. Then, to guarantee $\frac{1}{K+1}\sum_{t=0}^{K}\sqn{\nabla f(x_t)} \leq \varepsilon$ with probability at least $1 - \delta$ \algname{Clip-RAdaGradD} requires the following number of iterations/oracle calls:
+    \begin{equation}
+        K = \widetilde{O}\left(\max\left\{ \frac{L\Delta}{\varepsilon}, \left(\frac{\sigma\sqrt{L\Delta}}{\varepsilon}\right)^{\frac{3\alpha-2}{2\alpha-2}}, \left(\frac{\revision{\sigma^{\frac{2\alpha}{2\alpha-1}}(L\Delta)^\frac{\alpha-1}{2\alpha - 1}}}{\varepsilon}\right)^{\frac{3\alpha-2}{2\alpha-2}} \right\}\right) \label{eq:complexity_non_cvx}
+    \end{equation}
+    Moreover, with probability at least $1-\delta$, all iterates $\{x_t\}_{t=0}^K$ stay in $Q$.
+\end{theorem}
+
+
+\paragraph{Discussion of the results.} Theorems~\ref{thm:main_result_cvx_main} and \ref{thm:main_result_non_cvx_main} provide high-probability complexities for \algname{Clip-RAdaGradD} with \emph{polylogarithmic} dependence on the confidence level $\delta$. Up to the differences in logarithmic factors, these complexities coincide with the best-known ones for \algname{Clip-SGD} \citep{sadiev2023high, nguyen2023improved}. Moreover, the derived upper bound in the non-convex case \eqref{eq:complexity_non_cvx} is optimal up to logarithmic factors \citep{arjevani2023lower, zhang2020adaptive}. In the convex case, the first term in \eqref{eq:complexity_cvx} is not optimal \citep{nemirovskij1983problem} and can be improved \citep{gorbunov2020stochastic, sadiev2023high}. The optimality of the second term in \eqref{eq:complexity_cvx} is still an open question.
+
+
+It is also worth mentioning that the existing high-probability complexities for \algname{AdaGrad}-type methods either have inverse power dependence on $\delta$ \citep{wang2023convergence} or have polylogarithmic dependence on $\delta$ but rely on the assumption that the noise is sub-Gaussian \citep{li2020high, liu2023high}, which is stronger than bounded variance assumption. To the best of our knowledge, Theorems~\ref{thm:main_result_cvx_main} and \ref{thm:main_result_non_cvx_main} are the first results showing high-probability convergence of an \algname{AdaGrad}-type method with polylogarithmic dependence on the confidence level in the case of the heavy-tailed noise. Moreover, we also show that the iterates of \algname{Clip-RAdaGradD} do not leave set $Q$ with high probability, where $Q = B_{2R}(x^*)$ in the convex case and $Q = \left\{x \in \R^d \mid \exists y \in \R^d: \ f(y) \leq f_* + 2\Delta \text{ and } \norm{x - y} \leq \nicefrac{\sqrt{\Delta}}{20\sqrt{L}}\right\}$ in the non-convex case. Further details including complete formulations and proofs are deferred to Appendix~\ref{appendix:proofs-convergence}.
+
+
+
+\section{Numerical Experiments}\label{section:experiments}
+
+\begin{figure*}[t]
+        % \subfloat[\algname{AdaGrad} vs \algname{Clip-AdaGrad}]{%
+        %     \includegraphics[width=.48\linewidth]{Ada_vs_Clip.pdf}%
+        %     \label{subfig:ada_vs_clip}%
+        % }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/AdaGrad_vs_Clip_final-compressed.pdf}%
+            \label{subfig:ada_vs_clip}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/AdaGradD_vs_Clip_final-compressed.pdf}%
+            \label{subfig:adad_vs_clip}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/16_adagrad_vs_clip_compressed.pdf}%
+            \label{subfig:16_adagrad_vs_clip}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/16_adagradd_vs_clip_compressed.pdf}%
+            \label{subfig:16_adagradd_vs_clip}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/16_radagrad_vs_clip_compressed.pdf}%
+            \label{subfig:16_radagrad_vs_clip}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/16_radagradd_vs_clip_compressed.pdf}%
+            \label{subfig:16_radagradd_vs_clip}%
+        }
+        % \subfloat{%
+        %     \includegraphics[width=.5\linewidth]{plots/RAda_vs_Clip.pdf}%
+        %     \label{subfig:rada_vs_clip}%
+        % }\hfill
+        % \subfloat{%
+        %     \includegraphics[width=.5\linewidth]{plots/RAdaD_vs_Clip.pdf}%
+        %     \label{subfig:radad_vs_clip}%
+        % }
+        \caption{Performance of different versions of \algname{AdaGrad} (with and without clipping/reweighting/delay) with stepsizes $\gamma = 1$ (first row) and $\gamma = \nicefrac{1}{16}$ (second and third rows) on the quadratic problem. Since $\eta = \gamma^2$, there reweighting is inactive when $\gamma = 1$.}
+        \label{fig:vs_clip}
+\end{figure*}
+
+In this section, we illustrate numerically that clipping indeed helps \algname{AdaGrad} and \algname{Adam} \revision{to achieve better high-probability convergence}. Our code is available online: \url{https://github.com/yaroslavkliukin/Clipped-AdaGrad-and-Adam}.
+
+\paragraph{Quadratic problem.} In the first experiment, we illustrate the performance of different versions of \algname{AdaGrad} with and without clipping on the $1$-dimensional quadratic objective with additive heavy-tailed noise: $f(x) = \nicefrac{x^2}{2}$, $\nabla f_{\xi}(x) = x + \xi$, where the noise $\xi$ has probability density function $p(t) = \frac{3}{4(1+\abs{t})^{2.5}}$. In this case, Assumption~\ref{asm:heavy-tailed} is satisfied with any $\alpha \in (1,1.5)$ and the $\alpha$-th moment is unbounded for $\alpha \geq 1.5$. Moreover, the function is strongly convex and $L$-smooth with $L = 1$. We choose $x_0 = 2$, $b_0 = 3$ (for the versions of \algname{AdaGrad} with delay), $b_{-1} = 3$ (for other cases), $\lambda = \nicefrac{1}{2}$ for the methods with clipping, and choose $\gamma$ from $\{1, \nicefrac{1}{16}, \nicefrac{1}{128}\}$. For the methods with reweighting, we use $\eta = \gamma^2$ as a default value. Each method was run $100$ times with different seeds.
+
+The results are given in Figure~\ref{fig:vs_clip}, where for each method, we show its trajectory in terms of the squared distance to the solution for $\gamma = 1$ and $\gamma = \nicefrac{1}{16}$ (the results for $\gamma = \nicefrac{1}{128}$ are given in Appendix~\ref{appendix:quadratic}). More precisely, solid lines correspond to the median value of the squared distances, and the error bands cover the areas from the $10$-th to $90$-th percentiles of $(x_t - x^*)^2$. These results show that clipped versions of \algname{AdaGrad} (with and without delay, with and without reweighting) achieve better convergence with higher probability \revision{than their non-clipped counterparts}. Moreover, versions with clipping exhibit similar behavior to each other. In  Appendix~\ref{appendix:quadratic}, we further study the behavior of \algname{Clip-RAdaGradD} for different values of $\eta$ and show the benefits of the reweighting. In general, the \revision{observed} results \revision{for \algname{AdaGrad}-type methods} are perfectly aligned with the theory developed in this paper.
+
+
+
+
+
+
+\begin{figure*}[t]
+        \subfloat{%
+            \includegraphics[width=.25\linewidth]{plots/hist_cola_0steps.pdf}%
+            \label{subfig:hist_cola_0steps}%
+        }
+        \subfloat{%
+            \includegraphics[width=.25\linewidth]{plots/hist_cola_178steps.pdf}%
+            \label{subfig:hist_cola_178steps}%
+        }
+        \subfloat{%
+            \includegraphics[width=.25\linewidth]{plots/hist_cola_356steps.pdf}%
+            \label{subfig:hist_cola_356steps}%
+        }
+        \subfloat{%
+            \includegraphics[width=.25\linewidth]{plots/hist_cola_534steps.pdf}%
+            \label{subfig:hist_cola_534steps}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.25\linewidth]{plots/hist_rte_0steps.pdf}%
+            \label{subfig:hist_rte_0steps}%
+        }
+        \subfloat{%
+            \includegraphics[width=.25\linewidth]{plots/hist_rte_104steps.pdf}%
+            \label{subfig:hist_rte_104steps}%
+        }
+        \subfloat{%
+            \includegraphics[width=.25\linewidth]{plots/hist_rte_208steps.pdf}%
+            \label{subfig:hist_rte_208steps}%
+        }
+        \subfloat{%
+            \includegraphics[width=.25\linewidth]{plots/hist_rte_312steps.pdf}%
+            \label{subfig:hist_rte_312steps}%
+        }\\
+        \caption{Gradient noise evolution for \algname{Adam} on CoLa (the first row) and RTE (the second row) datasets. Histograms were evaluated after $0$ steps, after  $\approx \nicefrac{1}{3}$ and $\approx \nicefrac{2}{3}$ of all steps, and in the end.}
+        \label{fig:cola_rte_distribution}
+\end{figure*}
+
+
+\paragraph{ALBERT Base v2 fine-tuning.} In the second part of our experiments, we consider fine-tuning the pre-trained ALBERT Base v2 model \citep{lan2019albert} on CoLa and RTE datasets \citep{wang2018glue}. Since \algname{Adam}-based algorithms are the methods of choice for NLP tasks, instead of \algname{AdaGrad}, we consider \algname{Adam} and its clipped versions -- \algname{Clip-Adam} and \algname{Clip-RAdamD}. They are derived from \algname{Adam} similarly to how \algname{Clip-RAdaGradD} is obtained from \algname{AdaGradD}, see the details in Appendix~\ref{appendix:albert}. We took a pre-trained model from the \href{https://huggingface.co/albert/albert-base-v2}{Hugging Face library}. Then, the model was fine-tuned following the methodology suggested by \citet{mosbach2020stability}. More precisely, we used linear warmup with warmup ratio being $0.1$, and hyperparameters were $\beta_1 = 0.9$, $\beta_2 = 0.999$, $b = \epsilon \bm{1}$, where $\bm{1} = (1,1,\ldots, 1)^\top \in \R^d$. We tuned batchsize and stepsize $\gamma$ for \algname{Adam} and selected best values from $\{4, 8, 16, 32\}$ for the batchsize and from $\{10^{-6}, 3\cdot 10^{-6}, 10^{-5}, 3\cdot 10^{-5}, 10^{-4}\}$ for $\gamma$. For the CoLa dataset, the best batchsize was $16$ and $\gamma = 10^{-5}$, and for the RTE dataset, the best batchsize was $8$ and $\gamma = 10^{-5}$. For the methods with clipping, we used the same batchsize and stepsize as for \algname{Adam} and tuned the clipping level for the two types of clipping\footnote{We did not consider the global/norm clipping (the considered in theory), since typically coordinate-wise or layer-wise clipping work better in training neural networks.}. We tested coordinate-wise clipping with $\lambda \in \{0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1\}$ and layer-wise clipping with $\lambda \in \{0.1, 0.2, 0.5, 1, 2, 5, 10\}$. For the CoLa dataset, the best results were achieved with $\lambda = 1$ for layer-wise clipping and $\lambda = 0.02$ for coordinate-wise clipping, and for the RTE dataset, the best results were achieved with $\lambda = 2$ for layer-wise clipping and $\lambda = 0.005$ for coordinate-wise clipping. In the main text, we show the results with layer-wise clipping and defer the results with coordinate-wise clipping to Appendix~\ref{appendix:albert}.
+
+
+Before comparing the methods, we ran \algname{Adam} and checked how heavy-tailed the noise in the stochastic gradients is along the trajectory. In particular, for both tasks, we selected $4$ iterates corresponding to the starting point, points generated after $\approx \nicefrac{1}{3}$ and $\approx \nicefrac{2}{3}$ of all steps, and the last iterate. Then, for each of these points, we sampled size-$16$ (for CoLa) and size-8 (for RTE) mini-batched estimator $\nabla f_{\xi}(x)$ of the gradient $1000$ times, saved the resulting norms of the differences $\norm{\nabla f_{\xi}(x) - \nabla f(x)}$, and plotted their histogram, i.e., we plotted the histograms of the noise norm. Moreover, we also measure the heavy-tailedness of the noise following the approach from \citep{gorbunov2022clipped}: we compute two metrics $p_{mR} = F_{1.5}(\norm{\nabla f_{\xi}(x) - \nabla f(x)})$, which quantifies ``mild'' heavy tails, and $p_{eR} = F_3(\norm{\nabla f_{\xi}(x) - \nabla f(x)})$ introduced by \citet{jordanova2017measuring}, which quantifies ``extreme'' heavy tails, where $F_{a}(\norm{\nabla f_{\xi}(x) - \nabla f(x)}) = \PP\{\norm{\nabla f_{\xi}(x) - \nabla f(x)} > Q_3 + a(Q_3 - Q_1)\}$ and $Q_i$ is the $i$-th quartile of $\norm{\nabla f_{\xi}(x) - \nabla f(x)}$. To illustrate the heavy-tailedness clearly, we divide these metrics to the ones computed for the standard normal distribution ($p_{mR\cN}$ and $p_{eR\cN}$) and show $\rho_{mR} = \nicefrac{p_{mR}}{p_{mR\cN}}$ and $\rho_{eR} = \nicefrac{p_{eR}}{p_{eR\cN}}$ on the plots.
+
+The histograms are provided in Figure~\ref{fig:cola_rte_distribution}, where we additionally estimate the mean and standard deviation and plot the density of the normal distribution with these parameters (black curve).  For the CoLa dataset, the noise distribution changes significantly after the start of the training, and its mean drifts to the right. However, the standard deviation does not change significantly, and, more importantly, metrics $\rho_{mR}$ and $\rho_{eR}$ remain quite large, showing that the distribution is significantly heavy-tailed. In contrast, for the RTE dataset, the noise distribution does not drift significantly, and, interestingly, $\rho_{eR}$ decreases towards the end of training and becomes zero, while $\rho_{mR}$ stays in the interval $[5, 10]$. Therefore, the noise distribution has much heavier tails for CoLa than for RTE.
+
+Then, similarly to the experiments with the quadratic problem, we ran the methods $100$ times, and for each step, we computed the median value of the validation loss and its $5$-th and $95$-th percentiles. The results are presented in Figure~\ref{fig:adam_vs_clip_adam}, where the solid lines correspond to the medians and the error bands cover the areas between $5$-th and $95$-th percentiles. As expected, \algname{Adam} exhibits poor high-probability convergence on the CoLa datasets where the noise is significantly heavy-tailed, and \algname{Clip-Adam} shows much better performance: the area between $5$-th and $95$-th percentiles is relatively narrow for \algname{Clip-Adam}. In contrast, for the RTE dataset, \algname{Clip-Adam} performs similarly to \algname{Adam}. This is also expected since the noise is much less heavy for RTE, as Figure~\ref{fig:cola_rte_distribution} shows. Taking into account the relation between \algname{AdaGrad} and \algname{Adam} described in Section~\ref{section:intro}, negative results for \algname{AdaGrad} from Section~\ref{section:failure}, and the upper bounds for a clipped version of \algname{AdaGrad} from Section~\ref{section:convergence}, we conclude that these numerical results are well-aligned with the theory developed in the paper.
+
+\begin{figure*}[t]
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/cola_adam.pdf}%
+            \label{subfig:cola_adam}%
+        }
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/rte_adam_bs=8_lr=1e-5_local_2e0.pdf}%
+            \label{subfig:rte_adam}%
+        }\\
+        \caption{Validation loss for ALBERT Base v2 fine-tuning task on the CoLa and RTE datasets.}
+        \label{fig:adam_vs_clip_adam}
+\end{figure*}
+
+
+\section{Conclusion}\label{section:conclusion}
+
+In this work, we theoretically/empirically show that clipping helps \algname{AdaGrad}/\algname{Adam} to achieve better high-probability convergence when the noise is heavy-tailed. In this sense, our work makes an important step towards a better understanding of high-probability convergence of adaptive methods and suggests using clipping in practice even for \algname{Adam}. However, it is worth acknowledging that the considered methods depend on the choice of several parameters, such as stepsize and clipping level. Moreover, in our analysis, we study relatively standard classes of functions (smooth and convex/non-convex objectives). Achieving comparable or even better high-probability complexities for parameter-free methods and generalization of our results to the more refined problem classes such as $(L_0, L_1)$-smooth problems \citep{zhang2019gradient} is a prominent direction for future research.
+
+
+\bibliographystyle{apalike}
+\bibliography{refs}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\appendix
+
+\tableofcontents
+
+\newpage
+
+
+
+\section{Technical Details and Auxiliary Results}\label{appendix-auxiliary}
+\paragraph{Additional notation.} \revision{For the ease of exposition, we introduce the following notation for the proofs:}
+\begin{align*}
+    g_t &= \clip\left(\nabla f_{\xi_t}(x_t), \lambda\right),\\
+    \theta_t &= g_t - \nabla f(x_t),\\
+    \theta_t^u &= g_t - \E_{\xi_t} [g_t],\\ 
+    \theta_t^b &= \E_{\xi_t}[g_t] - \nabla f(x_t),\\
+    R_t &= \norm{x_t - x^*},\\
+    \Delta_t &= f(x_t) - f_*.
+\end{align*}
+
+% \begin{proposition}
+%     \label{prop: L-smooth}
+%     If function $f(x)$ is $L$-smooth (see \cref{asm:smoothness}), then $\forall x, y \in \R^d$
+%     \begin{align*}
+%         &\sqn{\nabla f(x)} \leq 2L(f(x) - f(x^*);\\
+%         &\norm{\nabla f(y) - \nabla f(x)} \leq L\norm{y - x}.
+%     \end{align*}
+% \end{proposition}
+
+\paragraph{Auxiliary results.} We also use the following \revision{standard} results.
+
+\begin{proposition}[Young's inequality.]
+    \label{prop: young}
+    For any $x, y \in \R^d$ and $p > 0$ the following inequality holds:
+    \begin{align*}
+        \sqn{x + y} \leq \left(1 + p\right)\sqn{x} + \left(1 + \frac{1}{p}\right)\sqn{y}.
+    \end{align*}
+    In particular, for $p = 1$
+    \begin{align*}
+        \sqn{x + y} \leq 2\sqn{x} + 2\sqn{y}.
+    \end{align*}
+\end{proposition}
+
+The following lemma by \citet{sadiev2023high} helps to estimate bias and variance of the clipped stochastic gradient \revision{satisfying} Assumption~\ref{asm:heavy-tailed}.
+\begin{lemma}[Lemma 5.1 from \citep{sadiev2023high}]
+\label{lem: clip-effect}
+    Let $X$ be a random vector from $\R^d$ and $\widehat{X} = \clip(X, \lambda)$. Then, $\norm{\widehat{X} - \E\left[\widehat{X}\right]} \leq 2\lambda$. Moreover, if for some $\sigma \geq 0$ and $\alpha \in (1, 2]$ we have $\E\left[X\right] = x \in \R^d$, $\E\left[\norm{X - x}^\alpha\right] \leq \sigma^\alpha$, and $\norm{x} \leq \frac{\lambda}{2}$, then
+    \begin{align*}
+        \norm{\E\left[\widehat{X}\right] - x} &\leq \frac{2^\alpha\sigma^\alpha}{\lambda^{\alpha - 1}},\\
+        \E\left[\norm{\widehat{X} - x}^2\right] &\leq 18\lambda^{2-\alpha}\sigma^\alpha,\\
+        \E\left[\norm{\widehat{X} - \E\left[\widehat{X}\right]}^2\right] &\leq 18\lambda^{2-\alpha}\sigma^\alpha.\\
+    \end{align*}
+\end{lemma}
+
+Finally, in the analysis of \algname{Clip-RAdaGradD}, we face \revision{the} sums of martingale-difference sequences. One of the tools that we use to handle them is Bernstein's inequality \citep{bennett1962probability, dzhaparidze2001bernstein, freedman1975tail}.
+
+\begin{lemma}[Bernstein's inequality]
+\label{lem: bernstein}
+    Let the sequence of random variables $\{X_i\}_{i \geq 1}$ form a martingale difference sequence, i.e., $\E\left[X_i \ | \ X_{i-1}, \ldots, X_1\right] = 0$ for all $i \geq 1$. Assume that conditional variances $\sigma_i^2 = \E\left[X_i^2 \ | \ X_{i-1}, \ldots, X_1\right]$ exist and are bounded and also assume that there exists deterministic constant $c > 0$ such that $|X_i| \leq c$ almost surely for all $i \geq 1$. Then for all $b > 0$, $G > 0$ and $n \geq 1$
+    \begin{align*}
+        \mathbb{P}\left\{\abs{\sum\limits_{i=1}^n X_i} > b \text{ and } \sum\limits_{i=1}^n \sigma_i^2~\revision{\leq}~G\right\} \leq 2\exp\left(-\frac{b^2}{2G + \frac{2cb}{3}}\right).
+    \end{align*}
+
+\end{lemma}
+
+\newpage
+
+\section{Missing Proofs from \cref{section:failure}}\label{appendix:proofs_failure}
+
+In this section, we provide further details regarding Theorem~\ref{thm:AdaGrads_failure_main} giving a negative result about high-probability convergence of \algname{AdaGrad} and \algname{AdaGradD}. For both methods, we use the $1$-dimensional Huber loss function:
+\begin{align*}
+    f(x) = \begin{cases}
+        \frac{1}{2}x^2, \qquad & \text{if } \abs{x} \leq \nu,\\
+        \nu\left(\abs{x} - \frac{1}{2}\nu\right), \qquad &\text{otherwise.}
+    \end{cases}
+\end{align*}
+This function is convex and $L$-smooth with $L = 1$. However, the construction of noises and proofs are different for \algname{AdaGrad} and \algname{AdaGradD}. Therefore, we provide the negative results for \algname{AdaGrad} and \algname{AdaGradD} separately in the following subsections.
+
+% In this section we propose lower bounds relatively to the dependence of a high-probability convergence from $\frac{1}{\delta}$-factor.
+
+\subsection{Failure of \algname{AdaGrad}}
+
+We start with the following lemma giving a closed-form expression for the iterates of deterministic \algname{AdaGrad} applied to \eqref{eq:huber}.
+
+\begin{lemma}
+\label{lem:analytical-point}
+    Suppose that $\gamma \leq \nicefrac{1}{L}$ and the starting point $x_0$ is such that $\abs{x_0} > \gamma$ and $x_0 > 0$. If after $T$ iterations of deterministic \algname{AdaGrad} we have $\abs{x_t} > \nu$ and $x_t > 0$ for all $t=\overline{1, T-1}$, then
+    \begin{align*}
+        x_T = x_0 - \gamma\nu\sum\limits_{t = 0}^{T-1}\frac{1}{\sqrt{b_{-1}^2 + (t+1)\nu^2}}.
+    \end{align*}
+\end{lemma}
+\begin{proof}
+    Since $\abs{x_t} > \nu$ and $x_t$ is positive, the gradient at $x_t$ is equal to $\nu$. Hence, \revision{by} substituting the gradient into the algorithm, we get the final result.
+\end{proof}
+
+The above lemma relies on the condition that $\abs{x_t} > \nu$ and $x_t > 0$ for all $t=\overline{1, T-1}$. For any $\gamma, b_{-1}$ and $T$ this condition can be achieved if we choose sufficiently small $\nu$.
+
+% It is needed to clarify that the construction described in \cref{lem:analytical-point} is possible. Indeed, with given parameters $\gamma$ and $b_{-1}$ we can choose sufficiently small $\nu$ to make small steps for keeping $x_t$ positive.
+
+Next, we estimate the interval where $x_T$ lies.
+
+\begin{lemma}\label{lem:iter-bounds-huber}
+Let the conditions of Lemma~\ref{lem:analytical-point} hold. Then, we have
+    \begin{align*}
+        x_0 - \gamma \left(\frac{1}{\sqrt{1 + a_0}} + 2\sqrt{a_0 + T} - 2\sqrt{a_0 + 1}\right) \leq x_T \leq x_0 - \gamma \left(2\sqrt{a_0 + T + 1} - 2\sqrt{a_0 + 1}\right),
+    \end{align*}
+    where $a_0 = \frac{b_{-1}^2}{\nu^2}$.
+\end{lemma}
+\begin{proof}
+    From Lemma~\ref{lem:analytical-point} we have:
+    \begin{align*}
+        x_T = x_0 - \gamma\sum\limits_{t = 0}^{T-1}\frac{1}{\sqrt{a_0 + (t+1)}},
+    \end{align*}
+    \revision{where $a_0 = \frac{b_{-1}^2}{\nu^2}$.}  Next, we bound the second term in the following way:
+    \begin{align}
+    \label{eq:lower}
+        \sum\limits_{t = 0}^{T-1}\frac{1}{\sqrt{a_0 + (t+1)}} \geq \int\limits_{a_0}^{a_0 + T}\frac{1}{\sqrt{1 + x}}\,dx = 2\sqrt{a_0 + T + 1} - 2\sqrt{a_0 + 1}, 
+    \end{align}
+    \begin{align}
+    \label{eq:upper}
+        \sum\limits_{t = 0}^{T-1}\frac{1}{\sqrt{a_0 + (t+1)}} &\leq \frac{1}{\sqrt{1 + a_0}} + \int\limits_{a_0}^{a_0 + T - 1}\frac{1}{\sqrt{1 + x}}\,dx \nonumber\\&= \frac{1}{\sqrt{1 + a_0}} + 2\sqrt{a_0 + T} - 2\sqrt{a_0 + 1}.
+    \end{align}
+    Combining \eqref{eq:lower} and \eqref{eq:upper}, we get the final result.
+\end{proof}
+
+
+\begin{corollary}\label{col: bound-iterates}
+    If $\gamma \leq \nicefrac{1}{L}$, $|x_0| > \gamma$, and $0 < \nu < x_0 - \gamma$ and   
+    \begin{align*}
+        T < \frac{(x_0 - \nu - \gamma)^2 + 4\gamma(x_0 - \nu - \gamma)\sqrt{a_0 + 1}}{4\gamma^2} + 1, 
+    \end{align*}
+    then $x_T > \nu$ for \revision{deterministic} \algname{AdaGrad}. Alternatively, $\abs{x_T} \leq \nu$ implies that
+    \begin{align*}
+        T \geq \frac{(x_0 - \nu - \gamma)^2 + 4\gamma(x_0 - \nu - \gamma)\sqrt{a_0 + 1}}{4\gamma^2} + 1.
+    \end{align*}
+\end{corollary}
+\begin{proof}
+    First, let us show that
+    \begin{align}
+    \label{eq:bbb}
+        \nu < x_0 - \gamma\left(1 + 2\sqrt{a_0 + T} - 2\sqrt{a_0 + 1}\right)
+    \end{align}
+    is equivalent to
+    \begin{align*}
+        T < \frac{(x_0 - \nu - \gamma)^2 + 4\gamma(x_0 - \nu - \gamma)\sqrt{a_0 + 1}}{4\gamma^2} + 1.
+    \end{align*}
+    Rewriting the \eqref{eq:bbb}, one can obtain
+    \begin{align*}
+        2\gamma\sqrt{a_0 + T} < x_0 - \nu - \gamma + 2\gamma\sqrt{a_0 + 1}.
+    \end{align*}
+    Squaring both parts of the inequality above and expressing $T$, we get the alternative equivalent formula. \revision{Noticing} that $1 \geq \frac{1}{\sqrt{1 + a_0}}$ and applying \cref{lem:iter-bounds-huber}, we get the final result. \revision{The second part of the corollary is just a negation of the implication stated in the first part of the corollary}.
+\end{proof}
+
+% \begin{remark}
+%     It is important to note that after the number of iterations defined above we do not guarantee the case $\abs{x_T} \leq \nu$ in the second part of \cref{col: bound-iterates}.  
+% \end{remark}
+
+\begin{theorem}\label{thm:adagrad-bad}
+    For any $\varepsilon, \delta \in (0,1), \sigma > 0$ such that $\nicefrac{\sigma}{\sqrt{\varepsilon\delta}} \geq 2$, there exists convex $L$-smooth minimization problem \eqref{eq:huber} and stochastic gradient oracle such that Assumption~\ref{asm:heavy-tailed} holds with $\alpha = 2$ and the iterates produced by \algname{AdaGrad} after $K$ steps with stepsize $\gamma \leq \frac{b_{-1}}{L}$ and starting point $x_0$ such that $R := x_0 - \sqrt{2\varepsilon} - 2\gamma > 0$ satisfy the following implication:
+    \begin{equation}
+        \PP\left\{f(x_K) - f(x^*) \geq \varepsilon\right\} \leq \delta \quad \Longrightarrow \quad K = \Omega\left(\frac{b_{-1}R}{\sqrt{\varepsilon}\gamma} + \frac{\sigma R}{\gamma\sqrt{\varepsilon\delta}} \right), \label{eq:inverse_power_dependence_adagrad}
+    \end{equation}
+    i.e., the high-probability complexity of \algname{AdaGrad} has inverse-power dependence on $\delta$.
+\end{theorem}
+\begin{proof}
+    Before we delve into the technical details, we provide an intuition behind the proof. We want to use the lower bound from \cref{col: bound-iterates} and estimate the bound for the number of iterations \revision{required to achieve the desired optimization error $\varepsilon$ with probability at least $1-\delta$}. Moreover, we need to set $\nu$ \revision{depending on} the accuracy $\varepsilon$ ($\nu$ is analytically clarified later). We denote the \revision{output} of deterministic \algname{AdaGrad} after $t$ iterations as $\hat{x}_t$. Then, we introduce the noise in the stochastic gradient in the following way
+    \begin{align*}
+        g_k = \nabla f(x_k) - \sigma \xi_k,
+    \end{align*}
+    where
+    \begin{align}
+        \label{eq:noise}
+        \xi_k = \begin{cases}
+            0, \qquad &\text{for } k > 0 ,\\
+            \begin{cases}
+                -A, &\quad \text{with probability } \frac{1}{2A^2}\\
+                0, &\quad \text{with probability } 1 - \frac{1}{A^2}\\
+                A, &\quad \text{with probability } \frac{1}{2A^2}
+            \end{cases}
+            \qquad &\text{otherwise,}
+        \end{cases}
+    \end{align}
+    where the formula for $A$ is given later. The noise construction \eqref{eq:noise} implies that stochasticity appears only at the first iteration of \algname{AdaGrad}, and then it only affects the stepsizes. Therefore,
+    \begin{align*}
+        x_1 = x_0 - \frac{\gamma}{b_0}g_0,
+    \end{align*}
+    where $b_0 = \sqrt{b_{-1}^2 + (\nu - \sigma \xi_0)^2}$. Moreover, $x_1$ can be bounded in the following way
+    \begin{align*}
+       x_0 + \gamma >  x_1 > x_0 - \gamma.
+    \end{align*}
+    Choosing $x_0$ in such a way that $x_0 - 2\gamma > \gamma > \nu$, we apply \cref{col: bound-iterates} and get that the algorithm needs to make at least 
+    \begin{align*}
+        K_0 = \frac{(x_1 - \nu - \gamma)\sqrt{a_1}}{\gamma} 
+    \end{align*}
+    iterations to reach $\varepsilon$-accuracy, where $a_1 = \frac{b_0^2}{\nu^2}$ and $\varepsilon = \frac{\nu^2}{2}$. Let us specify that this estimate depends on the stochasticity at the first iteration, i.e., the bound on the number of iterations is random. Consequently, if \algname{AdaGrad} achieves $\varepsilon$-solution after $K$ steps, we should have $K \geq K_0$. Therefore, $\PP\{K \geq K_0\} \geq \PP\{f(x_K) - f(x^*) \leq \varepsilon\}$ and we want to estimate $K$ such that
+    \begin{align*}
+        \mathbb{P}\{K_0 \leq K\} \geq 1 - \delta.
+    \end{align*}
+    Bounding the left-hand side,
+    \begin{align*}
+        \mathbb{P}\{K_0 \leq K\} &= \mathbb{P}\left\{\frac{(x_1 - \nu - \gamma)\sqrt{a_1}}{\gamma}\leq K\right\} \\
+        &\leq \mathbb{P}\left\{\frac{R\sqrt{a_1}}{\gamma}\leq K\right\} \\&=
+        \mathbb{P}\left\{b_0 \leq \frac{\gamma K \nu}{R}\right\},
+    \end{align*}
+    where $R = x_0 - \nu - 2\gamma$. Substituting the analytical form of $b_0$, we get 
+    \begin{align}
+        \mathbb{P}\{K_0 \leq K\} &= \mathbb{P}\left\{b_{-1}^2 + (\nu -\sigma \xi_0)^2 \leq \frac{\gamma^2 K^2 \nu^2}{R^2}\right\}. \notag
+        % &\leq \mathbb{P}\left\{-\sqrt{\frac{\gamma^2 K^2 \nu^2}{R^2} - b_{-1}^2} + \nu\leq \sigma\xi_0 \leq \sqrt{\frac{\gamma^2 K^2 \nu^2}{R^2} - b_{-1}^2} + \nu\right\}. 
+    \end{align}
+    We notice that condition $K \geq \frac{b_{-1}R}{\nu\gamma}$ is necessary for the convergence since otherwise $\mathbb{P}\{K_0 \leq K\} = 0$. Therefore, we have $K \geq \frac{b_{-1}R}{\nu\gamma}$ and can continue the derivation as follows:
+    \begin{align}
+        \mathbb{P}\{K_0 \leq K\}
+        &= \mathbb{P}\left\{\abs{\sigma\xi_0 - \nu} \leq \sqrt{\frac{\gamma^2 K^2 \nu^2}{R^2} - b_{-1}^2}\right\} \nonumber \\
+        &\leq \mathbb{P}\left\{\sigma\abs{\xi_0} \leq \sqrt{\frac{\gamma^2 K^2 \nu^2}{R^2} - b_{-1}^2} + \nu\right\}.\notag
+        % &\leq \mathbb{P}\left\{-\sqrt{\frac{\gamma^2 K^2 \nu^2}{R^2} - b_{-1}^2} + \nu\leq \sigma\xi_0 \leq \sqrt{\frac{\gamma^2 K^2 \nu^2}{R^2} - b_{-1}^2} + \nu\right\}. 
+    \end{align}
+    Therefore, $\mathbb{P}\{K_0 \leq K\} \geq 1-\delta$ implies 
+    \begin{equation*}
+        \mathbb{P}\left\{\sigma\abs{\xi_0} \leq \sqrt{\frac{\gamma^2 K^2 \nu^2}{R^2} - b_{-1}^2} + \nu\right\} \geq 1-\delta.
+    \end{equation*}
+    % To consider the double inequality correctly, let us assume that $K \geq \frac{\sqrt{\nu^2 + b_{-1}^2}R}{\nu\gamma}$ for $-\sqrt{\frac{\gamma^2 K^2 \nu^2}{R^2} - b_{-1}^2} + \nu \leq 0$. If we give an estimate on $K$ that depends polynomially on $\frac{1}{\delta}$, then even at smaller $k < K$ the convergence will have a poorer dependence (if convergence occurs).
+    % Continuing \eqref{eq:prob-thm-adagrad}, one can obtain
+    % \begin{align*}
+    %     \mathbb{P}&\left\{-\sqrt{\frac{\gamma^2 K^2 \nu^2}{R^2} - b_{-1}^2} + \nu\leq \sigma\xi_0 \leq \sqrt{\frac{\gamma^2 K^2 \nu^2}{R^2} - b_{-1}^2} + \nu\right\} \\&\geq \mathbb{P}\left\{\sigma\abs{\xi_0} \leq \sqrt{\frac{\gamma^2 K^2 \nu^2}{R^2} - b_{-1}^2} - \nu\right\} \geq 1 - \delta.
+    % \end{align*}
+    
+    Consequently, if we choose $A = \frac{\frac{\gamma K \nu}{R} + \nu}{\sigma}$, then the only realization of the random variable $\xi_0$ at which the inequality is satisfied is $0$. Hence, we have
+    \begin{align*}
+        \frac{1}{A} = \frac{\sigma}{\frac{\gamma K \nu}{R} + \nu} \leq \sqrt{\delta}.
+    \end{align*}
+    Therefore, 
+    \begin{align*}
+        K \geq \frac{R}{\gamma}\left(\frac{\sigma}{\nu\sqrt{\delta}} - 1\right),
+    \end{align*}
+    % Combining this with a fact that $\gamma \leq \frac{1}{L}$, we claim that 
+    % $K = \Omega\left(\text{poly}\left(\frac{1}{\delta}\right)\right)$. 
+    which concludes the proof \revision{since $\nicefrac{\sigma}{\sqrt{\varepsilon\delta}} \geq 2$ and $\nu = \sqrt{2\varepsilon}$.}
+\end{proof}
+
+
+
+
+\subsection{Failure of \algname{AdaGradD}}
+Similarly to the \revision{case} of \algname{AdaGrad}, we start by obtaining the analytic form of iterations of the deterministic \algname{AdaGradD} in the following lemma.
+\begin{lemma}
+\label{lem:analytical-point-delay}
+    Suppose that $\gamma \leq \nicefrac{1}{L}$ and a starting point $x_0$ such that $: \abs{x_0} > \gamma$ and $x_0 > 0$. If after $T$ iterations of deterministic \algname{AdaGradD} we have $\abs{x_t} > \nu$ and $x_t > 0$ for all $t=\overline{1, T-1}$ with , then
+    \begin{align*}
+        x_T = x_0 - \gamma\nu\sum\limits_{t = 0}^{T-1}\frac{1}{\sqrt{b_0^2 + t\nu^2}}.
+    \end{align*}
+\end{lemma}
+\begin{proof}
+    The proof is similar to the proof of \cref{lem:analytical-point}. Since $x_t > \nu$, the gradient at point $x_t$ is equal to $\nu$. Substituting that into the iteration of \algname{AdaGradD} for each $t$, we finish the proof. 
+\end{proof}
+Now, let us estimate the interval where $x_T$ lies.
+\begin{lemma}
+    \label{lem:iter-bounds-huber-delay}
+    Let the conditions of \cref{lem:analytical-point-delay} hold. Then, we have
+    \begin{align*}
+        x_0 - \gamma \left(\frac{1}{\sqrt{a_0}} + 2\sqrt{a_0 + T - 1} - 2\sqrt{a_0}\right) \leq x_T \leq x_0 - \gamma \left(2\sqrt{a_0 + T} - 2\sqrt{a_0}\right),
+    \end{align*}
+    where $a_0 = \frac{b_0^2}{\nu^2}$.
+\end{lemma}
+\begin{proof}
+    Let us start with \cref{lem:analytical-point-delay}:
+    \begin{align*}
+        x_T = x_0 - \gamma\sum\limits_{t = 0}^{T-1}\frac{1}{\sqrt{a_0 + t}},
+    \end{align*}
+    \revision{where $a_0 = \frac{b_0^2}{\nu^2}$.} Next, we bound the second term in the following way:
+    \begin{align}
+    \label{eq:lower-delay}
+        \sum\limits_{t = 0}^{T-1}\frac{1}{\sqrt{a_0 + t}} \geq \int\limits_{a_0}^{a_0 + T}\frac{1}{\sqrt{x}}\,dx = 2\sqrt{a_0 + T} - 2\sqrt{a_0}. 
+    \end{align}
+    \begin{align}
+    \label{eq:upper-delay}
+        \sum\limits_{t = 0}^{T-1}\frac{1}{\sqrt{a_0 + t}} \leq \frac{1}{\sqrt{a_0}} + \int\limits_{a_0}^{a_0 + T - 1}\frac{1}{\sqrt{x}}\,dx = \frac{1}{\sqrt{a_0}} + 2\sqrt{a_0 + T - 1} - 2\sqrt{a_0}.
+    \end{align}
+    Combining \eqref{eq:lower-delay} and \eqref{eq:upper-delay}, we have the final result.
+\end{proof}
+\begin{corollary}
+\label{col: bound-iterates-delay}
+    If $\gamma \leq \nicefrac{1}{L}$, $|x_0| > \gamma$, and $0 < \nu < x_0 - \gamma$, $b_0 \geq \nu$ and
+    \begin{align*}
+        T < \frac{(x_0 - \nu - \gamma)^2 + 4\gamma(x_0 - \nu - \gamma)\sqrt{a_0}}{4\gamma^2} + 2, 
+    \end{align*}
+    then $x_T > \nu$ for \revision{deterministic} \algname{AdaGradD}. Conversely, the case $\abs{x_{T}} \leq \nu$ implies that 
+    \begin{align*}
+        T \geq \frac{(x_0 - \nu - \gamma)^2 + 4\gamma(x_0 - \nu - \gamma)\sqrt{a_0}}{4\gamma^2} + 2.
+    \end{align*}
+\end{corollary}
+\begin{proof}
+    The proof is the same as for \cref{col: bound-iterates}.
+\end{proof}
+\begin{theorem}
+    \label{thm:adagrad-delay-bad}
+    For any $\varepsilon, \delta \in (0, 1)$, $\sigma > 0$, there exists convex $L$-smooth minimization problem \eqref{eq:huber} and stochastic gradient oracle such that \cref{asm:heavy-tailed} holds with $\alpha = 2$ and the iterates produced by \algname{AdaGradD} after $K$ steps with stepsize $\gamma \leq \nicefrac{1}{L}$ and starting point $x_0$ such that $R:= x_0 - \nu - \gamma > 0$ and $\nicefrac{\sigma R}{\varepsilon\sqrt{\delta}} \geq 16 b_0^2$ satisfy the following implication
+    \begin{align}
+        \PP\left\{f(x_K) - f(x^*) \geq \varepsilon\right\} \leq \delta \quad \Longrightarrow \quad K = \Omega\left(\frac{\sigma R}{\varepsilon\sqrt{\delta}}\right), \label{eq:inverse_power_dependence_adagradd}
+    \end{align}
+    i.e., the high-probability complexity of \algname{AdaGradD} has inverse-power dependence on $\delta$.
+\end{theorem}
+\begin{proof}
+    The overall idea of the proof resembles the one for \cref{thm:adagrad-bad} -- we combine the lower bound for the number of iterations from \cref{col: bound-iterates-delay} with the specific choice of stochasticity. Nevertheless, to prove this theorem, we construct the adversarial noise in another way. More precisely, we consider the following stochastic gradient
+    \begin{align*}
+        g_k = \nabla f(x_k) - \sigma \xi_k,
+    \end{align*}
+    where
+    \begin{align}
+        \label{eq:noise-delay}
+        \xi_k = \begin{cases}
+            0, \qquad &\text{if } k < K - 1 \text{ or } |\hat{x}_K| > \nu,\\
+            \begin{cases}
+                -A_k, &\quad \text{with probability } \frac{1}{2A_k^2}\\
+                0, &\quad \text{with probability } 1 - \frac{1}{A_k^2}\\
+                A_k, &\quad \text{with probability } \frac{1}{2A_k^2}
+            \end{cases}
+            \qquad &\text{otherwise,}
+        \end{cases}
+    \end{align}
+    where $\hat{x}_K$ is the result of deterministic \algname{AdaGradD} after $K$ iterations and $A_k = \max\left\{1, \frac{2\nu b_{k}}{\gamma \sigma}\right\}$. 
+    What is more, $\mathbb{E}\left[\xi_k\right] = 0$ and $\EE\left[\xi_k^2\right] \leq 1$ \revision{by} the construction. Therefore, the stochastic gradient satisfies the \cref{asm:heavy-tailed} with $\alpha = 2$.
+    
+    \revision{We want to prove that} $\mathbb{P}\{f(x_K) - f(x^*) > \varepsilon\} \leq \delta$. \revision{For $\delta < 1$, this implies} that $\abs{\hat{x}_K} \leq \nu$ with $\varepsilon = \frac{\nu^2}{2}$. Indeed, assuming the contrary, the noise is equal to $0$ for each iteration \revision{by the construction, meaning that}
+    \begin{align*}
+        \mathbb{P}\left\{f(x_K) - f(x^*) > \varepsilon \right\} = \mathbb{P}\left\{f(\hat x_K) - f(x^*) > \varepsilon \right\} = \mathbb{P}\left\{\abs{\hat{x}_K} > \nu \right\} = 1~\revision{> \delta}.
+    \end{align*}
+    As a result, $\abs{\hat{x}_K} \leq \nu$ and, applying \cref{col: bound-iterates-delay}, \revision{we} obtain
+    \begin{align*}
+        K \geq \frac{(x_0 - \nu - \gamma)^2 + 4\gamma(x_0 - \nu - \gamma)\sqrt{a_0}}{4\gamma^2} + 2.
+    \end{align*}
+    What is more, $x_K$ can be written as
+    \begin{align*}
+        x_K = \hat{x}_{K-1} - \frac{\gamma}{b_{K-1}}g_{K-1} = \hat{x}_K + \frac{\gamma \sigma \xi_{K-1}}{b_{K-1}}.
+    \end{align*}
+    Hence, 
+    \begin{align*}
+        \mathbb{P}\left\{f(x_K) - f(x^*) \geq \varepsilon \right\} &=  \mathbb{P}\left\{\abs{x_K} \geq \nu \right\} = \mathbb{P}\left\{\abs{\hat{x}_K + \frac{\gamma \sigma \xi_{K-1}}{b_{K-1}}} \geq \nu \right\} \\&\geq \mathbb{P}\left\{\abs{\frac{\gamma \sigma \xi_{K-1}}{b_{K-1}}} \geq \nu + \hat{x}_K\right\} \geq \mathbb{P}\left\{\abs{\frac{\gamma \sigma \xi_{K-1}}{b_{K-1}}} \geq 2\nu\right\} \\&= \mathbb{P}\left\{\abs{\xi_{K-1}} \geq \frac{2\nu b_{K-1}}{\gamma \sigma}\right\}.
+    \end{align*}
+    If $\max\left\{1, \frac{2\nu b_{K-1}}{\gamma \sigma}\right\} = 1$, then
+    \begin{align*}
+        \delta \geq  \mathbb{P}\left\{f(x_K) - f(x^*) \geq \varepsilon \right\} \geq \mathbb{P}\left\{\abs{\xi_{K-1}} \geq \frac{2\nu b_{K-1}}{\gamma \sigma}\right\} = 1,
+    \end{align*}
+    \revision{which} leads us to the contradiction. Therefore $\max\left\{1, \frac{2\nu b_{K-1}}{\gamma \sigma}\right\} = \frac{2\nu b_{K-1}}{\gamma \sigma}$, and
+    \begin{align*}
+        \delta \geq  \mathbb{P}\left\{f(x_K) - f(x^*) \geq \varepsilon \right\} \geq \mathbb{P}\left\{\abs{\xi_{K-1}} \geq \frac{2\nu b_{K-1}}{\gamma \sigma}\right\} = \frac{1}{A_{K-1}^2} = \frac{\gamma^2 \sigma^2}{4\nu^2 b_{K-1}^2},
+    \end{align*}
+    \revision{where we used that $A_{K-1} = \max\left\{1, \frac{2\nu b_{K-1}}{\gamma \sigma}\right\}$ and the noise structure.} 
+    Consequently, $\gamma \leq \frac{2\nu b_{K-1}\sqrt{\delta}}{\sigma}$. What is more, $b_{K-1}$ can be bounded as 
+    \begin{align*}
+        b_{K-1} \leq \sqrt{b_0^2 + K\nu^2}
+    \end{align*}
+    since the gradient of $f$ is uniformly bounded by $\nu$. Hence, \revision{we} obtain
+    \begin{align*}
+        K &\geq \frac{(x_0 - \nu - \gamma)^2}{4\gamma^2} + \frac{4(x_0 - \nu - \gamma)\sqrt{a_0}}{4\gamma} \geq \frac{(x_0 - \nu - \gamma)^2}{4\gamma^2} \\
+        &\geq \frac{(x_0 - \nu - \gamma)^2\sigma^2}{16\nu^2 (b_0^2 + K\nu^2)\delta}.
+    \end{align*}
+    Multiplying both sides by $\revision{\nu^2}(b_0^2 + K\nu^2)$, we get
+    \begin{align*}
+        (b_0^2 + K\nu^2)^2 \geq \nu^2K(b_0^2 + K\nu^2) \geq \frac{(x_0 - \nu - \gamma)^2\sigma^2}{16\delta},
+    \end{align*}
+    implying that
+    \begin{equation*}
+        K \geq \frac{\sigma R}{4\nu^2\sqrt{\delta}} - b_0^2 = \frac{\sigma R}{8\varepsilon\sqrt{\delta}} - b_0^2 \geq \frac{\sigma R}{16\varepsilon\sqrt{\delta}},
+    \end{equation*}
+    which finishes the proof.
+    
+    % Since the left-hand side is a polynomial of $K$, and the right-hand side has a factor $\frac{1}{\delta}$, finally $K = \Omega\left(\text{poly}\left(\frac{1}{\delta}\right)\right)$, which completes our proof.
+\end{proof}
+
+
+
+\newpage
+
+
+\section{Missing Proofs from \cref{section:convergence}}
+\label{appendix:proofs-convergence}
+In this section, we provide missing proofs for \cref{alg:ada-norm-clip-delay} in the convex and non-convex cases. For each case, the proof consists of two parts -- descent lemma and main theorem. 
+
+\subsection{Convex Case}
+\begin{lemma}[Descent lemma]
+    \label{lem:descent}
+    Let Assumptions~\ref{asm:smoothness} and \ref{asm:convexity} hold on $Q = B_{2R}(x^*)$, where $\norm{x_0 - x^*} \leq R$. Assume that $x_t \in Q \ \forall t = \overline{0, T}$. Then, after $T$ iterations of \cref{alg:ada-norm-clip-delay} with $b_0 \geq 4\gamma L$, we have
+    \begin{align*}
+         \sum\limits_{t=0}^{T-1} \frac{\gamma}{b_t}\left(f(x_t) - f_*\right) \leq R_0^2 - R_{T}^2 - \sum\limits_{t=0}^{T-1} \frac{2\gamma}{b_t}\ev{x_t - x^*, \theta_t} + \sum\limits_{t=0}^{T-1} \frac{2\gamma^2}{b_t^2}\sqn{\theta_t},
+    \end{align*}
+\end{lemma}
+\begin{proof}
+    According to the update rule of \cref{alg:ada-norm-clip-delay}, we have
+    \begin{align*}
+        \sqn{x_{t+1} - x^*} &= \sqn{x_t - x^*} - \frac{2\gamma}{b_t}\ev{x_t - x^*, g_t} + \frac{\gamma^2}{b_t^2}\sqn{g_t}\\
+        &= \sqn{x_t - x^*} - \frac{2\gamma}{b_t}\ev{x_t - x^*, \nabla f(x_t) + \theta_t} + \frac{\gamma^2}{b_t^2}\sqn{f(x_t) + \theta_t} \\
+        &\leq \sqn{x_t - x^*} - \frac{2\gamma}{b_t}\ev{x_t - x^*, \nabla f(x_t) + \theta_t} + \frac{\gamma^2}{b_t^2}\left(2\sqn{f(x_t)} + 2\sqn{\theta_t}\right).
+    \end{align*} 
+    Using \revision{Assumptions \ref{asm:smoothness} and \ref{asm:convexity}}, one can obtain
+    \begin{align*}
+        \left(\frac{2\gamma}{b_t} -  \frac{4\gamma^2L}{b_t^2}\right)\left(f(x_t) - f_*\right) &\leq \frac{2\gamma}{b_t}\ev{x_t - x^*, \nabla f(x_t)} - \frac{2\gamma^2}{b_t^2}\sqn{f(x_t)}\\ &\leq \sqn{x_t - x^*} - \sqn{x_{t+1} - x^*} - \frac{2\gamma}{b_t}\ev{x_t - x^*, \theta_t}\\ &+ \frac{2\gamma^2}{b_t^2}\sqn{\theta_t}.
+    \end{align*} 
+    Applying $b_t \geq b_0 \geq 4\gamma L$ and summing over $t$, we derive
+    \begin{align*}
+        \sum\limits_{t=0}^{T-1} \frac{\gamma}{b_t}\left(f(x_t) - f_*\right) \leq R_0^2 - R_{T}^2 - \sum\limits_{t=0}^{T-1} \frac{2\gamma}{b_t}\ev{x_t - x^*, \theta_t} + \sum\limits_{t=0}^{T-1} \frac{2\gamma^2}{b_t^2}\sqn{\theta_t},
+    \end{align*}
+    \revision{which} finishes the proof.
+\end{proof}
+
+\begin{remark}
+    It is important to note that $Q$ can be any non-empty subset of $\R^d$ as long as the iterates belong to it. In this sense, the form of $Q$ is not that important for the proof (a similar observation holds for \cref{lem:descent-nonconvex} in the non-convex case). Nevertheless, $Q$ plays a key role in the next part of the proof.    
+\end{remark}
+
+\begin{theorem}
+\label{thm:convex-case-conv}
+    Let Assumptions~\ref{asm:heavy-tailed}, \ref{asm:smoothness}, and \ref{asm:convexity} hold on $Q = B_{2R}(x^*)$ with $\norm{x_0 - x^*} \leq R$, Then, after $K+1$ iterations of \cref{alg:ada-norm-clip-delay} with
+    \begin{align}
+    \label{eq:gamma-choice}
+        \gamma \leq \min\left\{\frac{b_0}{160L \ln\left(\frac{4(K+1)}{\delta}\right)}, \frac{R b_0}{40 \cdot 9^{\frac{1}{\alpha}}\sigma (K+1)^{\frac{1}{\alpha}} \ln^{\frac{\alpha - 1}{\alpha}}\left(\frac{4(K+1)}{\delta}\right)}\right\},\quad \eta = \frac{\gamma^2}{R^2},
+    \end{align}
+    and
+    \begin{align}
+    \label{eq:lambda-choice}
+        \lambda = \frac{b_0R}{40\gamma \ln\left(\frac{4(K+1)}{\delta}\right)}
+    \end{align}
+    the bound 
+    \begin{align*}
+         \sum\limits_{k=0}^{K} \frac{\gamma}{b_k}\left(f(x_k) - f_*\right) \leq 2R^2
+    \end{align*}
+    holds with probability at least $1 - \delta$. In particular, when $\gamma$ equals the minimum from \eqref{eq:gamma-choice}, the iterates produced by Algorithm~\ref{alg:ada-norm-clip-delay} satisfy
+    \begin{align*}
+    f(\overline{x}_K) - f(x^*) = \cO\left(\max\left\{\frac{LR^2 \ln\frac{K+1}{\delta}}{K+1}, \frac{\sigma R \ln^{\frac{\alpha-1}{\alpha}}\frac{K+1}{\delta}}{(K+1)^\frac{\alpha-1}{\alpha}}\right\}\right)
+    \end{align*}
+    with probability at least $1 - \delta$, where $\overline{x}_K = \frac{1}{K+1}\sum_{k=0}^K x_k$.
+\end{theorem}
+\begin{proof}
+    Our proof is induction-based (similarly to the one for \algname{Clip-SGD} by \citet{sadiev2023high}). We introduce probability event $E_k$ \revision{as follows}: inequalities
+    \begin{align*}
+        - \sum\limits_{l=0}^{t-1} \frac{2\gamma}{b_l}\ev{x_l - x^*, \theta_l} + \sum\limits_{l=0}^{t-1} \frac{2\gamma^2}{b_l^2}\sqn{\theta_l} &\leq R^2,\\
+        R_t &\leq \sqrt{2}R
+    \end{align*}
+    hold simultaneously $\forall t = 0, 1, \ldots, k$. We want to show that $\mathbb{P}\{E_k\} \geq 1 - \frac{k\delta}{K+1} \ \forall k= 0, 1, \ldots, K+1$. The case when $k=0$ is obvious. Now let us make an induction step: let \revision{the statement} hold for some $k = T-1 \leq K$: $\mathbb{P}\{E_{T-1}\} \geq 1 - \frac{(T-1)\delta}{K+1}$. \revision{It remains to prove that $\mathbb{P}\{E_{T}\} \geq 1 - \frac{T\delta}{K+1}$.} The event $E_{T-1}$ implies $x_t \in B_{\sqrt{2}R}(x^*)$ $\forall t = 0, \ldots, T-1$. Hence, \revision{$E_{T-1}$ also implies}
+    \begin{align*}
+        \norm{x_T - x^*} \leq \norm{x_{T-1} - x^*} + \frac{\gamma}{b_{T-1}}\norm{g_{T-1}} \leq \sqrt{2}R + \frac{\gamma \lambda}{b_{T-1}} \leq \sqrt{2}R + \frac{\gamma \lambda}{b_{0}} \leq 2R. 
+    \end{align*}
+    Therefore, $E_{T-1}$ implies $\{x_t\}_{t=0}^T \subseteq B_{2R}(x^*)$ and we can apply \cref{lem:descent}:
+    \begin{align*}
+    \sum\limits_{l=0}^{t-1} \frac{\gamma}{b_l}\left(f(x_l) - f_*\right) \leq R_0^2 - R_t^2 - \sum\limits_{l=0}^{t-1} \frac{2\gamma}{b_l}\ev{x_l - x^*, \theta_l} + \sum\limits_{l=0}^{t-1} \frac{2\gamma^2}{b_l^2}\sqn{\theta_l} 
+    \end{align*}
+    $\forall t=1, \ldots, T$ and $\forall t=1, \ldots T-1$ it implies that
+    \begin{align*}
+        \sum\limits_{l=0}^{t-1} \frac{\gamma}{b_l}\left(f(x_l) - f_*\right) \leq R_0^2 - \sum\limits_{l=0}^{t-1} \frac{2\gamma}{b_l}\ev{x_l - x^*, \theta_l} + \sum\limits_{l=0}^{t-1} \frac{2\gamma^2}{b_l^2}\sqn{\theta_l} \leq 2R^2. 
+    \end{align*}
+    Taking into account that $\sum\limits_{l=0}^{t-1} \frac{\gamma}{b_l}\left(f(x_l) - f_*\right) \geq 0$, we get that $E_{T-1}$ implies
+    \begin{align}
+        \label{eq:convex-start}
+        R_T^2 \leq R_0^2 - \sum\limits_{t=0}^{T-1} \frac{2\gamma}{b_t}\ev{x_t - x^*, \theta_t} + \sum\limits_{t=0}^{T-1} \frac{2\gamma^2}{b_t^2}\sqn{\theta_t}.
+    \end{align}
+    Next, for vectors
+    \begin{align*}
+        \eta_t = \begin{cases}
+            x_t - x^*, \qquad &\norm{x_t - x^*} \leq \sqrt{2}R\\
+            0, \qquad &\text{otherwise}
+        \end{cases}
+    \end{align*}
+    for all $t = 0, 1, \ldots, T-1$, we have that with probability $1$
+    \begin{align}
+        \norm{\eta_t} \leq \sqrt{2}R. \label{eq:bound_eta}
+    \end{align}
+    Then, $E_{T-1}$ implies that $\eta_t = x_t - x^*$ for all $t = 0, \ldots T-1$. What is more, for all $t = 0, \ldots T-1$ $E_{T-1}$ implies
+    \begin{align*}
+        \norm{\nabla f(x_t)} \leq L \norm{x_t - x^*} \leq \sqrt{2}LR \overset{\eqref{eq:lambda-choice}}{\leq} \frac{\lambda}{2}
+    \end{align*}
+    Hence, using the notation from Appendix~\ref{appendix-auxiliary}, we have \revision{that $E_{T-1}$ implies}
+    \begin{align}
+        \label{eq:convex-require}
+        R_T^2 &\leq R_0^2 \underbrace{- \sum\limits_{t=0}^{T-1} \frac{2\gamma}{b_t}\ev{x_t - x^*, \theta_t^u}}_{\circledOne} \underbrace{- \sum\limits_{t=0}^{T-1} \frac{2\gamma}{b_t}\ev{x_t - x^*, \theta_t^b}}_{\circledTwo} +  \underbrace{\sum\limits_{t=0}^{T-1} \frac{4\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)}_{\circledThree} \notag\\
+        &+ \underbrace{\sum\limits_{t=0}^{T-1} \frac{4\gamma^2}{b_t^2}\E_{\xi_t}\sqn{\theta_t^u}}_{\circledFour} + \underbrace{\sum\limits_{t=0}^{T-1} \frac{4\gamma^2}{b_t^2}\sqn{\theta_t^b}}_{\circledFive}.
+    \end{align}
+    Next, we bound each term separately with high probability. Before we move on, we also note that event $E_{T-1}$ implies $\norm{\nabla f(x_t)} \leq \frac{\lambda}{2}$. Therefore, one can apply \cref{lem: clip-effect} and get
+    \begin{align}
+        \norm{\theta_t^u} &\leq 2\lambda, \label{eq:ndjkjdbvjfdbvjdf}\\
+        \norm{\theta_t^b} &\leq \frac{2^\alpha \sigma^\alpha}{\lambda^{\alpha - 1}}, \label{eq:ndjkvjfbdvjfhbvdbfvdf}\\
+        \E_{\xi_t}\sqn{\theta_t^u} &\leq 18\lambda^{2 - \alpha}\sigma^\alpha. \label{eq:djbjdbvjdbhvjbdfhjvbdhfbdf}
+    \end{align}
+    
+    \textbf{Bound for \circledOne.} \revision{The} definition of $\theta_t^u$ \revision{implies}
+    \begin{align*}
+        \E_{\xi_t} \left[-\frac{2\gamma}{b_t} \ev{\eta_t, \theta_t^u}\right] = 0.
+    \end{align*}
+    Moreover, 
+    \begin{align*}
+        \left|-\frac{2\gamma}{b_t} \ev{\eta_t, \theta_t^u}\right| \leq \frac{2\gamma}{b_t} \norm{\eta_t} \norm{\theta_t^u} \overset{\eqref{eq:bound_eta}, \eqref{eq:ndjkjdbvjfdbvjdf}}{\leq} \frac{4\sqrt{2}\gamma \lambda R}{b_t} \leq \frac{6\gamma \lambda R}{b_0} \overset{\eqref{eq:lambda-choice}}{\leq} \frac{R^2}{5 \ln\left(\frac{4(K+1)}{\delta}\right)}
+        % = \frac{3R^2}{20 \ln\left(\frac{4(K+1)}{\delta}\right)}
+        = c.
+    \end{align*}
+    \revision{For} $\sigma_t^2 = \E_{\xi_t}\left[\frac{4\gamma^2}{b_t^2}\ev{\eta_t, \theta_t^u}^2\right]$ \revision{we also derive}
+    \begin{align}
+        \sigma_t^2 \leq \frac{4\gamma^2}{b_t^2} \E_{\xi_t}\sqn{\theta_t^u} \sqn{\eta_t} \leq \frac{8\gamma^2R^2}{b_t^2} \E_{\xi_t}\sqn{\theta_t^u}. \label{eq:vjbdjvfjhdbfvjhdjf}
+    \end{align}
+    Hence, we can apply Bernstein's inequality (Lemma~\ref{lem: bernstein}) with $c$ defined above and $G = \frac{R^{4}}{100 \ln\left(\frac{4(K+1)}{\delta}\right)}$:
+    \begin{align*}
+        \mathbb{P}\left\{- \sum\limits_{t=0}^{T-1} \frac{2\gamma}{b_t}\ev{x_t - x^*, \theta_t^u} > \frac{R^2}{5} \text{ and } \sum\limits_{t=0}^{T-1}{\sigma}_t^2 \leq G \right\} &\leq 2\exp\left(-\frac{R^4}{25\left(2G + \frac{2cR^2}{15}\right)}\right)\\ &= \frac{\delta}{2(K+1)}.
+    \end{align*}
+    Therefore,
+    \begin{align*}
+        \mathbb{P}\left\{\text{either } - \sum\limits_{t=0}^{T-1} \frac{2\gamma}{b_t}\ev{x_t - x^*, \theta_t^u} \leq \frac{R^2}{5} \text{ or } \sum\limits_{t=0}^{T-1}{\sigma}_t^2 > G \right\} \geq 1 - \frac{\delta}{2(K+1)}.
+    \end{align*}
+    In addition, event $E_{T-1}$ implies that \revision{(due to \eqref{eq:vjbdjvfjhdbfvjhdjf} and \eqref{eq:djbjdbvjdbhvjbdfhjvbdhfbdf})}
+    \begin{align*}
+        \sum\limits_{t=0}^{T-1}\sigma_t^2 \leq \frac{144\gamma^2\lambda^{2 - \alpha}\sigma^\alpha R^2 T}{b_0^2} \overset{\eqref{eq:lambda-choice}}{\leq} \frac{144\gamma^{\alpha}b_0^{2 - \alpha}\sigma^\alpha R^{4 - \alpha} T}{40^{2 - \alpha}b_0^2 \ln^{2 - \alpha}\left(\frac{4(K+1)}{\delta}\right)} & \overset{\eqref{eq:gamma-choice}}{\leq} \frac{144 R^{4} T}{9 \cdot 40^{2}(K+1) \ln\left(\frac{4(K+1)}{\delta}\right)} \\&\leq \frac{R^{4}}{100 \ln\left(\frac{4(K+1)}{\delta}\right)}.
+    \end{align*}
+
+    
+    \textbf{Bound for \circledTwo.} For the second term, one can obtain from \eqref{eq:gamma-choice}, \eqref{eq:lambda-choice} and $\alpha \leq 2$ that $E_{T-1}$ implies
+    \begin{align*}
+        - \sum\limits_{t=0}^{T-1} \frac{2\gamma}{b_t}\ev{x_t - x^*, \theta_t^b} &\leq \sum\limits_{t=0}^{T-1} \frac{2\gamma}{b_t} \norm{\eta_t}\norm{\theta^b_t} \overset{\eqref{eq:bound_eta}, \eqref{eq:ndjkvjfbdvjfhbvdbfvdf}}{\leq} \frac{2 \cdot 2^\alpha\sigma^\alpha\gamma TR}{b_t \lambda^{\alpha-1}} \leq \frac{2 \cdot 2^\alpha\sigma^\alpha\gamma TR}{b_0 \lambda^{\alpha-1}}\\ 
+        & \overset{\eqref{eq:lambda-choice}}{=} \frac{2 \cdot 2^\alpha 40^{\alpha}\sigma^\alpha\gamma^\alpha TR^{2 - \alpha}}{40b_0^\alpha \ln^{1 - \alpha}\left(\frac{4(K+1)}{\delta}\right)} \overset{\eqref{eq:gamma-choice}}{\leq} \frac{2 \cdot 2^\alpha TR^2}{360\cdot (K+1) } \leq  \frac{ R^2}{45} \leq \frac{R^2}{5}.
+    \end{align*}
+    
+    \textbf{Bound for \circledThree.} For the third part, we \revision{have}
+    \begin{align*}
+        \E_{\xi_t}\left[\frac{4\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)\right] = 0.
+    \end{align*}
+    What is more, 
+    \begin{align}
+        \left|\frac{4\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)\right| &\leq \frac{4\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} + \E_{\xi_t}\sqn{\theta_t^u}\right) \overset{\eqref{eq:ndjkjdbvjfdbvjdf}}{\leq} \frac{32\gamma^2\lambda^2}{b_0^2} \overset{\eqref{eq:lambda-choice}}{=} \frac{R^2}{50\ln^2\left(\frac{4(K+1)}{\delta}\right)} \notag \\
+        &\leq \frac{R^2}{5\ln\left(\frac{4(K+1)}{\delta}\right)} = c. \label{eq:djkfbjdbfjdvfjd}
+    \end{align}
+    \revision{We also} define 
+    \begin{align*}
+        \hat{\sigma}_t^2 = \E_{\xi_t}\left[\frac{16\gamma^4}{b_t^4}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)^2\right].
+    \end{align*}
+    Hence, 
+    \begin{align*}
+        \hat{\sigma}_t^2 \overset{\eqref{eq:djkfbjdbfjdvfjd}}{\leq} \frac{R^2}{5\ln\left(\frac{4(K+1)}{\delta}\right)}\E_{\xi_t}\left[\left|\frac{4\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)\right|\right] \leq \frac{8\gamma^2R^2}{5b_t^2\ln\left(\frac{4(K+1)}{\delta}\right)}\E_{\xi_t}\sqn{\theta_t^u}.
+    \end{align*}
+    Therefore, 
+    % we have bounded martingale sequence $\left\{\frac{4\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)\right\}_{t=0}^{T-1}$ and
+    we can apply Bernstein's inequality (Lemma~\ref{lem: bernstein}) with $c$ defined above and $G = \frac{R^{4}}{100\ln\left(\frac{4(K+1)}{\delta}\right)}$:
+    \begin{align*}
+        \mathbb{P}\left\{\sum\limits_{t=0}^{T-1} \frac{4\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right) > \frac{R^2}{5} \text{ and } \sum\limits_{t=0}^{T-1}\hat{\sigma}_t^2 \leq G \right\} &\leq 2\exp\left(-\frac{R^4}{25\left(2G + \frac{2cR^2}{15}\right)}\right) \\&= \frac{\delta}{2(K+1)}.
+    \end{align*}
+    Consequently,
+    \begin{align*}
+        \mathbb{P}\left\{\text{either }\sum\limits_{t=0}^{T-1} \frac{4\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right) \leq \frac{R^2}{5} \text{ or } \sum\limits_{t=0}^{T-1}\hat{\sigma}_t^2 > G \right\} \geq 1 - \frac{\delta}{2(K+1)}.
+    \end{align*}
+    Moreover, event $E_{T-1}$ implies that
+    \begin{align*}
+        \sum\limits_{t=0}^{T-1} \hat{\sigma}_t^2 &\leq \frac{8\gamma^2R^2T}{5b_t^2\ln\left(\frac{4(K+1)}{\delta}\right)}\E_{\xi_t}\sqn{\theta_t^u} \overset{\eqref{eq:djbjdbvjdbhvjbdfhjvbdhfbdf}}{\leq} \frac{18 \cdot 8\gamma^2\lambda^{2 - \alpha}\sigma^{\alpha}R^2T}{5b_0^2\ln\left(\frac{4(K+1)}{\delta}\right)} \\
+        & \overset{\eqref{eq:lambda-choice}}{=} \frac{18 \cdot 8 \cdot 40^\alpha b_0^{2-\alpha}\gamma^\alpha \sigma^{\alpha}R^{4 - \alpha}T}{5\cdot 40^2b_0^2\ln^{3 - \alpha}\left(\frac{4(K+1)}{\delta}\right)} \overset{\eqref{eq:gamma-choice}}{\leq} \frac{18 \cdot 8 R^{4}T}{9 \cdot 5\cdot 40^2(K+1)\ln^{2}\left(\frac{4(K+1)}{\delta}\right)} \\&\leq \frac{R^{4}}{100\ln\left(\frac{4(K+1)}{\delta}\right)}.
+    \end{align*}
+
+    
+    \textbf{Bound for \circledFour.} For the fourth part, we get that $E_{T-1}$ implies
+    \begin{align*}
+         \sum\limits_{t=0}^{T-1} \frac{4\gamma^2}{b_t^2}\E_{\xi_t}\sqn{\theta_t^u} & \overset{\eqref{eq:djbjdbvjdbhvjbdfhjvbdhfbdf}}{\leq} \frac{72\gamma^2\lambda^{2 - \alpha}\sigma^\alpha T}{b_t^2} \leq \frac{72\gamma^2\lambda^{2 - \alpha}\sigma^\alpha T}{b_0^2} \overset{\eqref{eq:gamma-choice}}{=} \frac{72\gamma^\alpha 40^\alpha b_0^{2 - \alpha}R^{2 - \alpha}\sigma^\alpha T}{40^2b_0^2 \ln^{2 - \alpha}\left(\frac{4(K+1)}{\delta}\right)} \\
+         &\overset{\eqref{eq:gamma-choice}}{\leq} \frac{72 R^{2}T}{9 \cdot 40^2(K+1) \ln\left(\frac{4(K+1)}{\delta}\right)} \leq  \frac{R^{2}}{200} \leq \frac{R^2}{5}.
+    \end{align*}
+
+    
+    \textbf{Bound for \circledFive.} For the last term, $E_{T-1}$ implies
+    \begin{align*}
+         \sum\limits_{t=0}^{T-1} \frac{4\gamma^2}{b_t^2}\sqn{\theta_t^b} &\overset{\eqref{eq:ndjkvjfbdvjfhbvdbfvdf}}{\leq} \frac{4 \cdot 4^\alpha \sigma^{2\alpha}\gamma^2 T}{b_t^2 \lambda^{2(\alpha-1)}} \leq \frac{4 \cdot 4^\alpha \sigma^{2\alpha}\gamma^2 T}{b_0^2 \lambda^{2(\alpha-1)}} \overset{\eqref{eq:lambda-choice}}{=} \frac{4 \cdot 4^\alpha 40^{2\alpha} \sigma^{2\alpha}\gamma^{2\alpha} T \ln^{2(\alpha-1)}\left(\frac{4(K+1)}{\delta}\right)}{40^2b_0^2 b_0^{2(\alpha-1)} R^{2(\alpha-1)}} \\ 
+         & \overset{\eqref{eq:gamma-choice}}{\leq}
+         \frac{4 \cdot 4^\alpha R^{2} T}{360^2 (K+1)^2} \leq \frac{4R^2}{45^2} \leq \frac{R^2}{5}. 
+    \end{align*}
+    Thus, taking into account the bounds above, the probability event $E_{T-1} \cap E_1 \cap E_2$ implies that
+    \begin{align*}
+        R_T^2 \leq R^2 + 5\frac{R^2}{5} = 2R^2,
+    \end{align*}
+    where
+    \begin{align*}
+        E_1 &= \left\{\text{either } - \sum\limits_{t=0}^{T-1} \frac{2\gamma}{b_t}\ev{x_t - x^*, \theta_t^u} \leq \frac{R^2}{5} \text{ or } \sum\limits_{t=0}^{T-1}{\sigma}_t^2 >  \frac{R^{4}}{100 \ln\left(\frac{4(K+1)}{\delta}\right)}\right\},\\
+        E_2 &= \left\{\text{either }\sum\limits_{t=0}^{T-1} \frac{4\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right) \leq \frac{R^2}{5} \text{ or } \sum\limits_{t=0}^{T-1}\hat{\sigma}_t^2 > \frac{R^{4}}{100\ln\left(\frac{4(K+1)}{\delta}\right)}\right\}.
+    \end{align*}
+    Therefore, 
+    \begin{align*}
+        \mathbb{P}\left\{E_T\right\} &\geq \mathbb{P}\left\{E_{T-1} \cap E_1 \cap E_2\right\}  = 1 - \mathbb{P}\left\{\overline{E}_{T-1} \cup \overline{E}_1 \cup \overline{E}_2\right\} \\&\geq 1 - \mathbb{P}\left\{\overline{E}_{T-1}\right\} - \mathbb{P}\left\{\overline{E}_1\right\} - \mathbb{P}\left\{\overline{E}_2\right\} \geq 1 - \frac{T\delta}{K+1}.
+    \end{align*}
+    Hence, for all $k = 0, \ldots, K+1$ we get $\mathbb{P}\{E_k\} \geq 1 - \frac{k\delta}{K+1}$. As \revision{the} result, event $E_{K+1}$ implies that 
+    \begin{align}
+    \label{eq:total}
+         \sum\limits_{k=0}^{K} \frac{\gamma}{b_k}\left(f(x_k) - f_*\right) \leq 2R^2
+    \end{align}
+    with probability at least $1 - \delta$.
+    
+    \revision{Next, from \eqref{eq:total} we get that with probability at least $1-\delta$}
+    \begin{align}
+        \sum\limits_{k=0}^{K}\left(f(x_k) - f_*\right) \leq  \frac{2R^2b_{K}}{\gamma}. \label{eq:dnjkfvjkdbfjhvbsjdcbsjd}
+    \end{align}
+    Moreover, $b_{K}$ can be bounded in the following way using the iteration of \cref{alg:ada-norm-clip-delay}, $g_k = \nabla f(x_k) + \theta_k$ and \cref{asm:smoothness}:
+    \begin{align*}
+        b_{K}^2 \leq b_{K+1}^2 \leq b_0^2 + \sum\limits_{t=0}^{K}\eta\left(4L\left(f(x_k) - f_*\right) + 2\sqn{\theta_k}\right).
+    \end{align*}
+    Therefore, due to the fact that the event $E_{K+1}$ implies \revision{(see the bounds for $\circledThree$, $\circledFour$ and $\circledFive$)}
+    \begin{align*}
+         \sum\limits_{k=0}^{K} \frac{2\gamma^2}{b_k^2}\sqn{\theta_k} \leq \sum\limits_{k=0}^{K} \frac{2\gamma^2}{b_0^2}\sqn{\theta_k} \leq \frac{3R^2}{5},
+    \end{align*}
+    \revision{we get}
+    \begin{align*}
+        b_{K}^2 \leq b_0^2 + \sum\limits_{k=0}^{K}\eta\left(4L\left(f(x_k) - f_*\right)\right) + \frac{3\eta R^2b_0^2}{5\gamma^2}.
+    \end{align*}
+    \revision{Combining the above inequality with \eqref{eq:dnjkfvjkdbfjhvbsjdcbsjd}, we get that $E_{K+1}$ implies}
+    \begin{align*}
+        b_{K}^2 \leq b_0^2 + \frac{8L\eta R^2b_{K}}{\gamma} + \frac{3\eta R^2b_0^2}{5\gamma^2}.
+    \end{align*}
+    Solving the quadratic inequality\revision{, we deduce that}
+    \begin{align*}
+        b_{K} &\leq \frac{\frac{8L\eta R^2}{\gamma} + \sqrt{\frac{64L^2\eta^2R^4}{\gamma^2} + 4\left(b_0^2 + \frac{3\eta R^2b_0^2}{5\gamma^2}\right)}}{2} = \frac{4L\eta R^2}{\gamma} + \sqrt{\frac{16L^2\eta^2 R^4}{\gamma^2} + \left(b_0^2 + \frac{3\eta R^2b_0^2}{5\gamma^2}\right)} \\ &=
+        \frac{1}{\gamma}\left(4L\eta R^2 + \sqrt{16L^2\eta^2R^4 + b_0^2\left(\gamma^2 + \frac{3\eta R^2}{5}\right)}\right)
+    \end{align*}
+    \revision{follows from $E_{K+1}$.} \revision{Plugging the above inequality into \eqref{eq:dnjkfvjkdbfjhvbsjdcbsjd}, we obtain}
+    \begin{align*}
+        \frac{1}{K+1}\sum\limits_{k=0}^{K}\left(f(x_k) - f_*\right) &\leq \frac{2R^2}{(K+1)\gamma^2}\left(4L\eta R^2 + \sqrt{16L^2 \eta^2R^4 + b_0^2\left(\gamma^2 + \frac{3\eta R^2}{5}\right)}\right) \\& \leq \frac{6R^2}{(K+1)\gamma^2}\max\left\{8L\eta R^2, b_0\gamma, b_0R\sqrt{\eta}\right\}
+    \end{align*}
+    \revision{with probability at least $1 - \delta$.} Choosing $\eta = \frac{\gamma^2}{R^2}$ and \revision{$\gamma$ equal to the minimum from} \eqref{eq:gamma-choice}, we get 
+    \begin{align*}
+    \frac{1}{K+1}\sum\limits_{k=0}^{K}\left(f(x_k) - f_*\right) = \cO\left(\max\left\{\frac{LR^2 \ln\frac{K+1}{\delta}}{K+1}, \frac{\sigma R \ln^{\frac{\alpha-1}{\alpha}}\frac{K+1}{\delta}}{(K+1)^\frac{\alpha-1}{\alpha}}\right\}\right)
+    \end{align*}
+    with probability at least $1 - \delta$. To get the final result, it remains to apply Jensen's inequality.
+\end{proof}
+
+
+
+\subsection{Non-Convex Case}
+
+\begin{lemma}[Descent lemma]
+\label{lem:descent-nonconvex}
+Let \cref{asm:smoothness} \revision{hold} on $Q = \Big\{x \in \R^d \ | \ \exists y \in \R^d: \ f(y) \leq f_* + 2\Delta \ and \norm{x - y} \leq \frac{\sqrt{\Delta}}{20\sqrt{L}}\Big\}$, where $f(x_0) - f_* = \Delta_0 \leq \Delta$. Then, after $T$ iterations of \cref{alg:ada-norm-clip-delay} with $b_0 \geq \gamma L$, if $x_t \in Q \ \forall t = \overline{0, T}$, we have
+    \begin{align*}
+        \sum\limits_{t=0}^{T-1}\frac{\gamma}{2b_t}\sqn{\nabla f(x_t)} &\leq \Delta_0 - \Delta_T - \sum\limits_{t=0}^{T-1}\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t^u} + \sum\limits_{t=0}^{T-1} \frac{\gamma}{b_t}\sqn{\theta_t^b}\\&+ \sum\limits_{t=0}^{T-1}\frac{L\gamma^2}{b_t^2}\sqn{\theta_t^u}.
+    \end{align*}
+\end{lemma}
+\begin{proof}
+    We start with the $L$-smoothness of $f$:
+    \begin{align*}
+        f(x_{t+1}) - f(x_t) &\leq \ev{\nabla f(x_t), x_{t+1} - x_t} + \frac{L}{2}\sqn{x_{t+1} - x_t} = -\frac{\gamma}{b_t}\ev{\nabla f(x_t), g_t} + \frac{L\gamma^2}{2b_t^2}\sqn{g_t} \\&= -\frac{\gamma}{b_t}\ev{\nabla f(x_t), \theta_t} - \frac{\gamma}{b_t}\sqn{\nabla f(x_t)} \\&+ \frac{L\gamma^2}{2b_t^2}\left(\sqn{\nabla f(x_t)} + \sqn{\theta_t} + 2\ev{\nabla f(x_t), \theta_t}\right) \\
+        &= -\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{2b_t^2}\right)\sqn{\nabla f(x_t)} - \left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t} + \frac{L\gamma^2}{2b_t^2}\sqn{\theta_t} \\
+        &= -\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{2b_t^2}\right)\sqn{\nabla f(x_t)} - \left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t^u + \theta_t^b} + \frac{L\gamma^2}{2b_t^2}\sqn{\theta_t}.
+    \end{align*}
+    Choosing $\gamma \leq \frac{b_0}{L}$ we have $\frac{L\gamma^2}{b_t^2} - \frac{\gamma}{b_t} \leq 0$ since $b_t \geq b_0$. Hence, one can obtain
+    \begin{align*}
+        f(x_{t+1}) - f(x_t) &\leq -\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{2b_t^2}\right)\sqn{\nabla f(x_t)} - \left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t^u + \theta_t^b} + \frac{L\gamma^2}{2b_t^2}\sqn{\theta_t} \\
+        &\leq -\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{2b_t^2}\right)\sqn{\nabla f(x_t)} - \left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t^u} + \frac{L\gamma^2}{2b_t^2}\sqn{\theta_t} \\&+ \left(\frac{\gamma}{2b_t} - \frac{L\gamma^2}{2b_t^2}\right)\sqn{\nabla f(x_t)} + \left(\frac{\gamma}{2b_t} - \frac{L\gamma^2}{2b_t^2}\right)\sqn{\theta_t^b} \\
+        &\leq -\frac{\gamma}{2b_t}\sqn{\nabla f(x_t)} - \left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t^u} + \frac{L\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} + \sqn{\theta_t^b}\right) \\
+        &+ \left(\frac{\gamma}{2b_t} - \frac{L\gamma^2}{2b_t^2}\right)\sqn{\theta_t^b}.
+    \end{align*}
+Rearranging the terms and using the choice of $\gamma$, we have
+    \begin{align*}
+        f(x_{t+1}) - f(x_t) &\leq -\frac{\gamma}{2b_t}\sqn{\nabla f(x_t)} - \left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t^u} + \frac{L\gamma^2}{b_t^2}\sqn{\theta_t^u} +\frac{\gamma}{b_t}\sqn{\theta_t^b}.
+    \end{align*}
+Rearranging, summing over $t$ and using $\Delta_t = f(x_t) - f_*$, we \revision{get} the final result.
+\end{proof}
+\begin{theorem}
+\label{thm:nonconvex-case-conv}
+Let \revision{Assumptions~\ref{asm:heavy-tailed} and \ref{asm:smoothness}} hold on $Q = \Big\{x \in \R^d \ | \ \exists y \in \R^d: \ f(y) \leq f_* + 2\Delta \ and \ \norm{x - y} \leq \frac{\sqrt{\Delta}}{20\sqrt{L}}\Big\}$ with $f(x_0) - f_* = \Delta_0 \leq \Delta$, Then, after $K+1$ iterations of \cref{alg:ada-norm-clip-delay} with
+    \begin{align}
+    \label{eq:gamma-choice-2}
+        \gamma \leq \min\Bigg\{&\frac{b_0}{80L\ln\frac{4(K+1)}{\delta}}, \frac{35^{\frac{1}{\alpha}}b_0\sqrt{\Delta}}{432^{\frac{1}{\alpha}}\cdot 20\sqrt{L}\sigma (K+1)^{\frac{\alpha}{3\alpha - 2}}\ln^{\frac{\alpha - 1}{\alpha}}\frac{4(K+1)}{\delta} },
+        \nonumber\\
+        &\revision{\frac{b_0 \Delta^{\frac{\alpha}{2\alpha-1}}}{4^{\frac{\alpha+1}{2\alpha-1}}\cdot 20^{\frac{2\alpha-2}{2\alpha-1}} \sigma^{\frac{2\alpha}{2\alpha-1}} L^{\frac{\alpha-1}{2\alpha-1}} (K+1)^{\frac{\alpha}{3\alpha-2}} \ln^{\frac{2\alpha-2}{2\alpha-1}}\left(\frac{4(K+1)}{\delta}\right)}}\Bigg\}, \quad \eta = \frac{L\gamma^2}{\Delta},
+        % &\frac{b_0\sqrt{L\Delta}^{\frac{1}{\alpha-1}}\sqrt{\Delta}}{20^{\frac{\alpha}{\alpha - 1}}\sigma^{\frac{\alpha}{\alpha-1}}\sqrt{L}(K+1)^{\frac{\alpha}{3\alpha-2}}\ln^{\frac{\alpha}{\alpha - 1}}\frac{4(K+1)}{\delta}}\Bigg\}, \quad \eta = \frac{L\gamma^2}{\Delta},
+    \end{align}
+    and
+    \begin{align}
+    \label{eq:lambda-choice-2}
+        \lambda = \frac{b_0\sqrt{\Delta} (K+1)^{\frac{1 - \alpha}{3\alpha - 2}}}{20\sqrt{L}\gamma \ln\left(\frac{4(K+1)}{\delta}\right)}
+    \end{align}
+    the bound 
+    \begin{align*}
+         \sum\limits_{k=0}^{K}\frac{\gamma}{2b_k}\sqn{\nabla f(x_k)} \leq 2\Delta
+    \end{align*}
+    holds with probability at least $1 - \delta$. In particular, when $\gamma$ equals the minimum from \eqref{eq:gamma-choice-2}, the iterates produced by Algorithm~\ref{alg:ada-norm-clip-delay} satisfy
+    \begin{align*}
+        \frac{1}{K+1}&\sum\limits_{k=0}^{K}\sqn{\nabla f(x_k)} \\
+        &= \cO\left(\max\left\{\frac{L\Delta \ln\frac{K+1}{\delta}}{K+1}, \frac{\sqrt{L\Delta}\sigma \ln^{\frac{\alpha-1}{\alpha}}\frac{K+1}{\delta}}{(K+1)^\frac{2\alpha-2}{3\alpha-2}}, \revision{\frac{\sigma^{\frac{2\alpha}{2\alpha-1}}(L\Delta)^\frac{\alpha-1}{2\alpha - 1} \ln^{\frac{2\alpha-2}{2\alpha-1}}\frac{K+1}{\delta}}{(K+1)^\frac{2\alpha-2}{3\alpha-2}}}\right\}\right)
+    \end{align*}
+    with probability at least $1 - \delta$.
+\end{theorem}
+\begin{proof}
+    Our proof is induction-based (similarly to the one for \algname{Clip-SGD} by \citet{sadiev2023high}). We introduce probability event $E_k$ \revision{as follows}: inequalities
+    \begin{align*}
+       - \sum\limits_{t=0}^{T-1}\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t^u} + \sum\limits_{t=0}^{T-1} \frac{\gamma}{b_t}\sqn{\theta_t^b} + \sum\limits_{t=0}^{T-1}\frac{L\gamma^2}{b_t^2}\sqn{\theta_t^u} &\leq \Delta,\\
+        \Delta_t &\leq 2\Delta.
+    \end{align*}
+    hold simultaneously $\forall t = 0, 1, \ldots, k$. We want to show that $\mathbb{P}\{E_k\} \geq 1 - \frac{k\delta}{K+1} \ \forall k= 0, 1, \ldots, K+1$. The case when $k=0$ is obvious, as in \cref{thm:convex-case-conv}. Now let us make an induction step: let \revision{the stetment} hold for some $k = T-1 \leq K$: $\mathbb{P}\{E_{T-1}\} \geq 1 - \frac{(T-1)\delta}{K+1}$. \revision{It remains to prove that $\mathbb{P}\{E_{T}\} \geq 1 - \frac{T\delta}{K+1}$.} The event $E_{T-1}$ implies that $x_t \in \{y \in \mathbb{R}^d: f(y) \leq f_* + 2\Delta\}$  $\forall t = 0, \ldots, T-1$ \revision{and} 
+    \begin{align*}
+        \norm{x_T - x_{T-1}} = \frac{\gamma}{b_t}\norm{g_{T-1}} \leq \frac{\gamma \lambda}{b_0} \leq \frac{\sqrt{\Delta}(K+1)^{\frac{1-\alpha}{3\alpha - 2}}}{20\sqrt{L} \ln\frac{4(K+1)}{\delta}} \leq \frac{\sqrt{\Delta}}{20\sqrt{L}}. 
+    \end{align*}
+    Hence, event $E_{T-1}$ implies $\{x_t\}_{t=0}^T \subseteq Q$ and we can apply \cref{lem:descent-nonconvex}:
+    \begin{align*}
+        \sum\limits_{l=0}^{t-1}\frac{\gamma}{2b_l}\sqn{\nabla f(x_l)} \leq \Delta_0 - \Delta_t - \sum\limits_{l=0}^{t-1}\left(\frac{\gamma}{b_l} - \frac{L\gamma^2}{b_l^2}\right)\ev{\nabla f(x_l), \theta_l^u} + \sum\limits_{l=0}^{t-1} \frac{\gamma}{b_l}\sqn{\theta_l^b} + \sum\limits_{l=0}^{t-1}\frac{L\gamma^2}{b_l^2}\sqn{\theta_l^u}
+    \end{align*}
+    $\forall t=1, \ldots, T$ and $\forall t=1, \ldots T-1$ it implies that
+    \begin{align*}
+       \sum\limits_{l=0}^{t-1}\frac{\gamma}{2b_l}\sqn{\nabla f(x_l)} &\leq \Delta_0 - \Delta_t - \sum\limits_{l=0}^{t-1}\left(\frac{\gamma}{b_l} - \frac{L\gamma^2}{b_l^2}\right)\ev{\nabla f(x_l), \theta_l^u} + \sum\limits_{l=0}^{t-1} \frac{\gamma}{b_l}\sqn{\theta_l^b} + \sum\limits_{l=0}^{t-1}\frac{L\gamma^2}{b_l^2}\sqn{\theta_l^u} \\&\leq 2\Delta.
+    \end{align*}
+    Taking into account that $\sum\limits_{l=0}^{t-1}\frac{\gamma}{2b_l}\sqn{\nabla f(x_l)} \geq 0$ for all $t$, we get that $E_{T-1}$ implies
+    \begin{align*}
+        \Delta_T &\leq \Delta_0 - \sum\limits_{t=0}^{T-1}\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t^u} + \sum\limits_{t=0}^{T-1} \frac{\gamma}{b_t}\sqn{\theta_t^b} + \sum\limits_{t=0}^{T-1}\frac{L\gamma^2}{b_t^2}\sqn{\theta_t^u} \nonumber \\
+        &= \Delta_0 - \sum\limits_{t=0}^{T-1}\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t^u} + \sum\limits_{t=0}^{T-1} \frac{\gamma}{b_t}\sqn{\theta_t^b} \notag\\ 
+        &+ \sum\limits_{t=0}^{T-1}\frac{L\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right) + \sum\limits_{t=0}^{T-1}\frac{L\gamma^2}{b_t^2} \E_{\xi_t}\sqn{\theta_t^u}.
+    \end{align*}
+    Next, for vectors
+    \begin{align*}
+        \eta_t = \begin{cases}
+            \nabla f(x_t), \qquad &\norm{\nabla f(x_t)} \leq 2\sqrt{L\Delta}\\
+            0, \qquad &\text{otherwise}
+        \end{cases}
+    \end{align*}
+    for all $t = 0, 1, \ldots, T-1$, we have that that with probability $1$
+    \begin{align}
+        \norm{\eta_t} \leq 2\sqrt{L\Delta}. \label{eq:eta-bound-2}
+    \end{align}
+    What is more, for all $t = 0, \ldots T-1$ $E_{T-1}$ implies
+    \begin{align*}
+        \norm{\nabla f(x_t)} \leq \sqrt{2L\Delta_t} \leq 2\sqrt{L\Delta} \overset{\eqref{eq:lambda-choice-2}}{\leq} \frac{\lambda}{2}
+    \end{align*}
+    Thus, $E_{T-1}$ implies $\eta_t = \nabla f(x_t)$ for $t = 0, 1, \ldots, T-1$ \revision{and
+    \begin{align}
+    \label{eq:for-nonconvex}
+        \Delta_T &\leq \Delta_0 \underbrace{- \sum\limits_{t=0}^{T-1}\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\eta_t, \theta_t^u}}_{\circledOne} + \underbrace{\sum\limits_{t=0}^{T-1} \frac{\gamma}{b_t}\sqn{\theta_t^b}}_{\circledTwo} \notag\\ 
+        &+ \underbrace{\sum\limits_{t=0}^{T-1}\frac{L\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)}_{\circledThree} + \underbrace{\sum\limits_{t=0}^{T-1}\frac{L\gamma^2}{b_t^2} \E_{\xi_t}\sqn{\theta_t^u}}_{\circledFour}.
+    \end{align}}
+
+    
+    It remains to bound each term in \eqref{eq:for-nonconvex} separately with high probability. Before we move on, we also note that event $E_{T-1}$ implies $\norm{\nabla f(x_t)} \leq \frac{\lambda}{2}$. Therefore, one can apply \cref{lem: clip-effect} and get
+    \begin{align}
+        \norm{\theta_t^u} &\leq 2\lambda, \label{eq:ndjkjdbvjfdbvjdf_2}\\
+        \norm{\theta_t^b} &\leq \frac{2^\alpha \sigma^\alpha}{\lambda^{\alpha - 1}}, \label{eq:ndjkvjfbdvjfhbvdbfvdf_2}\\
+        \E_{\xi_t}\sqn{\theta_t^u} &\leq 18\lambda^{2 - \alpha}\sigma^\alpha. \label{eq:djbjdbvjdbhvjbdfhjvbdhfbdf_2}
+    \end{align}
+    
+    \textbf{Bound for \circledOne.} \revision{The} definition of $\theta_t^u$ \revision{implies}
+    \begin{align*}
+        \E_{\xi_t}\left[-\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\eta_t, \theta_t^u}\right] = 0.
+    \end{align*}
+    What is more, 
+    \begin{align*}
+        \left|\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\eta_t, \theta_t^u}\right| \leq \frac{\gamma}{b_t}\norm{\eta_t}\norm{\theta_t^u} \overset{\eqref{eq:eta-bound-2},\eqref{eq:ndjkjdbvjfdbvjdf_2}}{\leq} \frac{4\gamma \lambda \sqrt{L\Delta}}{b_0} = \frac{\Delta (K+1)^{\frac{1 - \alpha}{3\alpha - 2}}}{5 \ln\left(\frac{4(K+1)}{\delta}\right)} \leq \frac{\Delta }{4 \ln\left(\frac{4(K+1)}{\delta}\right)} = c.
+    \end{align*}
+    Let us define $\sigma^2_t = \E_{\xi_t}\left[\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)^2\ev{\eta_t, \theta_t^u}^2\right]$. Hence,
+    \begin{align}
+        \sigma_t^2 \overset{\eqref{eq:eta-bound-2}}{\leq} \left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)^2 \cdot 4L\Delta \E_{\xi_t}\sqn{\theta_t^u} \leq  \frac{4\gamma^2 L\Delta}{b_0^2}\E_{\xi_t}\sqn{\theta_t^u}.\label{eq:hdjbjbdcjbdcjdcbjd}
+    \end{align}
+    Therefore, we can apply Bernstein's inequality (Lemma~\ref{lem: bernstein}) with $G = \frac{7\Delta^2}{480\ln\frac{4(K+1)}{\delta}}$:
+    \begin{align*}
+        \mathbb{P}\left\{\left|- \sum\limits_{t=0}^{T-1}\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t^u}\right| > \frac{\Delta}{4} \text{ and } \sum\limits_{t=0}^{T-1} \sigma_t^2 \leq G\right\} &\leq 2\exp\left(-\frac{\Delta^2}{16\left(2G + \frac{\Delta c}{6}\right)}\right) \\&= \frac{\delta}{2(K+1)}.
+    \end{align*}
+    Thus, we get
+    \begin{align*}
+        \mathbb{P}\left\{\text{either }\left|- \sum\limits_{t=0}^{T-1}\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t^u}\right| \leq \frac{\Delta}{4} \text{ or } \sum\limits_{t=0}^{T-1} \sigma_t^2 > G\right\} \geq 1 - \frac{\delta}{2(K+1)}.
+    \end{align*}
+    Moreover, event $E_{T-1}$ implies
+    \begin{align*}
+        \sum\limits_{t=0}^{T-1}\sigma_t^2 &\overset{\eqref{eq:hdjbjbdcjbdcjdcbjd}}{\leq} \frac{4\gamma^2 L\Delta T}{b_0^2}\E_{\xi_t}\sqn{\theta_t^u} \overset{\eqref{eq:djbjdbvjdbhvjbdfhjvbdhfbdf_2}}{\leq} \frac{72\gamma^2\lambda^{2-\alpha}\sigma^\alpha L\Delta T}{b_0^2} \\
+        &\overset{\eqref{eq:lambda-choice-2}}{=} \frac{72\gamma^\alpha b_0^{2-\alpha}\sqrt{\Delta}^{2-\alpha}(K+1)^{\frac{\alpha^2 - 3\alpha +2}{3\alpha -2}}\sigma^\alpha L\Delta T}{20^{2-\alpha}\sqrt{L}^{2 - \alpha}b_0^2 \ln^{2-\alpha}\frac{4(K+1)}{\delta}} \overset{\eqref{eq:gamma-choice-2}}{\leq} 
+        \frac{7\Delta^2}{480\ln\frac{4(K+1)}{\delta}}.
+    \end{align*}
+
+
+    \textbf{Bound for \circledTwo.} For the second term, we get that $E_{T-1}$ implies
+    \revision{\begin{align*}
+        \sum\limits_{t=0}^{T-1} \frac{\gamma}{b_t}\sqn{\theta_t^b} &\overset{\eqref{eq:ndjkvjfbdvjfhbvdbfvdf_2}}{\leq} \frac{4^\alpha \sigma^{2\alpha}\gamma T}{\lambda^{2\alpha - 2}b_0}\\
+        &\overset{\eqref{eq:lambda-choice-2}}{\leq} \frac{4^\alpha \sigma^{2\alpha}\gamma (K+1)}{b_0} \cdot \frac{20^{2\alpha-2}L^{\alpha-1} \gamma^{2\alpha-2} (K+1)^{\frac{(\alpha-1)(2\alpha-2)}{3\alpha-2}}\ln^{2\alpha-2}\left(\frac{4(K+1)}{\delta}\right)}{b_0^{2\alpha-2}\Delta^{\alpha-1}}\\
+        &= \frac{4^\alpha \cdot 20^{2\alpha-2}\sigma^{2\alpha} L^{\alpha-1} (K+1)^{\frac{\alpha(2\alpha-1)}{3\alpha-2}}\ln^{2\alpha-2}\left(\frac{4(K+1)}{\delta}\right)}{b_0^{2\alpha-1}\Delta^{\alpha-1}} \cdot \gamma^{2\alpha-1}\\
+        &\overset{\eqref{eq:gamma-choice-2}}{\leq} \frac{\Delta}{4},
+    \end{align*}
+    where in the last step, we apply the third condition on $\gamma$ from \eqref{eq:gamma-choice-2}.}
+    % \begin{align*}
+    %     \sum\limits_{t=0}^{T-1} \frac{\gamma}{b_t}\sqn{\theta_t^b} &\overset{\eqref{eq:ndjkvjfbdvjfhbvdbfvdf_2}}{\leq} \frac{4^\alpha \sigma^{2\alpha}\gamma T}{\lambda^{2\alpha - 2}b_0} = \frac{4^\alpha\gamma \lambda^2T}{b_0}\left(\frac{\sigma}{\lambda}\right)^{2\alpha} \leq \frac{4^\alpha L\gamma^2 \lambda^2T}{b_0^2}\left(\frac{\sigma}{\lambda}\right)^{\alpha} = \frac{4^\alpha L\gamma^2 \lambda^{2-\alpha}\sigma^\alpha T}{b_0^2} \\&\leq \frac{4^\alpha L\gamma^\alpha b_0^{2-\alpha}\sqrt{\Delta}^{2-\alpha}(K+1)^{\frac{\alpha^2-3\alpha + 2}{3\alpha-2}}\sigma^\alpha T}{20^{2-\alpha}\sqrt{L}^{2-\alpha} \ln^{2-\alpha}\frac{4(K+1)}{\delta}b_0^2} \leq \frac{4^\alpha \cdot 35\Delta}{20^{2} \cdot 432\ln\frac{4(K+1)}{\delta}} \leq \frac{\Delta}{4}.
+    % \end{align*}
+
+    
+    \textbf{Bound for \circledThree.} \revision{Similarly to $\circledOne$}, we have unbiased and bounded terms in the sum:
+    \begin{align*}
+        \E_{\xi_t}\left[\frac{L\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)\right] = 0
+    \end{align*}
+    and
+    \begin{align}
+        \left|\frac{L\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)\right| \overset{\eqref{eq:ndjkjdbvjfdbvjdf_2}}{\leq} \frac{8L\lambda^2\gamma^2}{b_0^2} \leq \frac{\Delta(K+1)^{\frac{1 - \alpha}{3\alpha - 2}}}{50 \ln\frac{4(K+1)}{\delta}} \leq \frac{60\Delta}{174 \ln\frac{4(K+1)}{\delta}} = c. \label{eq:jknvkjdnvfkdf}
+    \end{align}
+    \revision{Next, we} define $\hat{\sigma}_t^2 =  \E_{\xi_t}\left[\frac{L^2\gamma^4}{b_t^4}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)^2\right]$. \revision{For the introduced quantities, we have} 
+    \begin{align}
+        \hat{\sigma}_t^2 \overset{\eqref{eq:jknvkjdnvfkdf}}{\leq} c \E_{\xi_t}\left[\frac{L\gamma^2}{b_t^2}\left|\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)\right|\right] \leq \frac{2L\gamma^2c}{b_0^2}\E_{\xi_t}\sqn{\theta_t^u}.\label{eq:jvdknnjvkdfnjkdnvjkdnvj}
+    \end{align}
+    Therefore, we can apply Bernstein's inequality (Lemma~\ref{lem: bernstein}) with $G = \frac{7\Delta^2}{2784\ln\frac{4(K+1)}{\delta}}$:
+    \begin{align*}
+        \mathbb{P}\left\{\left| \sum\limits_{t=0}^{T-1}\frac{L\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)\right| > \frac{\Delta}{4} \text{ and } \sum\limits_{t=0}^{T-1} \hat{\sigma}_t^2 \leq G\right\} &\leq 2\exp\left(-\frac{\Delta^2}{16\left(2G + \frac{\Delta c}{6}\right)}\right) \\&= \frac{\delta}{2(K+1)}.
+    \end{align*}
+    Thus, we get
+    \begin{align*}
+        \mathbb{P}\left\{\text{either }\left|\sum\limits_{t=0}^{T-1}\frac{L\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)\right| \leq \frac{\Delta}{4} \text{ or } \sum\limits_{t=0}^{T-1} \hat{\sigma}_t^2 > G\right\} \geq 1 - \frac{\delta}{2(K+1)}.
+    \end{align*}
+    Moreover, event $E_{T-1}$ implies
+    \begin{align*}
+        \sum\limits_{t=0}^{T-1}\hat{\sigma}_t^2 &\overset{\eqref{eq:jvdknnjvkdfnjkdnvjkdnvj}, \eqref{eq:ndjkjdbvjfdbvjdf_2}}{\leq} \frac{36L\gamma^2c\lambda^{2 - \alpha}\sigma^\alpha}{b_0^2} \overset{\eqref{eq:lambda-choice-2}}{\leq} \frac{36c\gamma^\alpha b_0^{2-\alpha}\sqrt{\Delta}^{2-\alpha}(K+1)^{\frac{\alpha^2 - 3\alpha +2}{3\alpha -2}}\sigma^\alpha LT}{20^{2-\alpha}\sqrt{L}^{2 - \alpha}b_0^2 \ln^{2-\alpha}\frac{4(K+1)}{\delta}} \\
+        &\overset{\eqref{eq:gamma-choice-2}}{\leq} \frac{7\Delta c}{960} \leq \frac{7\Delta^2}{2784\ln\frac{4(K+1)}{\delta}}.
+    \end{align*}
+
+    \textbf{Bound for \circledFour.} For the last term, we have that $E_{T-1}$ implies
+    \begin{align*}
+        \sum\limits_{t=0}^{T-1}\frac{L\gamma^2}{b_t^2} \E_{\xi_t}\sqn{\theta_t^u} &\overset{\eqref{eq:ndjkjdbvjfdbvjdf_2}}{\leq} \frac{18L\gamma^2\lambda^{2 - \alpha}\sigma^\alpha T}{b_0^2} \overset{\eqref{eq:lambda-choice-2}}{\leq} \frac{18\gamma^\alpha b_0^{2-\alpha}\sqrt{\Delta}^{2-\alpha}(K+1)^{\frac{\alpha^2 - 3\alpha +2}{3\alpha -2}}\sigma^\alpha LT}{20^{2-\alpha}\sqrt{L}^{2 - \alpha}b_0^2 \ln^{2-\alpha}\frac{4(K+1)}{\delta}} \\
+        &\overset{\eqref{eq:gamma-choice-2}}{\leq} 
+        \frac{7\Delta}{1920\ln\frac{4(K+1)}{\delta}} \leq \frac{\Delta}{4}.
+    \end{align*}
+    Thus, taking into account the bounds above, the probability event $E_{T-1} \cap E_1 \cap E_2$ implies that
+    \begin{align*}
+       \Delta_T \leq \Delta + 4\frac{\Delta}{4} = 2\Delta,
+    \end{align*}
+    where
+    \begin{align*}
+        E_1 &= \left\{\text{either }\left|- \sum\limits_{t=0}^{T-1}\left(\frac{\gamma}{b_t} - \frac{L\gamma^2}{b_t^2}\right)\ev{\nabla f(x_t), \theta_t^u}\right| \leq \frac{\Delta}{4} \text{ or } \sum\limits_{t=0}^{T-1} \sigma_t^2 > \frac{7\Delta^2}{480\ln\frac{4(K+1)}{\delta}}\right\},\\
+        E_2 &= \left\{\text{either }\left|\sum\limits_{t=0}^{T-1}\frac{L\gamma^2}{b_t^2}\left(\sqn{\theta_t^u} - \E_{\xi_t}\sqn{\theta_t^u}\right)\right| \leq \frac{\Delta}{4} \text{ or } \sum\limits_{t=0}^{T-1} \hat{\sigma}_t^2 > \frac{7\Delta^2}{2784\ln\frac{4(K+1)}{\delta}}\right\}.
+    \end{align*}
+    Therefore, 
+    \begin{align*}
+        \mathbb{P}\left\{E_T\right\} &\geq \mathbb{P}\left\{E_{T-1} \cap E_1 \cap E_2\right\}  = 1 - \mathbb{P}\left\{\overline{E}_{T-1} \cup \overline{E}_1 \cup \overline{E}_2\right\} \\&\geq 1 - \mathbb{P}\left\{\overline{E}_{T-1}\right\} - \mathbb{P}\left\{\overline{E}_1\right\} - \mathbb{P}\left\{\overline{E}_2\right\} \geq 1 - \frac{T\delta}{K+1}.
+    \end{align*}
+    Hence, for all $k = 0, \ldots, K+1$ we get $\mathbb{P}(E_k) \geq 1 - \frac{k\delta}{K+1}$. As \revision{revision} result, event $E_{K+1}$ implies that 
+    \begin{align}
+    \label{eq:total-nonconvex}
+         \sum\limits_{k=0}^{K}\frac{\gamma}{2b_k}\sqn{\nabla f(x_k)} \leq 2\Delta
+    \end{align}
+    with probability at least $1 - \delta$.
+
+    % Consequently, using the same technique as in \cref{thm:convex-case-conv}, we get
+    \revision{Following similar steps to the ones we do in the proof of Theorem~\ref{thm:convex-case-conv} (after formula \eqref{eq:total}), we get that with probability at least $1-\delta$}
+    \begin{align}
+        \sum\limits_{k=0}^{K}\sqn{\nabla f(x_k)} \leq \frac{4\Delta b_{K}}{\gamma} \label{eq:njdkvnjkdfnkd}
+    \end{align}
+    and
+    \begin{align*}
+        b_{K}^2 \leq b_{K+1}^2 \leq b_0^2 + \eta \sum\limits_{k=0}^{K}\left(3\sqn{\nabla f(x_k)} + 3\sqn{\theta_k^u} + 3\sqn{\theta_k^b}\right).
+    \end{align*}
+    \revision{Next, we use the derived bounds for sums $\circledTwo$ and $\circledFour$ and plug the bound \eqref{eq:njdkvnjkdfnkd} into the above inequality. After that, we solve the obtained quadratic inequality w.r.t.\ $b_K$ and get that inequality}
+    % Bounding terms according to \textbf{Bounds} $\circledTwo$ and $\circledFour$, substituting the sum of gradient norms and solving the quadratic inequality relative to $b_{K}$, we have
+    \begin{align*}
+        b_{K} \leq \frac{12\eta\Delta}{\gamma} + \sqrt{\frac{144\eta^2\Delta^2}{\gamma^2} + b_0^2 + \frac{3\eta\Delta b_0}{4\gamma} + \frac{3\eta\Delta b_0^2}{2L\gamma^2}},
+    \end{align*}
+    \revision{holds with probability at least $1-\delta$. Using this bound in \eqref{eq:njdkvnjkdfnkd}, we obtain that with probability at least $1-\delta$}
+    \begin{align*}
+        \frac{1}{K+1}\sum\limits_{k=0}^{K}\sqn{\nabla f(x_k)} &\leq \frac{2\Delta}{(K+1)\gamma^2}\left(12\eta\Delta + \sqrt{144\eta^2\Delta^2 + b_0^2\gamma^2 + \frac{3\eta\gamma\Delta b_0}{4} + \frac{3\eta\Delta b_0^2}{2L}}\right)
+        \\
+        &\leq \frac{8\Delta}{(K+1)\gamma^2}\max\left\{24\eta\Delta, b_0\gamma, \sqrt{\eta\gamma\Delta b_0}, 2\sqrt{\frac{\eta\Delta b_0^2}{L}}\right\}\\
+        &\revision{= \frac{8\Delta}{(K+1)\gamma^2}\max\left\{24\eta\Delta, b_0\gamma, 2\sqrt{\frac{\eta\Delta b_0^2}{L}}\right\}},
+    \end{align*}
+    \revision{where in the last step we use $\sqrt{\eta\gamma\Delta b_0} \leq \frac{\eta\Delta + b_0 \gamma}{2} \leq \max\{\eta\Delta, b_0\gamma\}$.} \revision{Finally, c}hoosing $\eta = \frac{L\gamma^2}{\Delta}$ and \revision{$\gamma$ equal to the minimum from} \eqref{eq:gamma-choice-2}, we obtain
+\begin{align*}
+        \frac{1}{K+1}&\sum\limits_{k=0}^{K}\sqn{\nabla f(x_k)}~\revision{= \max\left\{\frac{192 L\Delta }{(K+1)}, \frac{16 \Delta b_0}{(K+1)\gamma}\right\}} \\
+        &= \cO\left(\max\left\{\frac{L\Delta \ln\frac{K+1}{\delta}}{K+1}, \frac{\sqrt{L\Delta}\sigma \ln^{\frac{\alpha-1}{\alpha}}\frac{K+1}{\delta}}{(K+1)^\frac{2\alpha-2}{3\alpha-2}}, \revision{\frac{\sigma^{\frac{2\alpha}{2\alpha-1}}(L\Delta)^\frac{\alpha-1}{2\alpha - 1} \ln^{\frac{2\alpha-2}{2\alpha-1}}\frac{K+1}{\delta}}{(K+1)^\frac{2\alpha-2}{3\alpha-2}}}\right\}\right)
+    \end{align*}
+with probability at least $1 - \delta$.
+\end{proof}
+
+
+\newpage
+
+\section{Numerical Experiments: Additional Details and Results}\label{appendix:extra_numerical_results}
+
+\subsection{Quadratic Problem}\label{appendix:quadratic}
+
+% We evaluate the effectiveness of the clipped methods by comparing it with the non-clipped ones. For each of these two types we consider \algname{AdaGrad} with delay, eta and with the both of them.  
+% \paragraph{Problem.} We carry out numerical experiments for the quadratic problem:
+% \begin{align*}
+% f(x) = \frac{\|x\|^2}{2}
+% \end{align*}
+% with the noise probability density function
+% \begin{align*}
+% p(t) = \frac34 \frac{1}{(1 + |t|)^{2.5}},
+% \end{align*}
+% added to the gradient $g$ of $f$. We study the convergence of algorithms in terms of the squared norm of difference between the current iteration value $x$ and the optimal $x^\star = 0$: $\|x - x^\star\|^2$.
+% \paragraph{Setup.} We chose an initial value for the $x$ as 2, select stepsizes as $1 / 2^k$ for $k = 0, 1, ..., 7$, $b_0 = 3$ and  clipping level $\lambda = 1/2$. For the Reweighted \algname{AdaGrad} with and without delay, we chose $\eta = \gamma^2$ as the default value. 
+
+
+% \cref{fig:vs_clip} demonstrates a superiority of \algname{Clip-AdaGrad}, \algname{Clip-AdaGradD}, \algname{Clip-RAdaGrad}, \algname{Clip-RAdaGradD} in comparioson with the non-clipped versions. All algorithms include noise, sampled  from $p(t)$ distribution.
+
+% \cref{fig:16stepsize_adagrad_vs_clip} refers to the comparison with the $\gamma = \frac{1}{16}$ stepsize. 
+
+
+% In \cref{fig:etas_vs_clip} we also report the comparison between Reweighted versions of \algname{Clip-AdaGrad} and \algname{AdaGrad}. The hyperparameters above remain the same except for $\gamma$, which is 0.5 in these runs.
+
+In addition to the results provided in the main text, we compare the performance of different versions of \algname{AdaGrad} with $\gamma = \nicefrac{1}{128}$. The results are given in Figure~\ref{fig:128stepsize_adagrad_vs_clip}. One can notice that methods with clipping consistently outperform the methods without clipping for this stepsize as well. Moreover, versions with reweighting converge significantly faster, illustrating the benefits of using reweighting when $\gamma$ is chosen to be small.
+
+Next, for $\gamma = \nicefrac{1}{16}$ and $\gamma = \nicefrac{1}{128}$ we ran version of \algname{AdaGrad} with reweighting for $\eta = 1, 0.1, \gamma, \gamma^2$. The results are presented in Figures~\ref{fig:16_etas_vs_clip} and \ref{fig:128_etas_vs_clip}. In the case of $\gamma = \nicefrac{1}{16}$, our results show that (i) \algname{RAdaGrad} and \algname{RAdaGradD} converge slightly better when $\eta$ is small and (i) the performance \algname{Clip-RAdaGrad} and \algname{Clip-RAdaGradD} is much more robust to the choice of $\eta$. However, in the case of $\gamma = \nicefrac{1}{128}$, our results indicate the advantages of choosing small $\eta$. In particular, the choice of $\eta = \gamma^2$ gives the best results in our experiments with the quadratic problem.
+
+% We also demonstrate an experimental result for \algname{Clip-RAdaGrad}, \algname{Clip-RAdaGradD} in comparison with the non-clipped methods on a smaller stepsizes: $\gamma = \frac{1}{16}$ and $\gamma = \frac{1}{128}$. We took the values of $\eta$ equal to one of the $\gamma^2,\; \gamma,\; 1,\; 0.1$. See \cref{fig:16_etas_vs_clip,fig:128_etas_vs_clip}
+
+%new
+
+% \begin{figure*}[t]
+%         % \subfloat[\algname{AdaGrad} vs \algname{Clip-AdaGrad}]{%
+%         %     \includegraphics[width=.48\linewidth]{Ada_vs_Clip.pdf}%
+%         %     \label{subfig:ada_vs_clip}%
+%         % }\hfill
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/AdaGrad_vs_Clip_final-compressed.pdf}%
+%             \label{subfig:1_adagrad_vs_clip}%
+%         }\hfill
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/AdaGradD_vs_Clip_final-compressed.pdf}%
+%             \label{subfig:1_adagradd_vs_clip}%
+%         }\\
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/RAdaGrad_vs_Clip_final-compressed.pdf}%
+%             \label{subfig:1_radagrad_vs_clip}%
+%         }\hfill
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/RAdaGradD_vs_Clip_final-compressed.pdf}%
+%             \label{subfig:1_radagradd_vs_clip}%
+%         }
+%         \caption{Performance of different versions of \algname{AdaGrad} (with and without clipping/reweighting/delay) with stepsize $\gamma = 1$ on the quadratic problem.}
+%         \label{fig:1stepsize_adagrad_vs_clip}
+% \end{figure*}
+
+
+\begin{figure*}[t]
+        % \subfloat[\algname{AdaGrad} vs \algname{Clip-AdaGrad}]{%
+        %     \includegraphics[width=.48\linewidth]{Ada_vs_Clip.pdf}%
+        %     \label{subfig:ada_vs_clip}%
+        % }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/128_AdaGrad_vs_Clip_compressed.pdf}%
+            \label{subfig:128_adagrad_vs_clip}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/128_AdaGradD_vs_Clip_compressed.pdf}%
+            \label{subfig:128_adagradd_vs_clip}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/128_RAdaGrad_vs_Clip_compressed.pdf}%
+            \label{subfig:128_radagrad_vs_clip}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/128_RAdaGradD_vs_Clip_compressed.pdf}%
+            \label{subfig:128_radagradd_vs_clip}%
+        }
+        \caption{Performance of different versions of \algname{AdaGrad} (with and without clipping/reweighting/delay) with stepsize $\gamma = 1/128$ on the quadratic problem.}
+        \label{fig:128stepsize_adagrad_vs_clip}
+\end{figure*}
+
+
+\begin{figure*}[h!]
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/16_rada_clip_square-compressed.pdf}%
+            \label{subfig:16_rada_clip_square}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/16_radad_clip_square-compressed.pdf}%
+            \label{subfig:16_radad_clip_square}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/16_rada_clip_gamma-compressed.pdf}%
+            \label{subfig:16_rada_clip_gamma}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/16_radad_clip_gamma-compressed.pdf}%
+            \label{subfig:16_radad_clip_gamma}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/16_rada_clip_01-compressed.pdf}%
+            \label{subfig:16_rada_clip_01}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/16_radad_clip_01-compressed.pdf}%
+            \label{subfig:16_radad_clip_01}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/16_rada_clip_1-compressed.pdf}%
+            \label{subfig:16_rada_clip_1}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/16_radad_clip_1-compressed.pdf}%
+            \label{subfig:16_radad_clip_1}%
+        }
+        \caption{Performance of different versions of \algname{RAdaGrad} (with and without clipping/delay; left column corresponds to the methods without delay and right column -- to the methods with delay) with stepsize $\gamma = \nicefrac{1}{16}$ and $\eta = 1, 0.1, \gamma, \gamma^2$.}
+        \label{fig:16_etas_vs_clip}
+\end{figure*}
+
+\begin{figure*}[h!]
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/128_rada_clip_square-compressed.pdf}%
+            \label{subfig:128_rada_clip_square}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/128_radad_clip_square-compressed.pdf}%
+            \label{subfig:128_radad_clip_square}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/128_rada_clip_gamma-compressed.pdf}%
+            \label{subfig:128_rada_clip_gamma}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/128_radad_clip_gamma-compressed.pdf}%
+            \label{subfig:128_radad_clip_gamma}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/128_rada_clip_01-compressed.pdf}%
+            \label{subfig:128_rada_clip_01}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/128_radad_clip_01-compressed.pdf}%
+            \label{subfig:128_radad_clip_01}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/128_radad_clip_1-compressed.pdf}%
+            \label{subfig:128_rada_clip_1}%
+        }\hfill
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/128_radad_clip_1-compressed.pdf}%
+            \label{subfig:128_radad_clip_1}%
+        }
+        \caption{Performance of different versions of \algname{RAdaGrad} (with and without clipping/delay; left column corresponds to the methods without delay and right column -- to the methods with delay) with stepsize $\gamma = \nicefrac{1}{128}$ and $\eta = 1, 0.1, \gamma, \gamma^2$.}
+        \label{fig:128_etas_vs_clip}
+\end{figure*}
+
+% \begin{figure*}[h!]
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/128_rada_clip_square-compressed.pdf}%
+%             \label{subfig:128_rada_clip_square}%
+%         }\hfill
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/128_rada_clip_gamma-compressed.pdf}%
+%             \label{subfig:128_rada_clip_gamma}%
+%         }\\
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/128_rada_clip_1-compressed.pdf}%
+%             \label{subfig:128_rada_clip_1}%
+%         }\hfill
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/128_rada_clip_01-compressed.pdf}%
+%             \label{subfig:128_rada_clip_01}%
+%         }\\
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/128_radad_clip_square-compressed.pdf}%
+%             \label{subfig:128_radad_clip_square}%
+%         }\hfill
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/128_radad_clip_gamma-compressed.pdf}%
+%             \label{subfig:128_radad_clip_gamma}%
+%         }\\
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/128_radad_clip_1-compressed.pdf}%
+%             \label{subfig:128_radad_clip_1}%
+%         }\hfill
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/128_radad_clip_01-compressed.pdf}%
+%             \label{subfig:128_radad_clip_01}%
+%         }
+%         \caption{Comparison between Reweighted clipped and non-clipped algorithms for different $\eta$, with the stepsize $\gamma = 1/128$. All plots are drawn with a 90th and 10th percentile bounds.}
+%         \label{fig:128_etas_vs_clip}
+% \end{figure*}
+%new
+
+% \begin{figure*}[h!]
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/RAda_vs_Clip_gamma.pdf}%
+%             \label{subfig:rada_vs_clip_gamma}%
+%         }\hfill
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/RAdaD_vs_Clip_gamma.pdf}%
+%             \label{subfig:radad_vs_clip_gamma}%
+%         }\\
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/RAda_vs_Clip_square.pdf}%
+%             \label{subfig:rada_vs_clip_square}%
+%         }\hfill
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/RAdaD_vs_Clip_square.pdf}%
+%             \label{subfig:radad_vs_clip_square}%
+%         }\\
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/RAda_vs_Clip_1.pdf}%
+%             \label{subfig:rada_vs_clip_1}%
+%         }\hfill
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/RAdaD_vs_Clip_1.pdf}%
+%             \label{subfig:radad_vs_clip_1}%
+%         }\\
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/RAda_vs_Clip_small.pdf}%
+%             \label{subfig:rada_vs_clip_small}%
+%         }\hfill
+%         \subfloat{%
+%             \includegraphics[width=.5\linewidth]{plots/RAdaD_vs_Clip_small.pdf}%
+%             \label{subfig:radad_vs_clip_small}%
+%         }
+%         \caption{Comparison between Reweighted clipped and non-clipped algorithms for different $\eta$, with the stepsize $\gamma = 0.5$. All plots are drawn with a 90th and 10th percentile bounds.}
+%         \label{fig:etas_vs_clip}
+% \end{figure*}
+
+
+\subsection{ALBERT Base v2 Fine-tuning}\label{appendix:albert}
+
+In our experiments with finetuning of the ALBERT Base v2 model on CoLa and RTE datasets, we consider \algname{Clip-Adam} and \algname{Clip-RAdamD}. The pseudocode for these methods is given in Algortihm~\ref{alg:clip_radamd} (\algname{Clip-Adam} is \algname{Clip-RAdam} with $\eta = 1$). It is also worth mentioning that following a standard practice of usage \algname{Adam}, we apply bias correction to \algname{Adam} and \algname{Clip-Adam}. For the delayed versions -- \algname{RAdamD} and \algname{Clip-RAdamD} -- we do not apply bias correction and tune $b$ instead.
+
+
+\begin{algorithm}
+   \caption{Clipped Reweighted \algname{Adam} with (\algname{Clip-RAdamD}) and without (\algname{Clip-RAdam}) Delay}
+   \label{alg:clip_radamd}
+\begin{algorithmic}[1]
+  \REQUIRE Stepsize $\gamma > 0$, reweighting factor $\eta \geq 0$, level of clipping $\lambda > 0$, starting point $x_0 \in \R^d$, $\beta_1, \beta_2 \in [0,1]$, initial scaling vector $b \in \R^d$, $b > 0$ (coordinate-wise)
+  \STATE $m_{-1} = 0$
+  \STATE $\begin{cases}
+            b_{-1} = b& \text{(without delay)}\\
+            b_{0} = b&\text{(with delay)}
+        \end{cases}$
+   \FOR{$t=0,1, \dotsc$}
+        \STATE $m_t = \beta_1 m_{t-1} +  (1-\beta_1)\clip\left(\nabla f_{\xi_t}(x_t), \lambda\right)$
+        \STATE $\begin{cases}
+            b_t = \sqrt{\beta_2 b_{t-1}^2 + \eta(1-\beta_2)(\clip\left(\nabla f_{\xi_t}(x_t), \lambda\right))^2}& \text{(without delay)}\\
+            b_{t+1} = \sqrt{\beta_2 b_{t}^2 + \eta(1-\beta_2)(\clip\left(\nabla f_{\xi_t}(x_t), \lambda\right))^2}&\text{(with delay)}
+        \end{cases}$
+        \STATE  $x_{t+1} = x_t - \frac{\gamma}{b_{t}}m_t$
+   \ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+\begin{figure*}[t]
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/cola_adam_bs=16_lr=1e-5_coordinate_2e-2.pdf}%
+            \label{subfig:cola_adam_coordinate}%
+        }
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/rte_adam_bs=8_lr=1e-5_coordinate_5e-3.pdf}%
+            \label{subfig:rte_adam_coordinate}%
+        }\\
+        \caption{Validation loss for ALBERT Base v2 fine-tuning task on the CoLa and RTE datasets. \algname{Clip-Adam} is used with coordinate-wise clipping ($\lambda = 0.02$ for CoLa and $\lambda = 0.005$ for RTE).}
+        \label{fig:adam_vs_coordinate_clip_adam}
+\end{figure*}
+
+
+In the main part of our work, we present the results for \algname{Clip-Adam} with layer-wise clipping. In Figure~\ref{fig:adam_vs_coordinate_clip_adam}, we provide the results in the case of coordinate-wise clipping. In general, they are quite similar to the ones given in Figure~\ref{fig:adam_vs_clip_adam}, indicating that both clipping strategies can be useful in practice and improve the high-probability convergence of \algname{Adam}.
+
+
+We also conducted experiments with \algname{Clip-RAdamD} for $\eta = 1, 0.001, \gamma, \gamma^2$ and compared its performance with \algname{Clip-Adam}. For each value of $\eta$ we tuned parameter $\epsilon$ defining $b$ as $b = \epsilon \bm{1}$, where $\bm{1} = (1,1,\ldots, 1)^\top \in \R^d$. Tuning was performed in two phases: during the first phase, we selected the best values of $\epsilon$ from $\{10^{-8}, 10^{-7}, 10^{-6}, 10^{-5}, 10^{-4}, 10^{-3}, 10^{-2}\}$ for each $\eta$, and then for every selected $\hat\epsilon$ we tried $\epsilon \in \{0.2\hat\epsilon, 0.5\hat\epsilon, 0.8\hat\epsilon, 2\hat\epsilon, 5\hat\epsilon, 8\hat\epsilon\}$. In the case of CoLa dataset, the best $\epsilon$ was $2 \cdot 10^{-6}, 5\cdot 10^{-6}, 2 \cdot 10^{-6}, 8 \cdot 10^{-6}$ for $\eta = 1, 0.001, \gamma, \gamma^2$ respectively, and in the case of RTE dataset, the best $\epsilon$ was $2 \cdot 10^{-6}, 5\cdot 10^{-5}, 5 \cdot 10^{-5}, 5 \cdot 10^{-5}$ for $\eta = 1, 0.001, \gamma, \gamma^2$ respectively.
+
+The results are presented in Figure~\ref{fig:clip_Adam_vs_clip_RAdamD}. In general, we see that \algname{Clip-RAdamD} performs worse than \algname{Clip-Adam}, especially on CoLa dataset. However, it is worth mentioning that the clipping level was selected the same for both \algname{Clip-Adam} and \algname{Clip-RAdamD}. Moreover, we have not tried to use bias correction for \algname{Clip-RAdamD} that could also improve its performance. Finally, the tuning of $\epsilon$ parameter over multiple runs can also improve the result of \algname{Clip-RAdamD}.
+
+
+\begin{figure*}[t]
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/cola_clip_RAdamD_1.pdf}%
+            \label{subfig:cola_clip_RAdamD_1}%
+        }
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/rte_clip_RAdamD_1.pdf}%
+            \label{subfig:rte_clip_RAdamD_1}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/cola_clip_RAdamD_0_001.pdf}%
+            \label{subfig:cola_clip_RAdamD_0_001}%
+        }
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/rte_clip_RAdamD_0_001.pdf}%
+            \label{subfig:rte_clip_RAdamD_0_001}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/cola_clip_RAdamD_gamma.pdf}%
+            \label{subfig:cola_clip_RAdamD_gamma}%
+        }
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/rte_clip_RAdamD_gamma.pdf}%
+            \label{subfig:rte_clip_RAdamD_gamma}%
+        }\\
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/cola_clip_RAdamD_gamma_square.pdf}%
+            \label{subfig:cola_clip_RAdamD_gamma_square}%
+        }
+        \subfloat{%
+            \includegraphics[width=.5\linewidth]{plots/rte_clip_RAdamD_square.pdf}%
+            \label{subfig:rte_clip_RAdamD_square}%
+        }\\
+        \caption{Validation loss for ALBERT Base v2 fine-tuning task on the CoLa and RTE datasets.}
+        \label{fig:clip_Adam_vs_clip_RAdamD}
+\end{figure*}
+
+
+% \clearpage
+% \input{neurips_checklist}
+
+
+\end{document}
+\usepackage{amssymb, amsmath, amsthm, latexsym}
+% \usepackage{fullpage}
+\usepackage{url}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+%\usepackage{algpseudocode}
+\usepackage{tabularx}
+\usepackage{paralist}
+\usepackage{mathtools}
+%\usepackage{tcolorbox}
+%\usepackage{xcolor}
+\usepackage{hyperref}%
+\usepackage[capitalise]{cleveref}%
+
+\usepackage{bbm} %for indicators 1
+\usepackage{bm}
+\usepackage{wrapfig}
+\usepackage{makecell}
+\usepackage{multirow}
+\usepackage{booktabs}
+
+\usepackage{nicefrac}       % nice fractions
+
+
+\usepackage[flushleft]{threeparttable} % http://ctan.org/pkg/threeparttable
+
+\usepackage{caption}
+\usepackage{multirow}
+\usepackage{colortbl}
+\definecolor{bgcolor}{rgb}{0.8,1,1}
+\definecolor{bgcolor2}{rgb}{0.8,1,0.8}
+\definecolor{niceblue}{rgb}{0.0,0.19,0.56}
+
+\usepackage{hyperref}
+\hypersetup{colorlinks,linkcolor={blue},citecolor={niceblue},urlcolor={blue}}
+
+% \usepackage{natbib}
+% \bibliographystyle{abbrvnat}
+% \usepackage{sidecap}
+% \renewcommand{\bibname}{References}
+% \renewcommand{\bibsection}{\subsubsection*{\bibname}}
+%\bibliographystyle{plain}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{definition}{Definition}
+\newtheorem{assumption}{Assumption}
+\newtheorem{example}{Example}%
+\newtheorem{remark}{Remark}%
+\newtheorem{lemma}{Lemma}%
+
+\newcommand*{\R}{{\mathbb R}}
+\newcommand*{\E}{{\mathbb E}}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator*{\Argmin}{Argmin}
+\DeclareMathOperator*{\Argmax}{Argmax}
+\newcommand*{\Z}{{\mathcal Z}}
+\newcommand*{\PP}{{\mathbb P}}
+
+
+\renewcommand{\|}{\parallel}
+
+\newcommand\ec[2][]{\ensuremath{\mathbb{E}_{#1} \left[#2\right]}}
+\newcommand\ecn[2][]{\ec[#1]{\norm{#2}^2}}
+\newcommand\pr[1]{\ensuremath{\mathrm{Prob}\left(#1\right)}}
+% \DeclarePairedDelimiter\ev{\langle}{\rangle}
+\newcommand\ev[1]{\left \langle #1 \right \rangle}
+% \DeclarePairedDelimiter\br{(}{)}
+\newcommand\br[1]{\left ( #1 \right )}
+\newcommand\pbr[1]{\left \{ #1 \right \} }
+% \DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+\newcommand\floor[1]{\left \lfloor #1 \right \rfloor}
+\newcommand{\dbtilde}[1]{\accentset{\approx}{#1}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\X}{\mathcal{X}}
+\newcommand{\Snp}{\mathbb{S}^{n}_{+}}
+\newcommand{\Sn}{\mathbb{S}^{n}}
+\renewcommand{\S}{\mathbb{S}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\A}{\mathcal{A}}
+\newcommand{\B}{\beta}
+\newcommand{\J}{\mathcal{J}}
+\newcommand{\G}{\mathcal{G}}
+\newcommand{\lc}{\mathop l}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\K}{\mathcal{K}}
+\newcommand{\lub}{\mathrm{lub}}
+\newcommand{\g}{\mathrm{glb}}
+\newcommand{\seq}{\subseteq}
+\newcommand{\e}{\varepsilon}
+\newcommand{\la}{\lambda}
+\newcommand{\om}{\omega}
+\newcommand{\Om}{\Omega}
+\newcommand{\de}{\delta}
+\newcommand{\mbf}{\mathbf}
+\newcommand{\es}{\emptyset}
+\newcommand{\mc}{\mathcal}
+\newcommand{\un}{\cup}
+\newcommand{\ic}{\cap}
+\newcommand{\gen}[1]{\ensuremath{\langle #1\rangle}}
+\newcommand{\spn}{\mathrm{span \ }}
+\newcommand{\dm}{\mathrm{dim \ }}
+\newcommand{\sgn}{\mathrm{ \ sign}}
+\newcommand{\Lm}{\mathcal{L}}
+\newcommand{\nll}{\mathrm{null}}
+\newcommand{\diag}{\mathrm{diag }}
+\newcommand{\row}{\mathrm{row}}
+\newcommand{\col}{\mathrm{col \ }}
+\newcommand{\rng}{\mathrm{range \ }}
+\newcommand{\dist}{\mathrm{dist}}
+\newcommand{\Prob}{\mathrm{Prob}}
+\newcommand{\Lim}{\lim\limits}
+\newcommand{\Sum}{\sum\limits}
+\newcommand{\Pt}{\|P\|}
+\newcommand{\dmn}{\mathrm{dom \ }}
+\newcommand{\Prod}{\prod\limits}
+\newcommand*\dif{\mathop{}\!\mathrm{d}}
+\newcommand{\Beta}{\beta}
+\newcommand{\Seq}{\mathrm{Seq }}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\sqn}[1]{{\left\lVert#1\right\rVert}^2}
+\newcommand{\abs}[1]{\left\lvert#1\right\rvert}
+% \DeclarePairedDelimiter\abs{\left\lvert}{\right\rvert}%
+\newcommand\m[1]{\begin{bmatrix}#1\end{bmatrix}} 
+\newcommand{\adj}{\mathrm{adj \ }}
+% \newcommand{\det}{\mathrm{det}}
+\newcommand{\rank}{\mathrm{rank \ }}
+\newcommand{\epi}{\mathrm{epi}}
+\newcommand{\tr}{\mathrm{tr}}
+\newcommand{\op}{\mathrm{op}}
+\newcommand{\prox}{\mathrm{prox}}
+\renewcommand{\L}{\mathcal{L}}
+\newcommand{\D}{\mathcal{D}}
+\newcommand{\eqdef}{\overset{\text{def}}{=}}
+\newcommand{\var}{\mathrm{Var}}
+\newcommand{\tvar}{\mathrm{TVar}}
+\newcommand{\avemm}{\frac{1}{M}\sum_{m=1}^M}
+\newcommand{\aveim}{\frac{1}{M}\sum_{i=1}^M}
+\newcommand{\summ}{\sum_{m=1}^M}
+\newcommand{\sigmaopt}{\sigma_{\mathrm{opt}}}
+\newcommand{\sigmaf}{\sigma_{\mathrm{dif}}}
+
+
+\newcommand\fbr[1]{\left\{#1\right\}}
+\newcommand\sbr[1]{\left[#1\right]}
+\newcommand\mbr[1]{\left|#1\right|}
+\newcommand\abr[1]{\left\langle#1\right\rangle}
+\newcommand\nbr[1]{\left\|#1\right\|}
+\newcommand\cbr[1]{\left\lceil#1\right\rceil}
+
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+
+% \usepackage[dvipsnames]{xcolor}
+\usepackage{pifont}
+\definecolor{PineGreen}{RGB}{0,110,51}
+\definecolor{BrickRed}{RGB}{143,20,2}
+\newcommand{\cmark}{{\color{PineGreen}\ding{51}}}%
+\newcommand{\xmark}{{\color{BrickRed}\ding{55}}}%
+
+
+
+\usepackage{tikz-cd} %for a diagram
+
+%\usepackage{subfigure}
+\usepackage{subfig}
+\usepackage{graphicx}
+
+
+\newcommand{\oldstuff}[1]{ {\small \color{blue} #1}}
+\newcommand{\redstuff}[1]{ {\small \color{red} #1}}
+
+% for even table widths
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+
+
+\usepackage{xspace}
+
+% Define the figure size
+\newcommand\figscale{0.25}
+\newcommand\evofigscale{0.21}
+
+
+%\newcommand{\squeeze}{\textstyle} % when deployed
+\newcommand{\squeeze}{} % when not deployed
+\definecolor{mycolor}{RGB}{0,150,70}
+\newcommand{\algname}[1]{{\color{PineGreen}\sf  #1}\xspace}
+\newcommand{\algnamex}[1]{{\sf #1}\xspace}
+
+\newcommand\tagthis{\addtocounter{equation}{1}\tag{\theequation}}
+\newcommand{\circledOne}{\text{\ding{172}}}
+\newcommand{\circledTwo}{\text{\ding{173}}}
+\newcommand{\circledThree}{\text{\ding{174}}}
+\newcommand{\circledFour}{\text{\ding{175}}}
+\newcommand{\circledFive}{\text{\ding{176}}}
+\newcommand{\circledSix}{\text{\ding{177}}}
+\newcommand{\circledSeven}{\text{\ding{178}}}
+\newcommand{\circledEight}{\text{\ding{179}}}
+\newcommand{\circledNine}{\text{\ding{180}}}
+\newcommand{\circledTen}{\text{\ding{181}}}
+\newcommand{\circledEleven}{\text{\ding{182}}}
+\newcommand{\circledTwelve}{\text{\ding{183}}}
+
+% TO DO NOTES 
+\usepackage[colorinlistoftodos,bordercolor=orange,backgroundcolor=orange!20,linecolor=orange,textsize=scriptsize]{todonotes}
+
+
+\newcommand{\eduard}[1]{\todo[inline]{{\textbf{Eduard:} \emph{#1}}}}
+
+
+
+\renewcommand{\Re}{\mathrm{Re}}
+\renewcommand{\Im}{\mathrm{Im}}
+\newcommand{\Sp}{\mathrm{Sp}}
+\newcommand{\Id}{\mathrm{Id}}
+
+\newcommand{\Tr}{\mathrm{Tr}}
+
+
+% caligraphic
+\newcommand{\cA}{{\cal A}}
+\newcommand{\cB}{{\cal B}}
+\newcommand{\cC}{{\cal C}}
+\newcommand{\cD}{{\cal D}}
+\newcommand{\cE}{{\cal E}}
+\newcommand{\cF}{{\cal F}}
+\newcommand{\cG}{{\cal G}}
+\newcommand{\cH}{{\cal H}}
+\newcommand{\cJ}{{\cal J}}
+\newcommand{\cK}{{\cal K}}
+\newcommand{\cL}{{\cal L}}
+\newcommand{\cM}{{\cal M}}
+\newcommand{\cN}{{\cal N}}
+\newcommand{\cO}{{\cal O}}
+\newcommand{\cP}{{\cal P}}
+\newcommand{\cQ}{{\cal Q}}
+\newcommand{\cR}{{\cal R}}
+\newcommand{\cS}{{\cal S}}
+\newcommand{\cT}{{\cal T}}
+\newcommand{\cU}{{\cal U}}
+\newcommand{\cV}{{\cal V}}
+\newcommand{\cX}{{\cal X}}
+\newcommand{\cY}{{\cal Y}}
+\newcommand{\cW}{{\cal W}}
+\newcommand{\cZ}{{\cal Z}}
+\newcommand{\Var}{\mathrm{Var}}
+
+% matrices
+\newcommand{\mA}{{\bf A}}
+\newcommand{\mB}{{\bf B}}
+\newcommand{\mC}{{\bf C}}
+\newcommand{\mE}{{\bf E}}
+\newcommand{\mF}{{\bf F}}
+\newcommand{\mG}{{\bf G}}
+\newcommand{\mH}{{\bf H}}
+\newcommand{\mI}{{\bf I}}
+\newcommand{\mJ}{{\bf J}}
+\newcommand{\mK}{{\bf K}}
+\newcommand{\mL}{{\bf L}}
+\newcommand{\mM}{{\bf M}}
+\newcommand{\mN}{{\bf N}}
+\newcommand{\mO}{{\bf O}}
+\newcommand{\mP}{{\bf P}}
+\newcommand{\mQ}{{\bf Q}}
+\newcommand{\mR}{{\bf R}}
+\newcommand{\mS}{{\bf S}}
+\newcommand{\mT}{{\bf T}}
+\newcommand{\mU}{{\bf U}}
+\newcommand{\mV}{{\bf V}}
+\newcommand{\mW}{{\bf W}}
+\newcommand{\mX}{{\bf X}}
+\newcommand{\mY}{{\bf Y}}
+\newcommand{\mZ}{{\bf Z}}
+
+\newcommand{\sign}{\mathrm{sign}}
+\newcommand{\cnorm}{x}
+\newcommand{\EE}{\mathbb{E}}
+\newcommand{\SD}{\mathbb{S}}
+\newcommand{\CC}{\mathbb{C}}
+\newcommand{\VV}{\mathbf{V}}
+
+\newcommand{\proj}{\mathop{\mathrm{proj}}\nolimits}
+\newcommand{\proxR}{\prox_{\gamma R}}
+\newcommand{\proxkR}{\prox_{\gamma^k R}}
+\newcommand{\proxkPsi}{\prox_{\gamma \Psi}}
+\newcommand{\mean}{\overline}
+\newcommand{\sumin}{\sum_{i=1}^n}
+
+\newcommand{\tx}{\widetilde{x}}
+\newcommand{\tX}{\widetilde{X}}
+\newcommand{\tg}{\widetilde{g}}
+\newcommand{\ty}{\widetilde{y}}
+\newcommand{\tF}{\widetilde{F}}
+\newcommand{\hx}{\widehat{x}}
+\newcommand{\hy}{\widehat{y}}
+\newcommand{\hg}{\widehat{g}}
+
+\newcommand{\thh}{\widetilde{h}}
+\newcommand{\hh}{\widehat{h}}
+
+\newcommand{\one}{\mathbf{1}}
+
+\def\Bxi{\boldsymbol{\xi}}
+\def\clip{\texttt{clip}}
+
+\newcommand{\tnabla}{\widetilde{\nabla}}
+
+
+
+
+\def\Bxi{\boldsymbol{\xi}}
+
+\def\clip{\texttt{clip}}
+\def\avg{\texttt{avg}}
+\def\gap{\texttt{Gap}}
+
+
+
+\usepackage{hyperref}
+\graphicspath{{plots/}}
+
+\usepackage{makecell}
+
+\usepackage{accents}
+\newlength{\dhatheight}
+\newcommand{\doublehat}[1]{%
+    \settoheight{\dhatheight}{\ensuremath{\hat{#1}}}%
+    \addtolength{\dhatheight}{-0.35ex}%
+    \hat{\vphantom{\rule{1pt}{\dhatheight}}%
+    \smash{\hat{#1}}}}
+
+
+\usepackage{pgfplotstable} % loads pgfplots which loads tikz
+\usetikzlibrary{automata, positioning, arrows, shapes, fit, calc, intersections}
+\usepgfplotslibrary{statistics}
+\include{figure}
+
+
+
+\def\la{\langle}
+\def\ra{\rangle}
+
+
+
+% \newcommand{\revision}[1]{{\color{BrickRed}#1}}
+
+\newcommand{\revision}[1]{{\color{black}#1}}
+\begin{thebibliography}{}
+
+\bibitem[Arjevani et~al., 2023]{arjevani2023lower}
+Arjevani, Y., Carmon, Y., Duchi, J.~C., Foster, D.~J., Srebro, N., and Woodworth, B. (2023).
+\newblock Lower bounds for non-convex stochastic optimization.
+\newblock {\em Mathematical Programming}, 199(1):165--214.
+
+\bibitem[Bennett, 1962]{bennett1962probability}
+Bennett, G. (1962).
+\newblock Probability inequalities for the sum of independent random variables.
+\newblock {\em Journal of the American Statistical Association}, 57(297):33--45.
+
+\bibitem[Chen et~al., 2018]{chen2018convergence}
+Chen, X., Liu, S., Sun, R., and Hong, M. (2018).
+\newblock On the convergence of a class of adam-type algorithms for non-convex optimization.
+\newblock {\em arXiv preprint arXiv:1808.02941}.
+
+\bibitem[Cutkosky and Mehta, 2021]{cutkosky2021high}
+Cutkosky, A. and Mehta, H. (2021).
+\newblock High-probability bounds for non-convex stochastic optimization with heavy tails.
+\newblock {\em Advances in Neural Information Processing Systems}, 34:4883--4895.
+
+\bibitem[Davis et~al., 2021]{davis2021low}
+Davis, D., Drusvyatskiy, D., Xiao, L., and Zhang, J. (2021).
+\newblock From low probability to high confidence in stochastic convex optimization.
+\newblock {\em The Journal of Machine Learning Research}, 22(1):2237--2274.
+
+\bibitem[D{\'e}fossez et~al., 2022]{defossez2022simple}
+D{\'e}fossez, A., Bottou, L., Bach, F., and Usunier, N. (2022).
+\newblock A simple convergence proof of adam and adagrad.
+\newblock {\em Transactions on Machine Learning Research}.
+
+\bibitem[Devlin et~al., 2019]{devlin2019bert}
+Devlin, J., Chang, M.-W., Lee, K., and Toutanova, K. (2019).
+\newblock Bert: Pre-training of deep bidirectional transformers for language understanding.
+\newblock In {\em Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies, Volume 1 (Long and Short Papers)}, pages 4171--4186.
+
+\bibitem[Duchi et~al., 2011]{duchi2011adaptive}
+Duchi, J., Hazan, E., and Singer, Y. (2011).
+\newblock Adaptive subgradient methods for online learning and stochastic optimization.
+\newblock {\em Journal of machine learning research}, 12(7).
+
+\bibitem[Dzhaparidze and Van~Zanten, 2001]{dzhaparidze2001bernstein}
+Dzhaparidze, K. and Van~Zanten, J. (2001).
+\newblock On bernstein-type inequalities for martingales.
+\newblock {\em Stochastic processes and their applications}, 93(1):109--117.
+
+\bibitem[Faw et~al., 2022]{faw2022power}
+Faw, M., Tziotis, I., Caramanis, C., Mokhtari, A., Shakkottai, S., and Ward, R. (2022).
+\newblock The power of adaptivity in sgd: Self-tuning step sizes with unbounded gradients and affine variance.
+\newblock In {\em Conference on Learning Theory}, pages 313--355. PMLR.
+
+\bibitem[Freedman et~al., 1975]{freedman1975tail}
+Freedman, D.~A. et~al. (1975).
+\newblock On tail probabilities for martingales.
+\newblock {\em the Annals of Probability}, 3(1):100--118.
+
+\bibitem[Ghadimi and Lan, 2012]{ghadimi2012optimal}
+Ghadimi, S. and Lan, G. (2012).
+\newblock Optimal stochastic approximation algorithms for strongly convex stochastic composite optimization i: A generic algorithmic framework.
+\newblock {\em SIAM Journal on Optimization}, 22(4):1469--1492.
+
+\bibitem[Ghadimi and Lan, 2013]{ghadimi2013stochastic}
+Ghadimi, S. and Lan, G. (2013).
+\newblock Stochastic first-and zeroth-order methods for nonconvex stochastic programming.
+\newblock {\em SIAM Journal on Optimization}, 23(4):2341--2368.
+
+\bibitem[Goodfellow et~al., 2016]{goodfellow2016deep}
+Goodfellow, I., Bengio, Y., and Courville, A. (2016).
+\newblock {\em Deep learning}.
+\newblock MIT press.
+
+\bibitem[Gorbunov et~al., 2022]{gorbunov2022clipped}
+Gorbunov, E., Danilova, M., Dobre, D., Dvurechenskii, P., Gasnikov, A., and Gidel, G. (2022).
+\newblock Clipped stochastic methods for variational inequalities with heavy-tailed noise.
+\newblock {\em Advances in Neural Information Processing Systems}, 35:31319--31332.
+
+\bibitem[Gorbunov et~al., 2020]{gorbunov2020stochastic}
+Gorbunov, E., Danilova, M., and Gasnikov, A. (2020).
+\newblock Stochastic optimization with heavy-tailed noise via accelerated gradient clipping.
+\newblock {\em Advances in Neural Information Processing Systems}, 33:15042--15053.
+
+\bibitem[Gorbunov et~al., 2021]{gorbunov2021near}
+Gorbunov, E., Danilova, M., Shibaev, I., Dvurechensky, P., and Gasnikov, A. (2021).
+\newblock Near-optimal high probability complexity bounds for non-smooth stochastic optimization with heavy-tailed noise.
+\newblock {\em arXiv preprint arXiv:2106.05958}.
+
+\bibitem[Gorbunov et~al., 2023]{gorbunov2023high}
+Gorbunov, E., Sadiev, A., Danilova, M., Horv\'{a}th, S., Gidel, G., Dvurechensky, P., Gasnikov, A., and Richt\'{a}rik, P. (2023).
+\newblock High-probability convergence for composite and distributed stochastic minimization and variational inequalities with heavy-tailed noise.
+\newblock {\em arXiv preprint arXiv:2310.01860}.
+
+\bibitem[Harvey et~al., 2019]{harvey2019simple}
+Harvey, N.~J., Liaw, C., and Randhawa, S. (2019).
+\newblock Simple and optimal high-probability bounds for strongly-convex stochastic gradient descent.
+\newblock {\em arXiv preprint arXiv:1909.00843}.
+
+\bibitem[He et~al., 2016]{he2016deep}
+He, K., Zhang, X., Ren, S., and Sun, J. (2016).
+\newblock Deep residual learning for image recognition.
+\newblock In {\em Proceedings of the IEEE conference on computer vision and pattern recognition}, pages 770--778.
+
+\bibitem[Huber, 1992]{huber1992robust}
+Huber, P.~J. (1992).
+\newblock Robust estimation of a location parameter.
+\newblock In {\em Breakthroughs in statistics: Methodology and distribution}, pages 492--518. Springer.
+
+\bibitem[Jakoveti{\'c} et~al., 2023]{jakovetic2023nonlinear}
+Jakoveti{\'c}, D., Bajovi{\'c}, D., Sahu, A.~K., Kar, S., Milo{\u{s}}evi{\'c}, N., and Stamenkovi{\'c}, D. (2023).
+\newblock Nonlinear gradient mappings and stochastic optimization: A general framework with applications to heavy-tail noise.
+\newblock {\em SIAM Journal on Optimization}, 33(2):394--423.
+
+\bibitem[Jordanova and Petkova, 2017]{jordanova2017measuring}
+Jordanova, P.~K. and Petkova, M.~P. (2017).
+\newblock Measuring heavy-tailedness of distributions.
+\newblock In {\em AIP Conference Proceedings}, volume 1910. AIP Publishing.
+
+\bibitem[Kingma and Ba, 2014]{kingma2014adam}
+Kingma, D.~P. and Ba, J. (2014).
+\newblock Adam: A method for stochastic optimization.
+\newblock {\em arXiv preprint arXiv:1412.6980}.
+
+\bibitem[Kornilov et~al., 2024]{kornilov2024zeroth}
+Kornilov, N., Dorn, Y., Lobanov, A., Kutuzov, N., Shibaev, I., Gorbunov, E., Gasnikov, A., and Nazin, A. (2024).
+\newblock Zeroth-order median clipping for non-smooth convex optimization problems with heavy-tailed symmetric noise.
+\newblock {\em arXiv preprint arXiv:2402.02461}.
+
+\bibitem[Lan et~al., 2019]{lan2019albert}
+Lan, Z., Chen, M., Goodman, S., Gimpel, K., Sharma, P., and Soricut, R. (2019).
+\newblock Albert: A lite bert for self-supervised learning of language representations.
+\newblock {\em arXiv preprint arXiv:1909.11942}.
+
+\bibitem[Li et~al., 2023]{li2023convergence}
+Li, H., Rakhlin, A., and Jadbabaie, A. (2023).
+\newblock Convergence of adam under relaxed assumptions.
+\newblock {\em Advances in Neural Information Processing Systems}, 36.
+
+\bibitem[Li and Orabona, 2020]{li2020high}
+Li, X. and Orabona, F. (2020).
+\newblock A high probability analysis of adaptive sgd with momentum.
+\newblock {\em arXiv preprint arXiv:2007.14294}.
+
+\bibitem[Liu et~al., 2023]{liu2023high}
+Liu, Z., Nguyen, T.~D., Nguyen, T.~H., Ene, A., and Nguyen, H. (2023).
+\newblock High probability convergence of stochastic gradient methods.
+\newblock In {\em International Conference on Machine Learning}, pages 21884--21914. PMLR.
+
+\bibitem[Mosbach et~al., 2020]{mosbach2020stability}
+Mosbach, M., Andriushchenko, M., and Klakow, D. (2020).
+\newblock On the stability of fine-tuning bert: Misconceptions, explanations, and strong baselines.
+\newblock {\em arXiv preprint arXiv:2006.04884}.
+
+\bibitem[Moskvoretskii et~al., 2024]{moskvoretskii2024large}
+Moskvoretskii, V., Panchenko, A., and Nikishina, I. (2024).
+\newblock Are large language models good at lexical semantics? a case of taxonomy learning.
+\newblock In {\em Proceedings of the 2024 Joint International Conference on Computational Linguistics, Language Resources and Evaluation (LREC-COLING 2024)}, pages 1498--1510.
+
+\bibitem[Nazin et~al., 2019]{nazin2019algorithms}
+Nazin, A.~V., Nemirovsky, A.~S., Tsybakov, A.~B., and Juditsky, A.~B. (2019).
+\newblock Algorithms of robust stochastic optimization based on mirror descent method.
+\newblock {\em Automation and Remote Control}, 80:1607--1627.
+
+\bibitem[Nemirovski et~al., 2009]{nemirovski2009robust}
+Nemirovski, A.~S., Juditsky, A.~B., Lan, G., and Shapiro, A. (2009).
+\newblock Robust stochastic approximation approach to stochastic programming.
+\newblock {\em SIAM Journal on Optimization}, 19(4):1574--1609.
+
+\bibitem[Nemirovskij and Yudin, 1983]{nemirovskij1983problem}
+Nemirovskij, A.~S. and Yudin, D.~B. (1983).
+\newblock Problem complexity and method efficiency in optimization.
+
+\bibitem[Nesterov, 1983]{nesterov1983method}
+Nesterov, Y.~E. (1983).
+\newblock A method of solving a convex programming problem with convergence rate {O}$(1/k^2)$.
+\newblock In {\em Doklady Akademii Nauk}, volume 269, pages 543--547. Russian Academy of Sciences.
+
+\bibitem[Nguyen et~al., 2023]{nguyen2023improved}
+Nguyen, T.~D., Ene, A., and Nguyen, H.~L. (2023).
+\newblock Improved convergence in high probability of clipped gradient methods with heavy tails.
+\newblock {\em arXiv preprint arXiv:2304.01119}.
+
+\bibitem[Nikishina et~al., 2022]{nikishina2022cross}
+Nikishina, I., Vakhitova, A., Tutubalina, E., and Panchenko, A. (2022).
+\newblock Cross-modal contextualized hidden state projection method for expanding of taxonomic graphs.
+\newblock In {\em Proceedings of TextGraphs-16: Graph-based Methods for Natural Language Processing}, pages 11--24.
+
+\bibitem[Pascanu et~al., 2013]{pascanu2013difficulty}
+Pascanu, R., Mikolov, T., and Bengio, Y. (2013).
+\newblock On the difficulty of training recurrent neural networks.
+\newblock In {\em International conference on machine learning}, pages 1310--1318. Pmlr.
+
+\bibitem[Patel and Berahas, 2022]{patel2022gradient}
+Patel, V. and Berahas, A.~S. (2022).
+\newblock Gradient descent in the absence of global lipschitz continuity of the gradients.
+\newblock {\em arXiv preprint arXiv:2210.02418}.
+
+\bibitem[Patel et~al., 2022]{patel2022global}
+Patel, V., Zhang, S., and Tian, B. (2022).
+\newblock Global convergence and stability of stochastic gradient descent.
+\newblock {\em Advances in Neural Information Processing Systems}, 35:36014--36025.
+
+\bibitem[Polyak, 1964]{polyak1964some}
+Polyak, B. (1964).
+\newblock Some methods of speeding up the convergence of iteration methods.
+\newblock {\em USSR Computational Mathematics and Mathematical Physics}, 4(5):1--17.
+
+\bibitem[Puchkin et~al., 2024]{puchkin2024breaking}
+Puchkin, N., Gorbunov, E., Kutuzov, N., and Gasnikov, A. (2024).
+\newblock Breaking the heavy-tailed noise barrier in stochastic optimization problems.
+\newblock In {\em International Conference on Artificial Intelligence and Statistics}, pages 856--864. PMLR.
+
+\bibitem[Reddi et~al., 2019]{reddi2019convergence}
+Reddi, S.~J., Kale, S., and Kumar, S. (2019).
+\newblock On the convergence of adam and beyond.
+\newblock {\em arXiv preprint arXiv:1904.09237}.
+
+\bibitem[Robbins and Monro, 1951]{robbins1951stochastic}
+Robbins, H. and Monro, S. (1951).
+\newblock A stochastic approximation method.
+\newblock {\em The annals of mathematical statistics}, pages 400--407.
+
+\bibitem[Russakovsky et~al., 2015]{russakovsky2015imagenet}
+Russakovsky, O., Deng, J., Su, H., Krause, J., Satheesh, S., Ma, S., Huang, Z., Karpathy, A., Khosla, A., Bernstein, M., et~al. (2015).
+\newblock Imagenet large scale visual recognition challenge.
+\newblock {\em International journal of computer vision}, 115:211--252.
+
+\bibitem[Sadiev et~al., 2023]{sadiev2023high}
+Sadiev, A., Danilova, M., Gorbunov, E., Horv\'{a}th, S., Gidel, G., Dvurechensky, P., Gasnikov, A., and Richt\'{a}rik, P. (2023).
+\newblock High-probability bounds for stochastic optimization and variational inequalities: the case of unbounded variance.
+\newblock In Krause, A., Brunskill, E., Cho, K., Engelhardt, B., Sabato, S., and Scarlett, J., editors, {\em Proceedings of the 40th International Conference on Machine Learning}, volume 202 of {\em Proceedings of Machine Learning Research}, pages 29563--29648. PMLR.
+
+\bibitem[Shalev-Shwartz and Ben-David, 2014]{shalev2014understanding}
+Shalev-Shwartz, S. and Ben-David, S. (2014).
+\newblock {\em Understanding machine learning: From theory to algorithms}.
+\newblock Cambridge university press.
+
+\bibitem[Streeter and McMahan, 2010]{streeter2010less}
+Streeter, M. and McMahan, H.~B. (2010).
+\newblock Less regret via online conditioning.
+\newblock {\em arXiv preprint arXiv:1002.4862}.
+
+\bibitem[Tak{\'a}{\v{c}} et~al., 2013]{takavc2013mini}
+Tak{\'a}{\v{c}}, M., Bijral, A., Richt{\'a}rik, P., and Srebro, N. (2013).
+\newblock Mini-batch primal and dual methods for svms.
+\newblock In {\em In 30th International Conference on Machine Learning, ICML 2013}.
+
+\bibitem[Vaswani et~al., 2017]{vaswani2017attention}
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A.~N., Kaiser, L., and Polosukhin, I. (2017).
+\newblock Attention is all you need.
+\newblock {\em Advances in neural information processing systems}, 30.
+
+\bibitem[Wang et~al., 2018]{wang2018glue}
+Wang, A., Singh, A., Michael, J., Hill, F., Levy, O., and Bowman, S.~R. (2018).
+\newblock Glue: A multi-task benchmark and analysis platform for natural language understanding.
+\newblock {\em arXiv preprint arXiv:1804.07461}.
+
+\bibitem[Wang et~al., 2023]{wang2023convergence}
+Wang, B., Zhang, H., Ma, Z., and Chen, W. (2023).
+\newblock Convergence of adagrad for non-convex objectives: Simple proofs and relaxed assumptions.
+\newblock In {\em The Thirty Sixth Annual Conference on Learning Theory}, pages 161--190. PMLR.
+
+\bibitem[Wang et~al., 2022]{wang2022provable}
+Wang, B., Zhang, Y., Zhang, H., Meng, Q., Ma, Z.-M., Liu, T.-Y., and Chen, W. (2022).
+\newblock Provable adaptivity in adam.
+\newblock {\em arXiv preprint arXiv:2208.09900}.
+
+\bibitem[Ward et~al., 2020]{ward2020adagrad}
+Ward, R., Wu, X., and Bottou, L. (2020).
+\newblock Adagrad stepsizes: Sharp convergence over nonconvex landscapes.
+\newblock {\em Journal of Machine Learning Research}, 21(219):1--30.
+
+\bibitem[You et~al., 2019]{you2019large}
+You, Y., Li, J., Reddi, S., Hseu, J., Kumar, S., Bhojanapalli, S., Song, X., Demmel, J., Keutzer, K., and Hsieh, C.-J. (2019).
+\newblock Large batch optimization for deep learning: Training bert in 76 minutes.
+\newblock {\em arXiv preprint arXiv:1904.00962}.
+
+\bibitem[Zhang et~al., 2019]{zhang2019gradient}
+Zhang, J., He, T., Sra, S., and Jadbabaie, A. (2019).
+\newblock Why gradient clipping accelerates training: A theoretical justification for adaptivity.
+\newblock {\em arXiv preprint arXiv:1905.11881}.
+
+\bibitem[Zhang et~al., 2020]{zhang2020adaptive}
+Zhang, J., Karimireddy, S.~P., Veit, A., Kim, S., Reddi, S., Kumar, S., and Sra, S. (2020).
+\newblock Why are adaptive methods good for attention models?
+\newblock {\em Advances in Neural Information Processing Systems}, 33:15383--15393.
+
+\bibitem[Zhang et~al., 2022]{zhang2022adam}
+Zhang, Y., Chen, C., Shi, N., Sun, R., and Luo, Z.-Q. (2022).
+\newblock Adam can converge without any modification on update rules.
+\newblock {\em Advances in neural information processing systems}, 35:28386--28399.
+
+\bibitem[Zou et~al., 2018]{zou2018weighted}
+Zou, F., Shen, L., Jie, Z., Sun, J., and Liu, W. (2018).
+\newblock Weighted adagrad with unified momentum.
+\newblock {\em arXiv preprint arXiv:1808.03408}, 2.
+
+\end{thebibliography}

@@ -1,0 +1,382 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%2345678901234567890123456789012345678901234567890123456789012345678901234567890
+%        1         2         3         4         5         6         7         8
+
+\documentclass[letterpaper, 10 pt, conference]{ieeeconf}  % Comment this line out if you need a4paper
+
+%\documentclass[a4paper, 10pt, conference]{ieeeconf}      % Use this line for a4 paper
+
+\IEEEoverridecommandlockouts                              % This command is only needed if 
+                                                          % you want to use the \thanks command
+
+\overrideIEEEmargins                                      % Needed to meet printer requirements.
+
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+
+
+\newcounter{constraint}[section]
+\newenvironment{constraint}[1][]{\refstepcounter{constraint}\par\medskip
+   \noindent \textbf{Assumption~\theconstraint #1} \rmfamily}{\medskip}
+
+
+
+
+\renewcommand{\mod}{ \text{ mod }  }
+%\newcommand{\randvec}[1]{\mathbf{#1}}
+\newcommand{\rvec}[1]{{\mathbf{\MakeLowercase{#1}}}}
+\newcommand{\ves}[1]{\mathbf{\hat{\MakeLowercase{#1}}}}
+\newcommand{\es}[1]{\bar{\mathbf{\MakeLowercase{#1}}}}
+\newcommand{\mat}[1]{\MakeUppercase{#1}}
+\newcommand{\rs}[1]{\mathbf{\MakeLowercase{#1}}}
+\newcommand{\dvec}[1]{{#1}}
+\newcommand{\Cesaro}{Ces\'{a}ro }
+
+
+
+
+\title{\LARGE \bf
+A Lower-bound for Variable-length Source Coding in LQG Feedback Control
+}
+
+
+\author{Travis C. Cuvelier, Takashi Tanaka, and Robert W. Heath, Jr.
+\thanks{This material is based upon work supported in part by the National Science Foundation under Grant No. ECCS-1711702 and and CAREER Award \#1944318. }
+\thanks{T. Cuveler is with the Department
+of Electrical and Computer Engineering, The University of Texas at Austin,
+TX, 78712 USA e-mail: tcuvelier@utexas.edu.}% -this % stops a space
+\thanks{T. Tanaka is with the Department
+of Aerospace Engineering and Engineering Mechanics, The University of Texas at Austin,
+TX, 78712 USA e-mail: ttanaka@utexas.edu.}% <-this % stops a space
+\thanks{R. Heath is with the Department
+of Electrical and Computer Engineering, North Carolina State University, Raleigh, 
+NC, 27606 USA e-mail: rwheath2@ncsu.edu.}}
+
+
+\begin{document}
+
+
+\maketitle
+
+\begin{abstract}
+In this letter, we consider a Linear Quadratic Gaussian (LQG) control system where feedback occurs over a noiseless binary channel and derive lower bounds on the minimum communication cost (quantified via the channel bitrate) required to attain a given control performance. We assume that at every time step an encoder can convey a packet containing a variable number of bits over the channel to a decoder at the controller. Our system model provides for the possibility that the encoder and decoder have shared randomness, as is the case in systems using dithered quantizers. We define two extremal prefix-free requirements that may be imposed on the message packets; such constraints are useful in that they allow the decoder, and potentially other agents to uniquely identify the end of a transmission in an online fashion. We then derive a lower bound on the rate of prefix-free coding in terms of directed information; in particular we show that a previously known bound still holds in the case with shared randomness. We also provide a generalization of the bound that applies if prefix-free requirements are relaxed. We conclude with a rate-distortion formulation. 
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+In this letter, we derive and analyze lower bounds on the minimum bitrate of feedback communication required to obtain a given LQG control performance. We consider the setting of variable-length coding; at each discrete time instant an encoder that can fully observe the plant conveys a packet containing a variable number of bits to a decoder co-located with the controller. Various prefix-free constraints can be imposed on the packets; these allow the decoder, and perhaps other agents, to uniquely identify the end of each codeword given varying degrees of common side information (SI). This is useful, for example, in a shared communication channel--upon detecting the end of the codeword, other another user can identify the channel as free-to-use. We allow for the possibility that the encoder and decoder have access to \textit{shared randomness}; namely an IID sequence of exogenous random variables that are revealed causally to both the encoder and decoder. Shared randomness of this nature arises in the setting where the encoder and decoder use dithered quantization. In dithered quantization, randomness is intentionally introduced into the quantization process to ensure that the quantization noise is ``well-behaved" and more amenable to analysis. In particular, dithered quantization has been used to design schemes for minimum bitrate LQG control (cf. \cite{silvaFirst}\cite{tanakaISIT}). In real-world systems, shared randomness can be approximately achieved by synchronized pseudorandom number generators. We show that for all notions of ``prefix-free" that we consider, irrespective of the marginal distribution of the shared randomness, the channel bitrate is lower bounded by the time-average directed information from the state vector to the control input. It is known that for discrete sources, the bitrate of lossless source coding can be reduced by relaxing the prefix-free assumption\cite{verduVariableLength}. We show how the lower bounds change when the prefix-free constraint is lifted. Finally, we conclude with a rate distortion formulation that follows from \cite{SDP_DI}. We proceed with a review the prior art before summarizing our contributions and outlining the remainder of this letter. 
+\begin{figure*}[t]
+	\centering
+	\includegraphics[scale = .125]{ditheredArchitecture.png}
+    \vspace{0cm}
+	\caption{The factorization in (\ref{eq:exog}) states that both the shared dither and the process noise are drawn independently given all prior encoder and and control actions. The factorization in (\ref{eq:cwfact}) provides that the codeword at time $t$ can be drawn from some distribution that depends on its prior observations of the state and dither sequence, as well as its past actions. Likewise, the control input can be drawn randomly given its the decoder's observations of received codewords, the dither, and its past actions.}\label{fig:ditharch}
+\end{figure*}
+\subsection{Literature Review}
+Our work follows from the problem formulation of \cite{silvaFirst}, which considered a SISO LQG control system where feedback measurements were conveyed from an encoder to a decoder over a noiseless binary channel. In the variable length setting and enforcing a prefix-free constraint on the packets, \cite{silvaFirst} derived a lower bound for the time-average expected channel bitrate in terms of Massey's directed information \cite{masseyDI}. Given a constraint on the LQG cost, \cite{silvaFirst} showed that the lower bound was nearly achievable when the encoder and decoder shared access to a common dither signal. In \cite{SDP_DI} and \cite{tanakaISIT}, the work in \cite{silvaFirst} was extended to MIMO plants. In particular, \cite{SDP_DI} developed a rate-distortion formulation in terms of semidefinite programming; a semidefinite program (SDP) was derived to compute the tradeoff between the minimum directed information and LQG cost. The achievability of the lower bound, again assuming dithering, was demonstrated in \cite{tanakaISIT}. Analytical lower bounds on the relevant directed information as a function of the maximum tolerable LQG cost were developed in \cite{kostinaTradeoff}. It was also shown that the entropy rate of an innovations quantizer approaches this bound without the use of dithering. Notably, \cite{kostinaTradeoff} described how to generalize the entropy lower-bound for prefix-free coding to the setting without prefix constraints (see also \cite{verduVariableLength}). 
+
+We consider a setup where the encoder and decoder share common SI in the form of shared randomness. The impact of SI on the communication/LQG cost tradeoff was investigated in \cite{kostinaSI}, \cite{photisSI}, \cite{oronNew},  and \cite{ourciss}. The SI considered in these works was linear/Gaussian observations of the plant available at the decoder. Rate distortion formulations were considered in \cite{kostinaSI}, \cite{photisSI}, and \cite{oronNew}, meanwhile an achievability approach (assuming noiseless SI also available at the encoder) was given in \cite{ourciss}. In this letter we show that, in stark contrast to the case where the SI consists of plant measurements, shared randomness does not effect lower bounds on bitrate
+
+The lower bound on bitrate derived in  \cite{silvaFirst} purported to apply to quantization/coding schemes with shared dither sequences at the encoder and decoder. A flaw in the proof of the bound from \cite{silvaFirst} was recently discovered by \cite{milanCorrection}. The proof was revised using new directed information data processing inequalities derived in \cite{milanMainResult}. In our letter, while we prove a lower bound similar to that in \cite{milanCorrection}, our problem formulation and proof techniques differ significantly. The data processing inequalities in \cite{milanMainResult} apply to general feedback systems consisting of causal stages, where system blocks are randomized through exogenous inputs. In this work, we consider randomized encoder and decoder policies directly, which we believe simplifies our proofs. Under natural conditional independence assumptions between the system variables, we prove a data processing inequality from which the lower bound follows directly. 
+\subsection{Our contributions}
+In summary, the contributions of this letter are:
+\begin{enumerate}
+    \item we define two different prefix-free constraints that can be imposed on the feedback packets. In prior work, these constraints have been used somewhat ambiguously. Namely, we define a strict as well as a relaxed constraint and show that they are subject to the same lower bound. We highlight the operational significance of these constraints in control systems. 
+    \item in the case where the encoder and decoder share randomness, we derive a directed information data processing inequality directly from the factorization of the joint distribution of the system variables. This inequality proves that for two extremal notions of what it means to be ``prefix-free", the directed information lower bound from \cite{tanakaISIT} holds even when the encoder and decoder share randomness. Following from \cite{kostinaTradeoff} and \cite{verduVariableLength}, we generalize the bound to codecs without prefix constraints.
+\end{enumerate}
+ The lower bounds lead to a rate distortion formulation, which, following from \cite{SDP_DI}, can be written as an SDP.
+\subsection{Organization and Notation} We describe the system model in Section \ref{sec:systemmodel}. We describe prefix-free constraints that can be imposed on the system, and establish the the directed information lower bound for systems with dithering in Section \ref{ssec:dilb}. We conclude with  rate distortion formulation in  Section \ref{ssec:rdf}. 
+
+We denote constant scalars and vectors in lowercase $x$ and denote scalars and vector random variables in boldface $\rs{x}$. We denote matrices by capital letters $X$. The set of finite-length binary strings is denoted $\{0,1\}^*$. We use $H$ for the entropy of a discrete random variable, $h$ for the differential entropy of a continuous random variable, and $I$ for mutual information. We consider for time domain sequences, let $\{\rs{x}_{t}\}$ denote $(\rs{x}_{0},\rs{x}_{1},\dots)$. We let $\rs{x}_{a}^{b}$ denoted $(\rs{x}_{a},\dots,\rs{x}_{b})$ if $b\ge a$, and by convention let $\rs{x}_{a}^{b}=\emptyset$ otherwise. Likewise we let $\rs{x}^{b}= \rs{x}_{0}^{b}$. Given $\{\rs{x}_{t}\}$ we define the shifted sequence $\{\rs{x}_{t}^{+}\}$ by $(0,\rs{x}_{0},\rs{x}_1,\dots)$. We use the notion of causally conditioned directed information due to Massey 
+\cite{masseyDI}. For $\{\rs{a}_{t},\rs{b}_{t},\rs{c}_{t}\}$, causally conditioned directed information is defined
+\begin{align}\label{eq:didef}
+    I(\rs{a}^{T-1}\rightarrow \rs{b}^{T-1}||\rs{c}^{T-1}) = \sum_{t=0}^{T-1}I(\rs{a}^{t};\rs{b}_{t}|\rs{b}^{t-1},\rs{c}^{t}).
+\end{align}
+
+
+\section{System Model and Problem Formulation}\label{sec:systemmodel}
+The system model under consideration is depicted in Figure \ref{fig:ditharch}. We consider a general MIMO plant with a feedback model where communication takes place over a noiseless binary channel. We assume that a time-invariant plant is fully observable to an encoder/sensor block, which conveys a binary codeword $\rvec{a}_{t}\in\{0,1\}^*$ over the channel to a combined decoder/controller. Upon receipt of the codeword, the decoder/controller designs the control input. We denote the state vector as $\rvec{x}_t\in \mathbb{R}^{m}$ and the control input as $\rvec{u}_{t}\in\mathbb{R}^{u}$. We assume that the encoder/sensor and decoder/controller share access to a common random \textit{dither signal}, $\{\rs{d}_{t}\}$. The dither is assumed to be IID over time. Note that this system model includes systems where a dither is unavailable as a special case (e.g. we could always set $\rs{d}_{t}\overset{\mathrm{a.s.}}{=}0$ for all $t$). The process noise $\rvec{w}_{t}\sim\mathcal{N}(\dvec{0},{W})$ is assumed to be IID over time. We assume ${W}\succ{0}_{m\times m}$. We assume assume that $\rvec{x}_{0}\sim\mathcal{N}(\dvec{0},{X}_0)$ for some $X_0\succeq 0$, and that $\{\rs{w}_{t}\}$, $\{\rs{d}_{t}\}$, and $\rs{x}_{0}$ are mutually independent. Given a system matrix ${A}\in\mathbb{R}^{m\times m}$ and a feedback gain matrix ${B}\in\mathbb{R}^{m\times u}$ for $t\ge 0$ the plant dynamics are given by
+\begin{align}\label{eq:ssmodel}
+    \rvec{x}_{t+1} = {A}\rvec{x}_{t}+{B}\rvec{u}_{t}+\rvec{w}_{t}. 
+\end{align} To ensure that a finite control cost is attainable, we assume that $({A},{B})$ are stabilizable.
+
+We assume that the encoder/sensor and the decoder/controller are generally randomized.\footnote{Meaning that, for example, the codeword can be drawn randomly conditioned on the encoder's input.} In Figure \ref{fig:ditharch} we assume that the the encoder/sensor policy is a sequence of causally conditioned kernels given by 
+\begin{align}\label{eq:encdithpol}
+    \mathbb{P}_{\mathrm{E}}[\rvec{a}^{\infty}|| \rvec{d}^{\infty},\rvec{x}^{\infty}] = \{ \mathbb{P}_{\mathrm{E}}[\rvec{a}_{t}|\rvec{a}^{t-1},\rvec{d}^{t},\rvec{x}^{t}]\text{ for }t\in\mathbb{N}_{0}\}. 
+\end{align} Likewise, the corresponding decoder/controller policy is given by the sequence of causally conditioned kernels 
+\begin{align}\label{eq:contdithpol}
+    \mathbb{P}_{\mathrm{C}}[\rvec{u}^{\infty}|| \rvec{a}^{\infty},\rvec{d}^{\infty}] = \{ \mathbb{P}_{\mathrm{C}}[\rvec{u}_{t}|\rvec{a}^{t},\rvec{d}^{t},\rvec{u}^{t-1}]\text{ for }t\in\mathbb{N}_{0}\}.
+\end{align} By (\ref{eq:ssmodel}), for all $t$, $\rs{x}^{t}$ is a deterministic function of $\rvec{x}_{0}$, $\rvec{u}^{t-1}$, and $\rvec{w}^{t-1}$. We assume that the one-step transition kernels between  $\rvec{a}_{t}$, $\rvec{d}_{t}$, $\rvec{u}_{t}$, and  $\rvec{w}_{t}$, factorize for all $t\ge0$ as \begin{subequations}\label{eq:ditherFactorization}
+\begin{multline}\label{eq:cwfact}
+      \mathbb{P}[\rvec{a}_{t+1},\rvec{u}_{t+1}|\rvec{a}^{t},\rvec{d}^{t+1},\rvec{u}^{t},\rvec{w}^{t},\rvec{x}_{0}] =\\\mathbb{P}_{\mathrm{E}}[\rvec{a}_{t+1}|\rvec{a}^{t},\rvec{d}^{t+1},\rvec{x}^{t+1}]\mathbb{P}_{\mathrm{C}}[\rvec{u}_{t+1}|\rvec{a}^{t+1},\rvec{d}^{t+1},\rvec{u}^{t}],
+\end{multline} and 
+\begin{multline}\label{eq:exog}
+     \mathbb{P}[\rvec{a}_{t+1},\rvec{d}_{t+1},\rvec{u}_{t+1},\rvec{w}_{t+1}|\rvec{a}^{t},\rvec{d}^{t},\rvec{u}^{t},\rvec{w}^{t},\rvec{x}_{0}] = \\\mathbb{P}[\rvec{a}_{t+1},\rvec{u}_{t+1}|\rvec{a}^{t},\rvec{d}^{t},\rvec{u}^{t},\rvec{w}^{t},\rvec{x}_{0}]\mathbb{P}[\rvec{d}_{t+1}]\mathbb{P}[\rvec{w}_{t+1}].
+\end{multline}
+ \end{subequations}
+Implications of these factorization are discussed in Fig. \ref{fig:ditharch}. 
+ 
+ %and that we have $\mathbb{P}[\rvec{a}_0,\rvec{d}_0,\rvec{u}_0,\rvec{w}_{0}|\rvec{x}_{0}] = \mathbb{P}[\rvec{d}_{0}]\mathbb{P}_{\mathrm{E}}[\rvec{a}_{0}|\rvec{x}_{0},\rvec{d}_{0}]\mathbb{P}_{\mathrm{C}}[\rvec{u}_{0}|\rvec{a}_{0},\rvec{d}_0]\mathbb{P}[\rvec{w}_{0}]$. 
+ The length of the binary codewords $\{\rs{a}_{t}\}$ provides a notion of communication cost. This is motivated by a scenario where measurements from a remote sensor platform are conveyed over wireless to control a plant. In general, minimizing the necessary bitrate from the remote platform to the controller minimizes the amount of physical layer resources that must be allocated to the particular link. The problem of interest is to minimize this bitrate subject to a constraint on the LQG control performance. In this work, we are concerned primarily with deriving lower bounds on the bitrate. 
+ \begin{figure*}[t]
+	\centering
+	\includegraphics[scale = .21]{virtual.png}
+    \vspace{0cm}
+	\caption{The ``virtual" lossless codec inserted into the feedback loop has access to more SI than the sensor/encoder. We require that $\rs{\hat{a}}_{t}=\rs{a}_{t}$ by definition, i.e. we require that the virtual codec is lossless. } \label{fig:virtualcodec}
+\end{figure*} 
+ At every time $t$, we require $\rvec{a}_{t}$ to satisfy a prefix-free constraint. This allows the decoder (and possibly other agents sharing the same communication network) to uniquely identify the end of the transmission from the encoder. For $\dvec{a}\in\{0,1\}^*$, let $\ell(\dvec{a})$ denote the length of $\dvec{a}$ in bits. The prefix-free constraint allows us to derive simple lower-bounds on $\mathbb{E}[\ell(\rvec{a}_{t})]$. We are interested in the optimization problem
+\begin{equation}\label{eq:codewordLenghtOptimization}
+\begin{aligned}
+& \underset{\mathbb{P}_\mathrm{E}, \mathbb{P}_{\mathrm{C}}}{\inf}  \underset{T\rightarrow \infty}{\lim\sup}\text{ }\frac{1}{T+1}\sum\nolimits_{t=0}^{T}\mathbb{E}[\ell(\rvec{a}_{t})] \\ &\text{s.t. }   \underset{T\rightarrow \infty}{\lim\sup}\frac{1}{T+1}\sum\nolimits_{t=0}^{T}\mathbb{E}[\lVert \rvec{x}_{t+1} \rVert_{{Q}}^{2} +\lVert \rvec{u}_{t} \rVert_{{R}}^{2}] \le \gamma,
+\end{aligned} 
+\end{equation} where ${Q}\succeq {0}$, ${R}\succ {0}$, and $\gamma$ is the maximum tolerable LQG cost. The minimization is over admissible sensor/encoder and decoder/controller policies described by 
+(\ref{eq:encdithpol}) and (\ref{eq:contdithpol}). In \cite{SDP_DI}, it was shown that, for policies without additive dithering, (\ref{eq:codewordLenghtOptimization}) is lower-bounded by an SDP (technically a log-determinant optimization) where a particular directed information is minimized over the space of linear/Gaussian policies. In the sequel, we show that this lower bound still holds for architectures with additive dither satisfying (\ref{eq:encdithpol})-(\ref{eq:ditherFactorization}). 
+\section{Lower bounds}
+In this section, we state a generic bound on the rate of prefix-free source coding within the feedback loops of Fig. \ref{fig:ditharch} that apply irrespective of the marginal distribution of the dither signal $\rs{d}_{t}$. Thus, lower bounds that applying to the system of Fig. \ref{fig:ditharch} apply to systems without dithering a special case.
+
+\subsection{Directed information lower bound}\label{ssec:dilb} We first formally define various prefix-free requirements that may be imposed on the codeword $\rs{a}_t$. We consider two distinct notions, and demonstrate that the same lower bound applies to both. We first consider the requirement that at every time $t$, $\rs{a}_t$ is a codeword from a prefix-free code that can be decoded by any decoder with knowledge of the marginal distribution $\mathbb{P}_{\rs{a}_t}$. Assumption \ref{cs:constraint1} formalizes this requirement. 
+
+\begin{constraint}\label{cs:constraint1}
+    For all distinct $a_1,a_2\in\{0,1\}^*$ with $\mathbb{P}_{\rs{a}_t}[\rs{a}_t=a_1]>0$ and $\mathbb{P}_{\rs{a}_t}[\rs{a}_t=a_2]>0$, $a_1$ is not a prefix of $a_2$ and vice-versa.
+\end{constraint} 
+
+Assumption \ref{cs:constraint1} ensures that the decoder can uniquely identify the end of the codeword \textit{without} relying on its knowledge of the previously received codewords $\rs{a}^{t-1}$, its previously designed control inputs $\rs{u}^{t-1}$, and the common SI $\rs{d}^{t}$ it shares with the encoder. However, Assumption \ref{cs:constraint1} is perhaps too restrictive; at time $t$ both the encoder and the decoder have access to SI, including the previous codewords $\rs{a}^{t-1}$ and the dither signal $\rs{d}^{t}$. While information known  \textit{only} to the encoder cannot reduce the minimum codeword length, information known to the decoder can. Thus, we consider prefix-free codes that are instantaneous with respect to realizations of the SI known to the decoder, as detailed in Assumption \ref{cs:constraint2}.
+\begin{constraint}\label{cs:constraint2}
+    For any realizations ($\rs{a}^{t-1}=a^{t-1},\rs{d}^{t}=d^{t},\rs{u}^{t-1}=u^{t-1}$), for all distinct $a_1,a_2\in\{0,1\}^*$ with $\mathbb{P}_{\rs{a}_t|\rs{a}^{t-1},\rs{d}^{t},\rs{u}^{t-1}}[\rs{a}_t=a_1|\rs{a}^{t-1}=a^{t-1},\rs{d}^{t}=d^{t},\rs{u}^{t-1}=u^{t-1}]>0$ and $\mathbb{P}_{\rs{a}_t|\rs{a}^{t-1},\rs{d}^{t},\rs{u}^{t-1}}[\rs{a}_t=a_2|\rs{a}^{t-1}=a^{t-1},\rs{d}^{t}=d^{t},\rs{u}^{t-1}=u^{t-1}]>0$, $a_1$ is not a prefix of $a_2$ and vice-versa.
+\end{constraint} 
+
+This requirement ensures that given the knowledge of $\rs{a}^{t-1}$, $\rs{d}^{t}$, and $\rs{u}^{t-1}$ the decoder can uniquely identify the end of the codeword. While Assumption \ref{cs:constraint2} is somewhat relaxed in comparison to Assumption \ref{cs:constraint1}, the implementation of a coding scheme under Assumption \ref{cs:constraint2} is likely more cumbersome with respect to that of Assumption \ref{cs:constraint1}.  For example, under Assumption \ref{cs:constraint1} a decoder-side system that detecting the end of the codeword need not consider the SI, whereas under Assumption \ref{cs:constraint2} this is not necessarily the case. Our main result is a lower bound on codeword length applying to both Assumptions \ref{cs:constraint1} and \ref{cs:constraint2}.
+\begin{theorem}\label{thm:converse}
+    For a system model conforming to that of  Fig. \ref{fig:ditharch} and (\ref{eq:ditherFactorization}) if at every time $t$ the codeword $\rs{a}_t$ satisfies either Assumption \ref{cs:constraint1}
+ or Assumption \ref{cs:constraint2}  then the time-average expected codeword length satisfies
+ \begin{align} \label{eq:converse_thm}   \frac{1}{(T+1)}\sum_{i=0}^{T}\mathbb{E}[\ell(\rs{a}_t)] \ge \frac{1}{(T+1)}I(\rs{x}^T\rightarrow\rs{u}^{T}).
+ \end{align}
+\end{theorem}
+The proof of Theorem \ref{thm:converse} will follow directly from the following two lemmas. 
+\begin{lemma}\label{lemm:milb}
+If $\rs{a}_t$ satisfies either of the prefix-free conditions outlined in Assumptions \ref{cs:constraint1} or \ref{cs:constraint2}, we have
+\begin{align}\label{eq:lb_lemm}
+    \frac{1}{(T+1)}\sum_{i=0}^{T}\mathbb{E}[\ell(\rs{a}_t)] \ge \frac{1}{(T+1)}I(\rs{x}^T\rightarrow\rs{a}^{T}||\rs{d}^{T},\rs{u}_{+}^{T}).\linebreak
+\end{align}
+\end{lemma}
+\begin{proof}
+We first derive a bound on the codeword length under Assumption \ref{cs:constraint1}. Assume that the encoder and decoder policies are fixed and conform to Assumption \ref{cs:constraint1}. Consider $\rs{a}_t$ itself as an information source with a range in $\{0,1\}^*$. Define the identity map  $C^{\mathrm{I}}: \{0,1\}^*\rightarrow\{0,1\}^*$ such that for all $a\in\{0,1\}^*$, $C^{\mathrm{I}}(a) = a$. By Assumption \ref{cs:constraint1}, at every time $t$, $C^{\mathrm{I}}$ is a lossless, prefix-free source code for $\rs{a}_t$. Thus, we have (cf. \cite[Theorem 5.3.1]{elemIT})
+\begin{IEEEeqnarray}{rCl}\label{eq:converse1}
+\mathbb{E}[\ell(\rs{a}_t)]&=&\mathbb{E}[\ell(C^{\mathrm{I}}(\rs{a}_t))] \label{eq:converse1ident}\\&\ge &H(\rs{a}_t)\label{eq:converse1shannon} \\ &\ge& H(\rs{a}_t|\rs{a}^{t-1}, \rs{d}^{t}, \rs{u}^{t-1},)\label{eq:converse1condred} \\ &\ge&I(\rs{a}_t;\rs{x}^{t}|\rs{a}^{t-1},\rs{d}^{t},\rs{u}^{t-1})\label{eq:defmi1}
+\end{IEEEeqnarray} where (\ref{eq:converse1ident}) follows since $C^{\mathrm{I}}$ is an identify map, (\ref{eq:converse1shannon}) follows from the fact that $C^{\mathrm{I}}$ is a prefix-free code for $\rs{a}_t$ and thus has an expected length lower bounded by the entropy of $\rs{a}_t$. Equation (\ref{eq:converse1condred}) follows from the fact that conditioning reduces entropy. Finally, (\ref{eq:defmi1}) follows from subtracting the (nonnegative) discrete conditional entropy  $H(\rs{a}_t|\rs{a}^{t-1}, \rs{d}^{t}, \rs{u}^{t-1}, \rs{x}^{t})$ from (\ref{eq:converse1condred}) and applying the definition of mutual information. 
+
+We now demonstrate that the lower bound in (\ref{eq:defmi1}) also applies under Assumption \ref{cs:constraint2}. Consider modifying the system model of Fig. \ref{fig:ditharch} by inserting a  second ``virtual" lossless source codec between the original encoder and decoder. The virtual encoder and decoder have causal access to the control inputs $\rs{u}^{t-1}$ in addition to  $\rs{a}^{t-1}$ and $\rs{d}^{t}$ at time $t$; indeed, the virtual encoder and decoder have access to all information known at the decoder/controller at time $t$. We fix the sensor/encoder and decoder/controller such that they satisfy Assumption \ref{cs:constraint2} and take $\rs{a}_t$ itself to be an information source. We consider further compressing $\rs{a}_{t}$ virtual encoder. We assume that the virtual encoder and decoder first select a lossless, prefix-free, codebook for $\rs{a}_{t}$ that depends on the realizations of  ($\rs{a}^{t-1}$,  $\rs{d}^{t}$, $\rs{u}^{t-1}$). We require that the codewords $\{\rs{c}_{t}\}$ also satisfy Assumption \ref{cs:constraint2} (replacing $\rs{a}_t$ with the virtual codeword $\rs{c}_t$). 
+
+Fix the the realizations $\rs{a}^{t-1}=a^{t-1}$,  $\rs{d}^{t}=d^{t}$, $\rs{u}^{t-1}=u^{t-1}$, and consider encoding  $\rs{a}_{t}$ into $\rs{c}_{t}$. Denote the virtual encoder function mapping $\rs{a}_{t}$ to $\rs{c}_{t}$ given these realizations by $C_{a^{t-1}, d^{t}, u^{t-1}}:\{0,1\}^{*}\rightarrow \{0,1\}^{*}$. Consider choosing $C_{a^{t-1}, d^{t}, u^{t-1}}$  to minimize $\mathbb{E}[\ell(\rs{c}_{t})]$. Since $\rs{a}_t$ also satisfies Assumption \ref{cs:constraint2},
+\begin{multline}\label{eq:cbetter}
+    \mathbb{E}[\ell(\rs{a}_t)|\rs{a}^{t-1}=a^{t-1},  \rs{d}^{t}={d}^{t}, \rs{u}^{t-1}=u^{t-1}] \ge\\ \mathbb{E}[\ell(\rs{c}_t)|\rs{a}^{t-1}=a^{t-1},  \rs{d}^{t}={d}^{t}, \rs{u}^{t-1}=u^{t-1}],
+\end{multline} since choosing $C_{a^{t-1}, d^{t}, u^{t-1}}$ to be the identify map (i.e. $\rs{c}_{t}=\rs{a}_{t}$) ensures that both $C_{a^{t-1}, d^{t}, u^{t-1}}$ is lossless and that the $\{\rs{c}_{t}\}$ satisfy Assumption \ref{cs:constraint2}. Since the prefix constraint in Assumption \ref{cs:constraint2} applies for all realizations, we can lower bound 
+$\mathbb{E}[\ell(\rs{c}_t)|\rs{a}^{t-1}=a^{t-1},  \rs{d}^{t}={d}^{t}, \rs{u}^{t-1}=u^{t-1}]$ using the standard Kraft-McMillan inequality based proof. For any realizations ($a^{t-1}$, $d^{t}$, $u^{t-1}$) and choice of code $C_{a^{t-1}, d^{t}, u^{t-1}}$, we have (cf. \cite[Theorem 5.3.1]{elemIT})
+\begin{multline}\label{eq:conditionalentropy}
+    \mathbb{E}[\ell(\rs{c}_t)|\rs{a}^{t-1}=a^{t-1},  \rs{d}^{t}={d}^{t}, \rs{u}^{t-1}=u^{t-1}] \ge\\ H(\rs{a}_t|\rs{a}^{t-1}=a^{t-1},  \rs{d}^{t}={d}^{t}, \rs{u}^{t-1}=u^{t-1}).
+\end{multline} Taking the expectation of (\ref{eq:cbetter}) and (\ref{eq:conditionalentropy}) with respect to the joint measure $(\rs{a}^{t-1}, \rs{d}^{t}, \rs{u}^{t-1})$ over realizations allows us to proceed as in (\ref{eq:converse1}). We have
+\begin{IEEEeqnarray}{rCl}\label{eq:converse2}
+     \mathbb{E}[\ell(\rs{a}_t)] &\ge& \mathbb{E}[\ell(\rs{c}_t)] \label{eq:refcbetter}\\
+      &\ge& H(\rs{a}_t|\rs{a}^{t-1},  \rs{d}^{t}, \rs{u}^{t-1}) \label{eq:refconditionalentropy}\\ &\ge& I(\rs{a}_{t};\rs{x}^{t}|\rs{a}^{t-1},\rs{d}^{t},\rs{u}^{t-1})\label{eq:defmi2},
+\end{IEEEeqnarray} where (\ref{eq:refcbetter}) is by taking expectations over realizations in (\ref{eq:cbetter}), (\ref{eq:refconditionalentropy}) follows likewise from (\ref{eq:conditionalentropy}), and (\ref{eq:defmi2}) follows as in (\ref{eq:defmi1}).
+
+ Summing the identical bounds in (\ref{eq:defmi1}) and (\ref{eq:defmi2}) over $t=\{0,\dots,T\}$ and applying the definition of causally conditioned directed information from (\ref{eq:didef}) proves (\ref{eq:lb_lemm}). 
+\end{proof}
+
+
+In the next lemma, we show that the directed information in Lemma \ref{lemm:milb} can be lower bounded by a directed information that is amenable to the rate-distortion formulation from \cite{SDP_DI}. 
+\begin{lemma}\label{lemm:didpi}
+In the system model of Figure \ref{fig:ditharch}, we have
+\begin{align}\label{eq:conversehypothesis}
+I(\rs{x}^T\rightarrow\rs{a}^{T}||\rs{d}^{T},\rs{u}_{+}^{T-1})\ge I(\rs{x}^T\rightarrow\rs{u}^{T}). 
+\end{align}
+\end{lemma}
+\begin{proof}
+Let 
+\begin{align}\label{eq:phi1def}
+    \phi_t = I(\rs{x}^t;\rs{a}_t|\rs{a}^{t-1},\rs{d}^t,\rs{u}^{t-1})- I(\rs{x}^t;\rs{u}_t|\rs{u}^{t-1})
+\end{align} and note that summing the $\phi_t$ at applying (\ref{eq:didef}) gives
+\begin{align}\label{eq:sumprescope}
+    I(\rs{x}^T\rightarrow\rs{a}^{T}||\rs{d}^{T},\rs{u}_{+}^{T-1})-I(\rs{x}^T\rightarrow\rs{u}^{T}) = \sum_{i=0}^{T}\phi_t. 
+\end{align} We first demonstrate that 
+\begin{multline}\label{eq:triplet}
+        I(\rs{x}^t;\rs{a}_t|\rs{a}^{t-1},\rs{d}^t,\rs{u}^{t-1})  \\= I(\rs{x}^t;(\rs{a}_t,\rs{d}_{t},\rs{u}_t)|\rs{a}^{t-1},\rs{d}^{t-1},\rs{u}^{t-1}).
+\end{multline} Using the chain rule, we have $ I(\rs{x}^t;(\rs{a}_t,\rs{d}_{t},\rs{u}_t)|\rs{a}^{t-1},\rs{d}^{t-1},\rs{u}^{t-1}) = I(\rs{x}^t;\rs{u}_{t}|\rs{a}^{t},\rs{d}^{t},\rs{u}^{t-1})\\+ I(\rs{x}^t;\rs{a}_{t}|\rs{a}^{t-1},\rs{d}^{t},\rs{u}^{t-1})+I(\rs{x}^t;\rs{d}_{t}|\rs{a}^{t-1},\rs{d}^{t-1},\rs{u}^{t-1})$. We have, by (\ref{eq:ditherFactorization}) that $\rs{d}_{t}$ is independent of $(\rs{a}^{t-1},\rs{d}^{t-1},\rs{u}^{t-1},\rs{x}^t)$ so  $I(\rs{x}^t;\rs{d}_{t}|\rs{a}^{t-1},\rs{d}^{t-1},\rs{u}^{t-1})=0$. Likewise,  (\ref{eq:ditherFactorization}) induces the Markov chain ($\rs{x}^{t}-(\rs{a}^t,\rs{d}^t,\rs{u}^{t-1})-\rs{u}_t$) (e.g. the control action at time $t$ is independent of the past states given the information at the decoder) and so $I(\rs{x}^t;\rs{u}_{t}|\rs{a}^{t},\rs{d}^{t},\rs{u}^{t-1})=0$. Substituting (\ref{eq:triplet}) in (\ref{eq:phi1def}) gives 
+\begin{IEEEeqnarray}{rCl}
+\phi_t &=&I(\rs{x}^t;(\rs{a}_t,\rs{d}_{t},\rs{u}_t)|\rs{a}^{t-1},\rs{d}^{t-1},\rs{u}^{t-1})- I(\rs{x}^t;\rs{u}_t|\rs{u}^{t-1})\nonumber
+\\&=&I(\rs{x}^{t};(\rs{a}^t,\rs{d}^t)|\rs{u}^{t})-I(\rs{x}^{t};(\rs{a}^{t-1},\rs{d}^{t-1})|\rs{u}^{t-1})\label{eq:addnsub}\\&=&I(\rs{x}^{t};(\rs{a}^t,\rs{d}^t)|\rs{u}^{t})-I(\rs{x}^{t-1};(\rs{a}^{t-1},\rs{d}^{t-1})|\rs{u}^{t-1})\label{eq:lastmarkovconverse}
+\end{IEEEeqnarray}   The equality (\ref{eq:addnsub}) follows from using the chain rule two different ways to show that
+\begin{subequations}
+\begin{multline}
+     I(\rs{x}^t;(\rs{a}^t,\rs{d}^{t},\rs{u}_t)|\rs{u}^{t-1})  = I(\rs{x}^t;\rs{u}_t|\rs{u}^{t-1})+\\I(\rs{x}^t;(\rs{a}^t,\rs{d}^t)|\rs{u}^t)\text{ and }\label{subeq:addthisone}
+\end{multline}
+\begin{multline}
+    I(\rs{x}^t;(\rs{a}^t,\rs{d}^{t},\rs{u}_t)|\rs{u}^{t-1}) = I(\rs{x}^t;(\rs{a}^{t-1},\rs{d}^{t-1})|\rs{u}^{t-1})+\\ I(\rs{x}^t;(\rs{a}_t,\rs{d}_{t},\rs{u}_t)|\rs{a}^{t-1},\rs{d}^{t-1},\rs{u}^{t-1})\label{subeq:subthisone},
+\end{multline}
+\end{subequations} and then adding (\ref{subeq:addthisone}) and subtracting (\ref{subeq:subthisone}) to the preceding equation. For $t\ge 1$, (\ref{eq:lastmarkovconverse}) follows since by the chain rule $I(\rs{x}^{t};(\rs{a}^{t-1},\rs{d}^{t-1})|\rs{u}^{t-1})=I(\rs{x}^{t-1};(\rs{a}^{t-1},\rs{d}^{t-1})|\rs{u}^{t-1})+I(\rs{x}_{t};(\rs{a}^{t-1},\rs{d}^{t-1})|\rs{u}^{t-1},\rs{x}^{t-1})$. However, by the system model (cf. (\ref{eq:ditherFactorization})) we have the Markov chain ($(\rs{a}^{t-1},\rs{d}^{t-1})-(\rs{x}^{t-1},\rs{u}^{t-1})-\rs{x}_t$) and so $I(\rs{x}_{t};(\rs{a}^{t-1},\rs{d}^{t-1})|\rs{u}^{t-1},\rs{x}^{t-1})=0$. When $t=0$, by definition $I(\rs{x}^{t};(\rs{a}^{t-1},\rs{d}^{t-1})|\rs{u}^{t-1})=0$ and so we can simply adopt the convention that $I(\rs{x}^{-1};(\rs{a}^{-1},\rs{d}^{-1})|\rs{u}^{-1})=0$. We can then apply (\ref{eq:lastmarkovconverse}) to telescope the sum in (\ref{eq:sumprescope})
+\begin{IEEEeqnarray}{rCl}\label{eq:telescope2mi}
+\sum_{i=0}^{T}\phi_t&=&I(\rs{x}^{T};(\rs{a}^T,\rs{d}^T)|\rs{u}^{T}). 
+\end{IEEEeqnarray} Substituting (\ref{eq:telescope2mi}) into (\ref{eq:sumprescope}) and recognizing that mutual information is nonnegative proves (\ref{eq:conversehypothesis}).
+\end{proof} Theorem \ref{thm:converse} is immediate upon combining Lemmas \ref{lemm:milb} and \ref{lemm:didpi}. 
+
+Before concluding this section, we briefly discuss how the lower bound in Theorem \ref{thm:converse} can be modified if we do not require that the codewords $\rs{a}_{t}$ conform to prefix-free constraints.  While prefix-free constraints can be useful in settings where multiple agents access a shared communication medium, they may be overly restrictive, in particular for the point-to-point case when the encoder and decoder share a common clock signal. The prefix-free constraints were what allowed us to use the entropy lower bounds in (\ref{eq:converse1shannon}) and (\ref{eq:conditionalentropy}) respectively. Lifting the prefix-free constraint is known to permit a reduction in expected bitrate \cite{kostinaTradeoff} \cite{verduVariableLength}. Define the function $\theta(x):\mathbb{R}^{+}\rightarrow\mathbb{R}^{+}$ via $\theta(x) = x+(1+x)\log_2(1+x)-x\log_2(x)$. It can be shown that $\theta(x)$ is strictly increasing and concave. Thus, the inverse $\theta^{-1}:\mathbb{R}^{+}\rightarrow\mathbb{R}^{+}$ exists, is strictly increasing, and is convex. 
+
+Assume that in the setting of Lemma \ref{lemm:milb}, we lift the prefix-free constraint in  Assumption \ref{cs:constraint2} as applied to the virtual codeword $\rs{c}_{t}$, but that we require that the virtual codec be lossless with respect to the shared SI at time $t$. In other words, we just require that for all for all realizations of $(\rs{a}^{t-1},\rs{d}^t,\rs{u}^{t-1})$ the virtual encoding function $C_{{a}^{t-1},{d}^t,{u}^{t-1}}: \{0,1\}^{*}\rightarrow \{0,1\}^{*}$ is bijective. The bound (\ref{eq:converse2}) becomes
+\begin{IEEEeqnarray}{rCl}\label{eq:converse2theta}
+     \mathbb{E}[\ell(\rs{a}_t)] &\ge& \mathbb{E}[\ell(\rs{c}_t)] \\
+      &\ge& \theta^{-1}\left(H(\rs{a}_t|\rs{a}^{t-1},  \rs{d}^{t}, \rs{u}^{t-1})\right) \label{eq:thetaDefVerdu}\\  &\ge& 
+       \theta^{-1}\left(I(\rs{a}_{t};\rs{x}^{t}|\rs{a}^{t-1},\rs{d}^{t},\rs{u}^{t-1})\right)\label{eq:subsequentstep}
+\end{IEEEeqnarray} where (\ref{eq:thetaDefVerdu}) follows from \cite[Equation (13)]{verduVariableLength}  and (\ref{eq:subsequentstep}) follows from (\ref{eq:converse2})-(\ref{eq:defmi2}) and the fact that $\theta^{-1}$ is increasing. Likewise, under Assumption \ref{cs:constraint1}, relaxing the prefix-free constraint gives 
+\begin{align}
+    \mathbb{E}[\ell(\rs{a}_t)] \ge \theta^{-1}\left(I(\rs{a}_{t};\rs{x}^{t}|\rs{a}^{t-1},\rs{d}^{t},\rs{u}^{t-1})\right). 
+\end{align} Let $R_{t} = I(\rs{a}_{t};\rs{x}^{t}|\rs{a}^{t-1},\rs{d}^{t},\rs{u}^{t-1})$. By the convexity of $\theta^{-1}$ and Jensen's inequality, taking the time average gives
+\begin{IEEEeqnarray}{rCl}
+\sum_{i=0}^{T} \dfrac{\theta^{-1}(R_{t})}{T+1}\label{eq:citeserg}&\ge&  \theta^{-1}\left(\sum_{i=0}^{T}\dfrac{R_t}{T+1}\right)\label{eq:noprefixconversejensesns}\\ &\ge& \theta^{-1}\left(\dfrac{I(\rs{x}^T\rightarrow\rs{a}^{T}||\rs{d}^{T},\rs{u}_{+}^{T-1})}{T+1}\right)\label{eq:usedidef} \\&\ge& \theta^{-1}\left(\dfrac{I(\rs{x}^{T}\rightarrow\rs{u}^{T})}{T+1}\right)\label{eq:fromthedpi}
+\end{IEEEeqnarray} where (\ref{eq:usedidef}) is the definition of directed information and (\ref{eq:fromthedpi}) follows from the fact that $\theta^{-1}$ is increasing and the DI data processing inequality in Lemma \ref{lemm:didpi}.  Thus, if the prefix-free constraints in either Assumption \ref{cs:constraint1} or \ref{cs:constraint2} are relaxed, we have
+ \begin{align} \label{eq:noasconverse}   \frac{1}{(T+1)}\sum_{i=0}^{T}\mathbb{E}[\ell(\rs{a}_t)] \ge  \theta^{-1}\left(\frac{I(\rs{x}^{T}\rightarrow\rs{u}^{T})}{T+1}\right).
+ \end{align} In the following section, we motivate a rate-distortion optimization that seeks a policy which minimizes the time-average directed information lower bound from (\ref{eq:converse_thm}) subject to constraints on control performance. Since $\theta^{-1}$ is increasing and convex,  (\ref{eq:noasconverse}) demonstrates that this optimization is meaningful even if the prefix-free constraints are relaxed. 
+ 
+\subsection{Rate Distortion Formulation}\label{ssec:rdf}
+We reexamine the optimization proposed in (\ref{eq:codewordLenghtOptimization}) in light of the converse result obtained in Theorem \ref{thm:converse}. Let $\mathcal{L}^*$ be the infimum obtained in the optimization (\ref{eq:codewordLenghtOptimization}). By Theorem \ref{thm:converse},
+\begin{align}\label{eq:optimization2}
+    \mathcal{L}^*\ge \left\{\begin{aligned}
+& \underset{\mathbb{P}_\mathrm{E}, \mathbb{P}_{\mathrm{C}}}{\inf}  \underset{T\rightarrow \infty}{\lim\sup}\text{ }\frac{1}{T+1}I(\rs{x}^T\rightarrow\rs{u}^{T}) \\ &\text{s.t. }   \underset{T\rightarrow \infty}{\lim\sup}\frac{\sum\nolimits_{t=0}^{T}\mathbb{E}[\lVert \rvec{x}_{t+1} \rVert_{{Q}}^{2} +\lVert \rvec{u}_{t} \rVert_{{R}}^{2}]}{T+1} \le \gamma
+\end{aligned}, \right. 
+\end{align} where the policy spaces $\{\mathbb{P}_\mathrm{E}, \mathbb{P}_{\mathrm{C}}\}$ are given by (\ref{eq:encdithpol}) and (\ref{eq:contdithpol}). We consider further relaxing the optimization on the right hand side of (\ref{eq:optimization2}) by expanding these policy spaces. Note that both the control and communication costs involve only $\{\rs{x}_{i},\rs{u}_{i}\}$. Under the system model, we have that the joint probability measure of these random variables factorizes via
+\begin{multline}
+    \mathbb{P}_{\rs{x}^{T},\rs{u}^{T}}[\rs{x}^{T},\rs{u}^{T}] =\\ \prod_{t=0}^{T} \mathbb{P}_{\rs{x}_{t}|\rs{u}_{t-1},\rs{x}_{t-1}}[\rs{x}_{t}|\rs{u}_{t-1},\rs{x}_{t-1}]\mathbb{P}_{\rs{u}_{t}|\rs{u}^{t-1},\rs{x}^{t}}[\rs{u}_{t}|\rs{u}^{t-1},\rs{x}^{t}].\nonumber
+\end{multline}  In a sense, this factorization follows from the causality of the systems under investigation. The kernels
+$\{\mathbb{P}_{\rs{x}_{t}|\rs{u}_{t-1},\rs{x}_{t-1}}[\rs{x}_{t}|\rs{u}_{t-1},\rs{x}_{t-1}]\}$ are time-invariant and fixed by the plant model. Meanwhile, the kernels of the form
+$\mathbb{P}_{\rs{u}_{t}|\rs{u}^{t-1},\rs{x}^{t}}[\rs{u}_{t}|\rs{u}^{t-1},\rs{x}^{t}]$ are induced by the encoder and controller policies. Let $\mathbb{P}_{\rs{u}||\rs{x}}$ denote the set of all sequences of Borel-measurable kernels of the form $\{\mathbb{P}_{\rs{u}_{t}|\rs{u}^{t-1},\rs{x}^{t}}[\rs{u}_{t}|\rs{u}^{t-1},\rs{x}^{t}]\}$. By definition, $\mathbb{P}_{\rs{u}||\rs{x}}$ contains all kernels that can possibly be induced by encoder and controller policies conforming  to (\ref{eq:encdithpol}) and (\ref{eq:contdithpol}). Consider the optimization problem
+\begin{align}\label{eq:rdf}
+    \mathcal{R} = \left\{\begin{aligned}
+& \underset{\mathbb{P}_{\rs{u}||\rs{x}}}{\inf}  \underset{T\rightarrow \infty}{\lim\sup}\text{ }\frac{1}{T+1}I(\rs{x}^T\rightarrow\rs{u}^{T}) \\ &\text{s.t. }     \underset{T\rightarrow \infty}{\lim\sup}\frac{\sum\nolimits_{t=0}^{T}\mathbb{E}[\lVert \rvec{x}_{t+1} \rVert_{{Q}}^{2} +\lVert \rvec{u}_{t} \rVert_{{R}}^{2}]}{T+1} \le \gamma
+\end{aligned}.\right.
+\end{align} 
+Since the domain of optimization in (\ref{eq:rdf}) is expanded with respect to that the of the optimization on the right-hand side of (\ref{eq:optimization2}), we have
+\begin{align}
+  \mathcal{R}\le \left\{\begin{aligned}
+& \underset{\mathbb{P}_\mathrm{E}, \mathbb{P}_{\mathrm{C}}}{\inf}  \underset{T\rightarrow \infty}{\lim\sup}\text{ }\frac{1}{T+1}I(\rs{x}^T\rightarrow\rs{u}^{T}) \\ &\text{s.t. }    \underset{T\rightarrow \infty}{\lim\sup}\frac{\sum\nolimits_{t=0}^{T}\mathbb{E}[\lVert \rvec{x}_{t+1} \rVert_{{Q}}^{2} +\lVert \rvec{u}_{t} \rVert_{{R}}^{2}]}{T+1} \le \gamma
+\end{aligned} \right.  
+\end{align} and thus also $L^{*}\ge  \mathcal{R}$. 
+
+The optimization in (\ref{eq:rdf}) is the subject of \cite{SDP_DI}. While, a priori, the optimization in (\ref{eq:rdf}) is over an infinite-dimensional policy space, \cite{SDP_DI} demonstrated that the minimum in (\ref{eq:rdf}) could be computed by a finite dimensional log-determinant optimization. Let $S$ be a stabilizing solution to the discrete algebraic Riccati equation
+\begin{align}
+    A^{\mathrm{T}}SA-S-A^{\mathrm{T}}SB(B^{\mathrm{T}}SB+R)^{-1}B^{\mathrm{T}}SA+Q = 0,\nonumber
+\end{align} let $K=-(B^{\mathrm{T}}SB+R)^{-1}B^{\mathrm{T}}SA$, and let $\Theta = K^{\mathrm{T}}(B^{\mathrm{T}}SB+R)K$. It can be shown (cf. \cite[Section IV.B]{SDP_DI}) that the optimization in (\ref{eq:rdf}) is equivalent to
+\begin{align}\label{eq:threestageRDF}
+    \mathcal{R} &=& \left\{\begin{aligned}
+& \underset{\substack{P,\Pi, \in\mathbb{R}^{m\times m}\\P,\Pi\succeq 0} }{\inf} \frac{1}{2}(-\log_2{\det{\Pi}}+\log_2{\det{W}} )\\ &\text{ }\text{s.t. }  \mathrm{Tr}(\Theta P)+\mathrm{Tr}(WS)\le \gamma \\ &\text{ }\text{ } P\preceq APA^\mathrm{T}+W\\&\text{ }\text{ }\begin{bmatrix}P-\Pi & PA^{\mathrm{T}} \\ AP & APA^{\mathrm{T}}+W \end{bmatrix}\succeq 0 
+\end{aligned}.\right.
+\end{align} Optimizations of the form (\ref{eq:threestageRDF}) are ammenable to solution by standard convex optimization libraries. 
+\section{Conclusion}
+In \cite{silvaFirst}, \cite{tanakaISIT} prefix-free coding schemes that conform to Assumption \ref{cs:constraint2} were shown to nearly achieve the communication cost for systems with a shared uniform dither sequence at the encoder and decoder. Likewise, bounds on the quantizer output entropy from \cite{kostinaTradeoff} (not assuming dithering) can be used to demonstrate the existence of a scheme conforming to Assumption \ref{cs:constraint1} that approximately achieves the lower bound in the high communication rate/strict control cost regime. 
+
+The prefix-free constraints discussed in this work apply ``at time $t$" in the sense that both  definitions allow different prefix-free codebooks to be used at every time $t$. For example, under Assumption \ref{cs:constraint1} there is nothing preventing a codeword at time $t+1$ from being a prefix of some codeword at time $t$. Likewise, proofs of the achievability results in \cite{tanakaISIT}, \cite{kostinaTradeoff} imply the codebook is time-varying. Deriving lower bounds and achievability results for time-invariant prefix-free codecs is an opportunity for future work. 
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs.bib}
+
+
+
+\end{document}
+
+% Generated by IEEEtran.bst, version: 1.14 (2015/08/26)
+\begin{thebibliography}{10}
+\providecommand{\url}[1]{#1}
+\csname url@samestyle\endcsname
+\providecommand{\newblock}{\relax}
+\providecommand{\bibinfo}[2]{#2}
+\providecommand{\BIBentrySTDinterwordspacing}{\spaceskip=0pt\relax}
+\providecommand{\BIBentryALTinterwordstretchfactor}{4}
+\providecommand{\BIBentryALTinterwordspacing}{\spaceskip=\fontdimen2\font plus
+\BIBentryALTinterwordstretchfactor\fontdimen3\font minus
+  \fontdimen4\font\relax}
+\providecommand{\BIBforeignlanguage}[2]{{%
+\expandafter\ifx\csname l@#1\endcsname\relax
+\typeout{** WARNING: IEEEtran.bst: No hyphenation pattern has been}%
+\typeout{** loaded for the language `#1'. Using the pattern for}%
+\typeout{** the default language instead.}%
+\else
+\language=\csname l@#1\endcsname
+\fi
+#2}}
+\providecommand{\BIBdecl}{\relax}
+\BIBdecl
+
+\bibitem{silvaFirst}
+E.~I. {Silva}, M.~S. {Derpich}, and J.~{Ostergaard}, ``A framework for control
+  system design subject to average data-rate constraints,'' \emph{IEEE Trans.
+  Automat. Cont.}, vol.~56, no.~8, pp. 1886--1899, 2011.
+
+\bibitem{tanakaISIT}
+T.~{Tanaka}, K.~H. {Johansson}, T.~{Oechtering}, H.~{Sandberg}, and
+  M.~{Skoglund}, ``Rate of prefix-free codes in {LQG} control systems,'' in
+  \emph{Proc. IEEE ISIT}, 2016, pp. 2399--2403.
+
+\bibitem{verduVariableLength}
+W.~Szpankowski and S.~Verdu, ``Minimum expected length of fixed-to-variable
+  lossless compression without prefix constraints,'' \emph{IEEE Transactions on
+  Information Theory}, vol.~57, no.~7, pp. 4017--4025, 2011.
+
+\bibitem{SDP_DI}
+T.~{Tanaka}, P.~M. {Esfahani}, and S.~K. {Mitter}, ``{LQG} control with minimum
+  directed information: Semidefinite programming approach,'' \emph{IEEE Trans.
+  Automat. Contr.}, vol.~63, no.~1, pp. 37--52, 2018.
+
+\bibitem{masseyDI}
+J.~Massey, ``Causality, feedback and directed information,'' in \emph{Proc.
+  IEEE ISIT}, 1990, pp. 303--305.
+
+\bibitem{kostinaTradeoff}
+V.~{Kostina} and B.~{Hassibi}, ``Rate-cost tradeoffs in control,'' \emph{IEEE
+  Trans. on Automat. Cont.}, vol.~64, no.~11, pp. 4525--4540, 2019.
+
+\bibitem{kostinaSI}
+------, ``Rate-cost tradeoffs in scalar {LQG} control and tracking with side
+  information,'' in \emph{Proc. 56th Annu. Allerton Conf. on Commun., Control,
+  and Comput.}, 2018, pp. 421--428.
+
+\bibitem{photisSI}
+P.~A. Stavrou and M.~Skoglund, ``{LQG} control and linear policies for noisy
+  communication links with synchronized side information at the decoder,''
+  \emph{Automatica}, vol. 123, p. 109306, 2021.
+
+\bibitem{oronNew}
+O.~{Sabag}, P.~{Tian}, V.~{Kostina}, and B.~{Hassibi}, ``The minimal directed
+  information needed to improve the {LQG} cost,'' in \emph{Proc. IEEE CDC},
+  2020, pp. 1842--1847.
+
+\bibitem{ourciss}
+\BIBentryALTinterwordspacing
+T.~C. Cuvelier and T.~Tanaka, ``Rate of prefix-free codes in {LQG} control
+  systems with side information,'' in \emph{2021 55th Annual Conference on
+  Information Sciences and Systems (CISS)}, 2021, pp. 1--6. [Online].
+  Available: \url{https://arxiv.org/abs/2101.09329}
+\BIBentrySTDinterwordspacing
+
+\bibitem{milanCorrection}
+\BIBentryALTinterwordspacing
+M.~S. Derpich and J.~Østergaard, ``Comments on {`A Framework for Control
+  System Design Subject to Average Data-Rate Constraints'},'' \emph{arXiv
+  preprint}, 2021. [Online]. Available: \url{https://arxiv.org/abs/2103.12897}
+\BIBentrySTDinterwordspacing
+
+\bibitem{milanMainResult}
+\BIBentryALTinterwordspacing
+------, ``Directed data-processing inequalities for systems with feedback,''
+  \emph{Entropy}, vol.~23, no.~5, 2021. [Online]. Available:
+  \url{https://www.mdpi.com/1099-4300/23/5/533}
+\BIBentrySTDinterwordspacing
+
+\bibitem{elemIT}
+T.~M. Cover and J.~A. Thomas, \emph{Elements of Information Theory}.\hskip 1em
+  plus 0.5em minus 0.4em\relax Wiley-Interscience, 1991.
+
+\end{thebibliography}

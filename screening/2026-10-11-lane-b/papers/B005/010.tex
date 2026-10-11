@@ -1,0 +1,1451 @@
+%-----------------------------------------------------------------------
+% Beginning of mcom-l-template.tex
+%-----------------------------------------------------------------------
+%
+%     This is a topmatter template file for MCOM for use with AMS-LaTeX.
+%
+%     Templates for various common text, math and figure elements are
+%     given following the \end{document} line.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%     Remove any commented or uncommented macros you do not use.
+
+\documentclass{mcom-l}
+
+\usepackage{microtype}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{thmtools}
+\usepackage{commath}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{bm}
+
+\allowdisplaybreaks
+
+%     Update the information and uncomment if AMS is not the copyright
+%     holder.
+%\copyrightinfo{2009}{American Mathematical Society}
+
+%%%% THEOREM ENVIROMENTS AND EQUATION NUMBERING
+
+\numberwithin{equation}{section}
+\declaretheorem[Refname={Theorem,Theorems}]{theorem}
+\numberwithin{theorem}{section} % This should commented out if there is to be a non-section-based nvumbering
+\declaretheorem[style=definition,numberlike=theorem,Refname={Definition,Definitions}]{definition}
+\declaretheorem[style=definition,numberlike=theorem,Refname={Assumption,Assumptions}]{assumption}
+\declaretheorem[style=definition,numberlike=theorem,Refname={Example,Examples}]{example}
+\declaretheorem[style=definition,numberlike=theorem,Refname={Remark,Remarks}]{remark}
+\declaretheorem[numberlike=theorem,Refname={Lemma,Lemmas}]{lemma}
+\declaretheorem[name=Corollary,numberlike=theorem,Refname={Corollary,Corollaries}]{corollary}
+\declaretheorem[name=Proposition,numberlike=theorem,Refname={Proposition,Propositions}]{proposition}
+
+%%%% HYPERREF SETUP
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue,
+    pdftitle={Karvonen --- Approximation in Hilbert Spaces of Weighted Power Series Kernels},
+}
+
+%%%% NEWCOMMANDS ETC
+
+\DeclareMathOperator{\e}{e} % Exponential constant
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\newcommand{\Int}{\textup{Int}}
+\newcommand{\App}{\textup{App}}
+
+\renewcommand{\b}[1]{\bm{#1}}
+
+% Some paired delimiters
+\DeclarePairedDelimiterX\Set[2]{\lbrace}{\rbrace}%
+{ #1 \,:\, #2 }                                         % Set of type {A : B}
+\DeclarePairedDelimiterX\inprod[2]{\langle}{\rangle}%
+{ #1 , #2 }                                             % Inner product
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}          % Ceiling function
+\DeclarePairedDelimiter{\floor}{\lfloor}{\rfloor}         % Floor function
+
+% Number sets
+\newcommand{\R}{\mathbb{R}} % Set of real numbers
+\newcommand{\Q}{\mathbb{Q}} % Set of rational numbers
+\newcommand{\N}{\mathbb{N}} % Set of natural numbers
+\newcommand{\Z}{\mathbb{Z}} % Set of integers
+
+% Author comments
+\newcommand{\toni}[1]{{\color{red}{#1}}}
+
+%%%% DOCUMENT
+
+\begin{document}
+
+% \title[short text for running head]{full title}
+\title[Approximation in Hilbert Spaces of Weighted Power Series Kernels]{Approximation in Hilbert Spaces of the Gaussian and Other Weighted Power Series Kernels}
+
+%    Only \author and \address are required; other information is
+%    optional.  Remove any unused author tags.
+
+%    author one information
+% \author[short version for running head]{name for top of paper}
+\author{Toni Karvonen}
+\address{Department of Mathematics and Statistics, University of Helsinki, Finland.}
+\curraddr{}
+\email{toni.karvonen@helsinki.fi}
+\thanks{The author was supported by the Academy of Finland postdoctoral researcher grant \#338567 ``Scalable, adaptive and reliable probabilistic integration''.}
+
+\subjclass[2020]{Primary 65D05, 46E22; Secondary 65D12, 41A10, 41A25}
+\date{}
+\dedicatory{}
+
+\begin{abstract}
+  This article considers linear approximation based on function evaluations in reproducing kernel Hilbert spaces of the Gaussian kernel and a more general class of weighted power series kernels on the interval $[-1, 1]$.
+  We derive almost matching upper and lower bounds on the worst-case error, measured both in the uniform and $L^2([-1,1])$-norm, in these spaces.
+  The results show that if the power series kernel expansion coefficients $\alpha_n^{-1}$ decay at least factorially, their rate of decay controls that of the worst-case error.
+  Specifically, (i) the $n$th minimal error decays as $\alpha_n^{{\scriptscriptstyle -1/2}}$ up to a sub-exponential factor and (ii) for any $n$ sampling points in $[-1, 1]$ there exists a linear approximation whose error is $\alpha_n^{{\scriptscriptstyle -1/2}}$ up to an exponential factor.
+  For the Gaussian kernel the dominating factor in the bounds is $(n!)^{-1/2}$.
+\end{abstract}
+
+\maketitle
+
+\section{Introduction}
+
+Although the Gaussian kernel $K(x, y) = \exp(-\frac{1}{2} \varepsilon^2(x - y)^2)$ has found widespread use as a building block of approximation and estimation methods in fields such as spatial statistics~\cite{Stein1999}, emulation of computer models~\cite{Sacks1989}, machine learning~\cite{RasmussenWilliams2006} and scattered data approximation~\cite{Wendland2005}, rates of convergence for approximation and integration in its reproducing kernel Hilbert space remain imperfectly understood.
+In particular, no tight or almost tight lower bounds on approximation or integration error exist.
+We consider the worst-case setting of approximating univariate functions on $[-1, 1]$ that lie in reproducing kernel Hilbert spaces of the Gaussian kernel and a more general class of weighted power series kernels that generalise the class of power series kernels considered by Zwicknagl~\cite{Zwicknagl2009}.
+The quality of approximation is measured in both the uniform and $L^2([-1, 1])$-norm.
+Our main contribution is to establish explicit and almost matching upper and lower bounds on the worst-case error of linear approximations that use function evaluations.
+The upper bounds are based on weighted polynomial interpolation and the standard error estimate for polynomial interpolation, while the lower bounds use the classical Markov inequality on the maxima of the derivatives and coefficients of a polynomial from 1892 and its $L^2$-version by Labelle~\cite{Labelle1969}.
+This work is motivated by a desire to understand certain asymptotic properties of parameter estimators in Gaussian process interpolation~\cite{Karvonen2022-smoothness}.
+
+\subsection{Weighted power series kernels} \label{sec:intro-kernels}
+
+Let $\varphi \colon [-1, 1] \to \R$ be a non-vanishing Lebesgue measurable function and $(\alpha_k)_{k = 0}^\infty$ a positive sequence for which it holds that $\sum_{k=0}^\infty \alpha_k^{-1} < \infty$.
+It is easy to see that
+\begin{equation} \label{eq:kernel}
+  K(x, y) = \varphi(x) \varphi(y) \sum_{k=0}^\infty \alpha_k^{-1} x^k y^k
+\end{equation}
+is a well-defined strictly positive-definite kernel on $[-1, 1] \times [-1, 1]$.
+In a slight generalisation of power series kernels considered in~\cite{Zwicknagl2009, ZwicknaglSchaback2013}, we call kernels of the form~\eqref{eq:kernel} \emph{weighted power series kernels}.
+Let $H(K)$ be the reproducing kernel Hilbert space of the kernel $K$.
+The inner product and norm of $H(K)$ are denoted $\inprod{\cdot}{\cdot}_K$ and $\norm[0]{\cdot}_K$.
+Throughout this article we consider approximation $H(K)$ under the assumptions
+\begin{equation} \label{eq:phi-assumption}
+  0 < \varphi_\textup{min} = \inf_{x \in [-1, 1]} \abs[0]{\varphi(x)} \leq \sup_{x \in [-1, 1]} \abs[0]{\varphi(x)} = \varphi_\textup{max} < \infty \tag{A$\varphi$}
+\end{equation}
+and that there exists a positive constant $\lambda$ such that
+\begin{equation} \label{eq:alpha-assumption}
+  \frac{\alpha_{k}}{\alpha_n} \leq \lambda^{n-k} \frac{k!}{n!} \tag{A$\alpha$}
+\end{equation}
+for all $n \geq 0$ and $0 \leq k \leq n$.
+Note that it follows from assumption~\eqref{eq:alpha-assumption} that $\alpha_k \geq \lambda^{-k} k!$ for every $k \geq 0$.
+Assumption~\eqref{eq:alpha-assumption} is sufficient, though far from necessary, to ensure that every element of $H(K)$ is an analytic function if $\varphi$ is analytic (see Proposition~\ref{prop:analytic}).
+The reason for its inclusion is related to the techniques we use to prove our lower bounds and is discussed in more detail in \Cref{rmk:alpha-assumption-unif,rmk:alpha-assumption-l2}.
+
+We are in particular interested in those selections of $(\alpha_k)_{k=0}^\infty$ and $\varphi$ for which the kernel $K$ assumes closed form.
+Let $\varepsilon > 0$ be the \emph{scale parameter}.
+The following four kernels that satisfy assumptions~\eqref{eq:phi-assumption} and~\eqref{eq:alpha-assumption} have appeared in the literature.
+  The Gaussian kernel
+  \begin{equation} \label{eq:gaussian-kernel-intro}
+    K(x, y) = \exp\bigg(\! -\frac{1}{2} \varepsilon^2 (x - y)^2 \bigg)
+  \end{equation}
+  is obtained by selecting $\alpha_k = \varepsilon^{-2k} k!$ and $\varphi(x) = e^{-\frac{1}{2}\varepsilon^2 x^2}$.
+  The exponential kernel
+  \begin{equation*}
+    K(x, y) = e^{\varepsilon xy}
+  \end{equation*}
+  is obtained by selecting $\alpha_k = \varepsilon^{-k} k!$ and $\varphi \equiv 1$.
+  Let $\tau > 0$.
+  The analytic Hermite kernel (or Mehler kernel)
+  \begin{equation*}
+    K(x, y) = \exp\bigg( \! - \frac{1}{2} \varepsilon^2(x^2 + y^2)  + \tau^2 \varepsilon^2 xy \bigg)
+  \end{equation*}
+  is obtained by selecting $\alpha_k = (\tau \varepsilon)^{-2k} k!$ and $\varphi(x) = e^{-\frac{1}{2} \varepsilon^2 x^2}$.
+  If $\tau = 1$, this kernel reduces to the Gaussian kernel, but by taking any $r \in (0, 1)$ and setting $\varepsilon^2 = r^2/(1 - r^2)$ and $\tau^2 = 1/r$ we get from Mehler's formula that (see~\cite[Sec.\@~3.1.2]{IrrgeherLeobacher2015} and~\cite[Sec.\@~5.2]{Karvonen2022-sample})
+  \begin{equation*}
+    K(x, y) = \exp\bigg( \! - \frac{r^2(x^2 + y^2) - 2rxy}{2(1 - r^2)} \bigg) = \sqrt{1 - r^2} \, \sum_{k=0}^\infty \frac{r^k}{k!} H_k(x) H_k(y),
+  \end{equation*}
+  where $H_k$ are the probabilist's Hermite polynomials.
+  Let $\mathcal{I}_0$ be the modified Bessel function of the first kind of zeroth order.
+  The Bessel kernel~\cite[p.\@~64]{Zwicknagl2009}
+  \begin{equation*}
+    K(x, y) = \mathcal{I}_0( 2 \varepsilon \sqrt{\smash[b]{x y}} \, )
+  \end{equation*}
+  is obtained by selecting $\alpha_k = \varepsilon^{-k} k!^2$ and $\varphi \equiv 1$.
+
+\subsection{Worst-case error and main results}
+
+Let us then describe the worst-case setting considered that we consider and briefly review our main results.
+Let $F$ stand for the set of real-valued Lebesgue measurable functions on $[-1, 1]$.
+For any $f \in F$, define the norms
+\begin{equation*}
+  \norm[0]{f}_\infty = \sup_{x \in [-1, 1]} \abs[0]{f(x)} \quad \text{ and } \quad \norm[0]{f}_p = \bigg( \int_{-1}^1 \abs[0]{f(x)}^p \dif x \bigg)^{1/p} \: \text{ for } \: 1 \leq p < \infty,
+\end{equation*}
+both of which are allowed to be infinite.
+Let $A_n \colon H(K) \to F$ be a linear approximation of the form
+\begin{equation} \label{eq:linear-algorithm}
+  A_n f = \sum_{k=1}^n f(x_{k}) \psi_k
+\end{equation}
+for some functions $\psi_k \in F$ and some pairwise distinct points $x_1, \ldots, x_n \in [-1, 1]$.
+That is, the approximation $A_n$ uses standard information.
+We consider the worst-case errors
+\begin{equation*}
+  e_\infty(A_n) = \sup_{ 0 \neq f \in H(K)} \frac{\norm[0]{f - A_nf}_\infty}{\norm[0]{f}_K} \quad \text{ and } \quad e_2(A_n) = \sup_{ 0 \neq f \in H(K)} \frac{\norm[0]{f - A_nf}_{2}}{\norm[0]{f}_K}
+\end{equation*}
+of such approximations, as well as the $n$th minimal errors
+\begin{equation*}
+  e^{\min}_\infty(n) = \inf_{A_n} e_\infty(A_n) \quad \text{ and } \quad e^{\min}_2(n) = \inf_{A_n} e_2(A_n),
+\end{equation*}
+where the infima are over the collection of all linear approximations of the form~\eqref{eq:linear-algorithm}.
+Approximation in the uniform norm is considered in \Cref{sec:unif} and approximation in $L^2([-1,1])$ in \Cref{sec:L2}.
+While it would be easy to provide upper bounds on $e_p(A_n)$ and $e_p^{\min}(n)$ for any $1 \leq p \leq \infty$, the techniques we use to prove lower bounds exploit results that are specific to the cases $p = 2$ and $p = \infty$.
+
+Our results state that the rate of growth of $\alpha_n$ determines the rate of decay of the worst-case error.
+The following theorem is a concise combination of \Cref{thm:e-min-unif,thm:e-any-unif,thm:e-min-L2,thm:e-any-L2}.\footnote{In order to simplify presentation, constants in the upper bounds for $p = \infty$ in \Cref{thm:main-intro,thm:gauss-intro} are slightly larger than in \Cref{thm:e-min-unif,thm:e-any-unif}.}
+
+\begin{theorem} \label{thm:main-intro}
+  Suppose that~\eqref{eq:phi-assumption} and~\eqref{eq:alpha-assumption} hold.
+  Let $c_L$ and $m_L$ be the functions defined in~\eqref{eq:cL-constant} and~\eqref{eq:mL-constant} and $p \in \{2, \infty\}$.
+  If $n \geq m_L(\lambda)$, then
+\begin{equation*}
+  c_{1,p} \, 2^{-n} \alpha_n^{-1/2} \leq e_p^{\min}(n) \leq 2 \sqrt{2 c_L(\lambda)} \, \varphi_{\max} \, n^{-1/8} e^{\sqrt{\lambda n}} \,  2^{-n}  \alpha_n^{-1/2}
+\end{equation*}
+and for any pairwise distinct $x_1, \ldots, x_n \in [-1, 1]$ there is a linear approximation $A_n$ of the form~\eqref{eq:linear-algorithm} such that
+  \begin{equation*}
+    c_{1,p} \, 2^{-n} \alpha_n^{-1/2} \leq e_p(A_n) \leq \sqrt{2 c_L(\lambda)} \, \varphi_{\max} \, n^{-1/8 - 1/p} e^{\sqrt{\lambda n}} \, 2^{n} \alpha_n^{-1/2},
+  \end{equation*}
+  where
+  \begin{equation} \label{eq:constants-main-intro}
+    c_{1,\infty} = \sqrt{ \frac{2}{1 + \lambda}} \, e^{-\frac{1}{32}\lambda^2} \varphi_\textup{min} \quad \text{ and } \quad c_{1, 2} = \frac{2\sqrt{2\pi}}{3e^3 \sqrt{\smash[b]{4 + \lambda}}} \, e^{-\frac{1}{32}\lambda^2} \varphi_\textup{min}.
+  \end{equation}
+\end{theorem}
+
+Applying these results to the Gaussian kernel yields the following theorem.
+Similar theorems for the three other kernels that mentioned earlier are given in \Cref{sec:applications}.
+
+\begin{theorem} \label{thm:gauss-intro}
+  Let $K$ be the Gaussian kernel in~\eqref{eq:gaussian-kernel-intro} and consider the setting of \Cref{thm:main-intro}.
+  If $n \geq m_L(\varepsilon^2)$, then
+\begin{equation} \label{eq:gauss-min-intro}
+  c_{1,p} \bigg( \frac{\varepsilon}{2} \bigg)^n (n!)^{-1/2} \leq e_p^{\min}(n) \leq 2 \sqrt{2 c_L(\varepsilon^2)}  \, n^{-1/8} e^{\varepsilon\sqrt{n}} \bigg( \frac{\varepsilon}{2} \bigg)^n (n!)^{-1/2}
+\end{equation}
+and
+\begin{equation} \label{eq:gauss-any-intro}
+  c_{1,p} \bigg( \frac{\varepsilon}{2} \bigg)^n (n!)^{-1/2} \leq e_p(A_n) \leq \sqrt{2 c_L(\varepsilon^2)} \, n^{-1/8 - 1/p} e^{\varepsilon\sqrt{n}} (2\varepsilon)^n (n!)^{-1/2},
+\end{equation}
+where the constants $c_{1, \infty}$ and $c_{1,2}$ are obtained by setting $\varphi_{\min} = e^{-\frac{1}{2} \varepsilon^2}$ and $\lambda = \varepsilon^2$ in~\eqref{eq:constants-main-intro}.
+\end{theorem}
+
+A notable feature of the bounds~\eqref{eq:gauss-min-intro} for the minimal error is that they are sufficiently tight to ensure that the smaller scale parameter $\varepsilon$ is, the faster the $n$th minimal error decays; the same is not true for~\eqref{eq:gauss-any-intro}, a fact likely due to sub-optimality of the bounds.
+
+The upper bounds are proved by constructing a weighted polynomial interpolant
+\begin{equation*}
+  (A_n f)(x) = \varphi(x) \sum_{k=1}^n \frac{f(x_k)}{\varphi(x_k)} \prod_{i \neq k} \frac{x - x_i}{x_i - x_k}
+\end{equation*}
+whose worst-case error is estimated with the standard error estimate for polynomial interpolation in~\eqref{eq:polynomial-interpolation-error} and an estimate in \Cref{lemma:CK-2n-bound} on the magnitude of derivatives of the unweighted kernel $R(x, y) = \sum_{k=0}^\infty \alpha_k^{-1} x^k y^k$.
+The bound on the $n$th minimal error is obtained by choosing $x_1, \ldots, x_n$ to be the Chebyshev nodes.\footnote{That improved error bounds are available in a reproducing kernel Hilbert space setting if the points cluster near the boundary---as the Chebyshev nodes do---has been proved by Rieger and Zwicknagl~\cite{RiegerZwicknagl2014}.}
+The lower bounds are based on Markov type inequalities (see~\cite[Thm.\@~16.3.3]{RahmanSchmeisser2002} and~\cite{Labelle1969}) which state that, for $p \in \{2, \infty\}$, each real coefficient of a polynomial $P_n(x) = \sum_{k=0}^n a_k x^k$ satisfies
+\begin{equation*}
+  \abs[0]{a_k} \leq \omega_{n,k} \norm[0]{P_n}_p,
+\end{equation*}
+where $\omega_{n,k}$ are certain explicit constants.
+Selecting $P_n$ to be a polynomial that vanishes at $x_1, \ldots, x_n$ and observing (see \Cref{sec:rkhs}) that the $H(K)$-norm of the function $f_n(x) = \varphi(x) P_n(x)$ can be expressed in terms of $\alpha_k$ and $a_k$ for $0 \leq k \leq n$ yields $A_n f_n \equiv 0$ for any linear approximation of the form~\eqref{eq:linear-algorithm}.
+Thus $e_p(A_n) \geq \norm[0]{f_n}_p / \norm[0]{f_n}_K$, and the problem reduces to estimating $\norm[0]{f_n}_K$, a task which is achieved in Lemmas~\ref{lemma:unif-norm-bound} and~\ref{lemma:l2-norm-bound}.
+We note that the constant coefficients in our theorems are far from optimal as simplicity and ease of presentation have been prioritised.
+However, care has been take to optimise the rates.
+
+\subsection{Related results}
+
+A number of results on approximation and integration in Hilbert spaces of the Gaussian kernel and other weighted power series kernels that we consider are available in the literature.
+Upper bounds for worst-case approximation error on bounded domains, with constants either non-explicit or worse than here, may be found in scattered data approximation and kernel interpolation literature (see~\cite[Sec.\@~11.4]{Wendland2005} and~\cite{Zwicknagl2009, RiegerZwicknagl2010, ZwicknaglSchaback2013, RiegerZwicknagl2014, KarvonenTanaka2021}), where they go back to the work of Madych and Nelson~\cite{MadychNelson1992}.
+These results are often formulated in terms of the minimal pointwise worst-case error, known in the literature as the power function,
+\begin{equation*}
+  \begin{split}
+    \mathcal{P}_{n}(x) = \inf_{\b{u} \in \R^n} \sup_{ 0 \neq f \in H(K)} \frac{\abs[0]{f(x) - \sum_{k=1}^n u_k f(x_k) }}{\norm[0]{f}_K} = \sup_{ 0 \neq f \in H(K)} \frac{\abs[0]{f(x) - (I_{n} f)(x) }}{\norm[0]{f}_K},
+    \end{split}
+\end{equation*}
+where the kernel interpolant (or spline) $I_{n} f$ is the unique function in the span of $\{K(x_k, \cdot)\}_{k=1}^n$ such that $(I_{n} f)(x_k) = f(x_k)$ for every $1 \leq k \leq n$.
+Typical results for the Gaussian kernel state that, for any $1 \leq p \leq \infty$ and some constants $c$ and $\gamma$,
+\begin{equation} \label{eq:power-function-bound}
+  \norm[0]{\mathcal{P}_{n}}_p \leq c \, e^{- \gamma n \log n} = c \, n^{- \gamma n}
+\end{equation}
+if the points $x_1, \ldots, x_n$ are sufficiently uniform on $[-1, 1]$; see~\cite[Thm.\@~11.22]{Wendland2005} and~\cite[Thm.\@~6.1]{RiegerZwicknagl2010}.
+Bounds on the power function for various power series kernels may be found in \cite{Zwicknagl2009, ZwicknaglSchaback2013}.
+The bound~\eqref{eq:power-function-bound} obviously functions as an upper bound on the $n$th minimal error for the Gaussian kernel.
+Because~\eqref{eq:power-function-bound} is a special case of a bound that holds for the Gaussian kernel defined in any dimension and is proved by means of local polynomial reproduction~\cite[Ch.\@~3]{Wendland2005}, the constant $\gamma$ is rather complicated.
+For equispaced points on $[-1, 1]$ one may compute that $\gamma \leq 1/48$~\cite[Sec.\@~4.2]{KarvonenTanaka2021}, which gives an extremely sub-optimal rate since Stirling's formula shows that the bounds~\eqref{eq:gauss-min-intro} and~\eqref{eq:gauss-any-intro} are of order $n^{-n/2}$ up to an exponential factor.
+Although apparently absent from the literature with the exception of~\cite{KarvonenTanaka2021}, it is difficult to believe that upper bounds of order $n^{-n/2}$ are not part of the folklore of the field because, as we see in \Cref{sec:app-gaussian}, proving them in dimension one via polynomial interpolation is a very simple exercise.
+Related results of somewhat different flavour from those cited above may be found in~\cite{PlatteDriscoll2005, Platte2011}.
+
+It seems that no lower bounds exist in the scattered data approximation literature for the Gaussian or other infinitely smooth kernels.
+This is in contrast to many finitely smooth kernels for which one can leverage the norm-equivalence of the reproducing kernel Hilbert space to a fractional Sobolev space to obtain exact algebraic orders of convergence; see~\cite{NovakTriebel2006, Arcangeli2007} and~\cite[Sec.\@~11.6]{Wendland2005}.
+For example, for the Matérn kernel
+\begin{equation*}
+  K(x, y) = \frac{2^{1-\nu}}{\Gamma(\nu)} \big( \sqrt{2\nu} \, \varepsilon \abs[0]{x - y} \big)^\nu \mathcal{K}_\nu \big( \sqrt{2\nu} \, \varepsilon \abs[0]{x - y} \big)
+\end{equation*}
+of smoothness $\nu > 0$, where $\Gamma$ is the Gamma function and $\mathcal{K}_\nu$ the modified Bessel function of the second kind of order $\nu$, one may prove that $e_p^{\min}(n)$ is of order $n^{-\nu - 1/2 + (1/2 - 1/p)_+}$.
+Here $(x)_+ = \max\{0, x\}$.
+Because the Matérn kernel converges pointwise to the Gaussian kernel as $\nu \to \infty$, it would be interesting to undertake a careful study of the constants involved to understand if something resembling \Cref{thm:gauss-intro} could be obtained via such a limiting argument.
+Appropriately scaled Wendland kernels also converge to the Gaussian as a smoothness parameter tends to infinity~\cite{Chernih2014}.
+
+Fasshauer, Hickernell and Wo{\'z}niakowski~\cite{FasshauerHickernell2010} initiated somewhat complementary traditions of analysis of both average-case~\cite{FasshauerHickernell2010, ChenWang2019, KhartovLimar2022} and worst-case~\cite{FasshauerHickernell2012, SloanWozniakowski2018} approximation for the Gaussian kernel on $\R^d$ when the error is measured in the Gaussian $L^2$-norm
+\begin{equation*}
+  \norm[0]{f}_{L^2(\R^d)} = \frac{1}{(2\pi)^{d/2}} \int_{\R^d} \abs[0]{f(\b{x})}^2 e^{-\frac{1}{2} \norm[0]{\b{x}}^2} \dif \b{x}.
+\end{equation*}
+Related results on the worst-case error for integration on $\R^d$ with respect to the Gaussian weight may be found in~\cite{KuoWozniakowski2012, KuoSloanWozniakowski2017, Karvonen2019, Karvonen2021}.
+One of the most notable results to be found in these articles is Theorem~4.1 in~\cite{KuoSloanWozniakowski2017}, which gives a lower bound on the minimal worst-case integration error.
+Approximation and integration in Hermite spaces of analytic functions, which are closely related to the Hilbert space of the Gaussian kernel (see \Cref{sec:intro-kernels}), have been considered in~\cite{Irrgeher2015, Irrgeher2016}.
+Moreover, there is some work~\cite{AnderssonBojanov1984} on optimal rates for integration in the Hardy space $\mathbb{H}_r^2$ of analytic functions in the open disc $\Set{z \in \mathbb{C}}{ \abs[0]{z} < r}$ whose reproducing kernel is $K(x, y) = r^2/(r^2 - xy) = \sum_{k=0}^\infty r^{-2k} x^k y^k$.
+Finally, results on covering numbers and regression rates for the Gaussian kernel may be found in~\cite{Zhou2002, Zhou2003, VaartZanten2009, Kuhn2011, EbertsSteinwart2013, SteinwartFischer2021}.
+
+\section{Preliminaries}
+
+This section collects some results that are used throughout the article.
+In addition to the results below, it is useful to keep in mind Stirling's approximation of the factorial, which states that $n! \sim \sqrt{2\pi} \, n^{n+1/2} e^{-n}$ as $n \to \infty$ and
+\begin{equation*}
+  \sqrt{2\pi} \, n^{n+1/2} e^{-n} < n! < \sqrt{2\pi} \, n^{n+1/2} e^{-n+1}
+\end{equation*}
+for all $n \geq 1$.
+
+\subsection{Hilbert space structure} \label{sec:rkhs}
+
+It is straightforward to show that the reproducing kernel Hilbert space of the kernel~\eqref{eq:kernel} that we consider consists precisely of the functions that can be expressed as a power series with square-summable coefficients and weighted by $\varphi$: 
+\begin{equation} \label{eq:rkhs-norm}
+  H(K) = \Set[\bigg]{ f(x) = \varphi(x) \sum_{k=0}^\infty c_k x^k }{ \norm[0]{f}_K^2 = \sum_{k=0}^\infty \alpha_k c_k^2 < \infty }.
+\end{equation}
+The expansion of $f \in H(K)$ in~\eqref{eq:rkhs-norm} converges pointwise on $[-1, 1]$.
+For two functions $f(x) = \varphi(x) \sum_{k=0}^\infty c_k x^k$ and $g(x) = \varphi(x) \sum_{k=0}^\infty c_k' x^k$ in $H(K)$ the Hilbert space inner product is $\inprod{f}{g}_K = \sum_{k=0}^\infty \alpha_k c_k c_k'$.
+For various results of this type, see~\cite{Zwicknagl2009, Minh2010, ZwicknaglSchaback2013, Gnewuch2022, Karvonen2022-sample}.
+The above characterisation plays a crucial role in our proofs for lower bounds.
+Let
+\begin{equation*}
+  K_1(x, y) = \varphi_1(x) \varphi_1(y) \sum_{k=0}^\infty \alpha_k^{-1} x^k y^k \quad \text{ and } \quad  K_2(x, y) = \varphi_2(x) \varphi_2(y) \sum_{k=0}^\infty \alpha_k^{-1} x^k y^k  
+\end{equation*}
+be two kernels of the form~\eqref{eq:kernel}.
+Because the functions $\varphi_1$ and $\varphi_2$ are non-vanishing, it is clear that the mapping
+\begin{equation*}
+  T \colon H(K_1) \to H(K_2) \quad \text{ defined via } \quad T f = \frac{\varphi_2}{\varphi_1} f
+\end{equation*}
+is an isometric isomorphism.
+Of particular importance to us will be the unweighted kernel
+\begin{equation} \label{eq:K0-kernel}
+  R(x, y) = \sum_{k=0}^\infty \alpha_k^{-1} x^k y^k
+\end{equation}
+and the corresponding mapping
+\begin{equation} \label{eq:mapping-T0}
+  T_R \colon H(R) \to H(K) \quad \text{ defined via } \quad T_R f = \varphi f.
+\end{equation}
+
+\subsection{Derivative bounds}
+
+To bound the worst-case errors from above we shall use weighted polynomial interpolation.
+Upper bounds on derivatives of elements of $H(K)$ are needed for this purpose.
+The following results closely resemble those that can be found in scattered data approximation literature, particularly in~\cite{Zwicknagl2009}.
+Define
+\begin{equation} \label{eq:CK2n-definition}
+  C_K^{2n} = \sup_{x \in [-1, 1]} \frac{\partial^{2n}}{\partial v^n \partial w^n} K(v, w) \biggl|_{\substack{v = x \\ w = x}}.
+\end{equation}
+
+\begin{lemma} \label{lemma:rkhs-norm-derivative}
+  Let $K$ be any positive-semidefinite kernel on $[-1, 1] \times [-1, 1]$ that is infinitely differentiable in both of its arguments.
+  Then every $f \in H(K)$ is infinitely differentiable and
+  \begin{equation*}
+    \norm[0]{f^{(n)}}_\infty \leq \norm[0]{f}_K (C_K^{2n})^{1/2}
+  \end{equation*}
+  for every $n \geq 0$.
+\end{lemma}
+\begin{proof}
+  It is well known that, for a kernel $K$ which is $n$ times differentiable with respect to both of its arguments, every $f \in H(K)$ is $n$ times differentiable and the reproducing property $\inprod{f}{K(x, \cdot)}_K = f(x)$ extends to differentiation~\cite[Cor.\@~4.36]{Steinwart2008}.
+  The Cauchy--Schwarz inequality thus gives
+  \begin{equation*}
+    \abs[0]{f^{(n)}(x)} = \abs[3]{ \inprod[\bigg]{f}{\frac{\partial^n}{\partial x^n} K(x, \cdot)}_K } \leq \norm[0]{f}_K \, \norm[3]{ \frac{\partial^n}{\partial x^n} K(x, \cdot)}_K
+  \end{equation*}
+  for every $x \in [-1, 1]$.
+  Again by the derivative reproducing property,
+  \begin{equation*}
+    \norm[3]{ \frac{\partial^n}{\partial x^n} K(x, \cdot)}_K^2 = \frac{\partial^{2n}}{\partial v^n \partial w^n} K(v, w) \biggl|_{\substack{v = x \\ w = x}}.
+  \end{equation*}
+  The claim follows.
+\end{proof}
+
+The Laguerre polynomial of degree $n \geq 0$ is defined as
+\begin{equation} \label{eq:laguerre-polynomial}
+  L_n(x) = \sum_{k=0}^n \binom{n}{k} \frac{(-x)^k}{k!} = \frac{e^x}{n!} \cdot \frac{\dif^{\,n}}{\dif x^n} (e^{-x} x^n).
+\end{equation}
+We make use of the following effective asymptotics for Laguerre polynomials from~\cite{Borwein2008}.
+
+\begin{proposition} \label{prop:laguerre}
+  Let $x > 0$.
+  Define
+  \begin{equation*}
+    \tilde{c}_L(x) = \frac{e^{-\frac{1}{2} x + 2\sqrt{\smash[b]{x}}}}{2\sqrt{\pi} x^{1/4}} \bigg( 3 + \sqrt{\frac{\pi}{e}} + \frac{2}{\sqrt{\pi} x^{1/4}} + \frac{7}{16 \sqrt{x}} + \sqrt{x} (2 + x) \bigg).
+  \end{equation*}
+  and
+  \begin{equation*}
+    \tilde{m}_L(x) = \max\bigg\{ 5x, x\bigg(1+\frac{x}{2} \bigg)^2, \frac{9}{x} \bigg\}.
+  \end{equation*}
+  Then
+  \begin{equation} \label{eq:laguerre-bound}
+    L_n(-x) = \sum_{k=0}^n \binom{n}{k} \frac{x^k}{k!} \leq \tilde{c}_L(x) \, n^{-1/4} e^{2\sqrt{\smash[b]{x n}}}
+  \end{equation}
+  for every $n \geq \tilde{m}_L(x)$.
+\end{proposition}
+\begin{proof}
+  Setting $a = 0$ in Section~6.3 of \cite{Borwein2008} gives
+  \begin{equation} \label{eq:laguerre-bound-initial}
+    \begin{split}
+      L_n(-x) &\leq \frac{e^{-\frac{1}{2} x}}{2\sqrt{\pi}} \cdot \frac{e^{2\sqrt{\smash[b]{x (n+1)}}}}{x^{1/4} (n + 1)^{1/4}}\bigg(1 + \frac{\overline{C}_1}{\sqrt{n+1}} + \mathcal{E}_1 + \mathcal{E}_{3,1} \bigg) \\
+      &\leq \frac{e^{-\frac{1}{2} x + 2\sqrt{\smash[b]{x}}}}{2\sqrt{\pi}} \cdot \frac{e^{2\sqrt{\smash[b]{x n}}}}{x^{1/4} \, n^{1/4}} \, (1 + \overline{C}_1 + \mathcal{E}_1 + \mathcal{E}_{3,1} )
+      \end{split}
+  \end{equation}
+  if $n \geq \max\{m_0, m_1, \ldots, m_7\}$ for certain non-negative constants $\overline{C}_1$, $\mathcal{E}_1$, $\mathcal{E}_{3,1}$ and $m_0, m_1, \ldots, m_7$.
+  From the forms given for the constants $m_i$ on p.\@~3033 we see that~\eqref{eq:laguerre-bound-initial} holds if
+  \begin{equation*}
+    \begin{split}
+      n \geq \max\{m_0, m_1, \ldots, m_7\} &= \max\bigg\{ \frac{x}{4}, 5x, 0, -\frac{5}{4} x, 4x, x\bigg(1+ \frac{x}{2} \bigg)^2, \frac{9}{x}, 0 \bigg\} \\
+      &= \max\bigg\{ 5x, x\bigg(1+\frac{x}{2} \bigg)^2, \frac{9}{x} \bigg\}.
+      \end{split}
+  \end{equation*}
+  The constants $\overline{C}_1$, $\mathcal{E}_1$ and $\mathcal{E}_{3,1}$ satisfy (see pp.\@~3306, 3304 and 3294, respectively)
+  \begin{align*}
+    \overline{C}_1 &\leq \frac{7}{16 \sqrt{x}} + 2 \sqrt{x} (1 + x / 2) , \\
+    \mathcal{E}_1 &\leq 2 e^{-4 \sqrt{\smash[b]{x(n+1)}}} + 2\sqrt{\pi} x^{1/4} (n+1)^{1/4} e^{-2 \sqrt{\smash[b]{x(n+1)}}}, \\
+    \mathcal{E}_{3, 1} &\leq \frac{2 e^{-2 \sqrt{\smash[b]{x(n+1)}}} }{\sqrt{\pi} x^{1/4} (n+1)^{1/4}}.
+  \end{align*}
+  The last two of these we may further bound as
+  \begin{equation*}
+    \mathcal{E}_1 \leq 2 + 2\sqrt{\pi} x^{1/4} (n+1)^{1/4} e^{-2 \sqrt{\smash[b]{x (n+1)}}} \leq 2 + \sqrt{\frac{\pi}{e}} \quad \text{ and } \quad \mathcal{E}_{3,1} \leq \frac{2}{\sqrt{\pi} x^{1/4}},
+  \end{equation*}
+  where we have used the inequality $2y^{1/4} e^{-2 \sqrt{y}} \leq e^{-1/2}$ for $y \geq 0$.
+\end{proof}
+
+Note that the rate in~\eqref{eq:laguerre-bound} cannot be improved because~\eqref{eq:laguerre-bound-initial} is, in fact, not only an upper bound but an asymptotic equivalence for $L_n(-x)$.
+The following proposition is similar to the lemmas (in particular Lemma~3) in Section~5 of~\cite{Zwicknagl2009}.\footnote{It seems that the eigenvalue bound used in the proof of Lemma~3 in~\cite{Zwicknagl2009} to estimate $L_n(-1)$ is erroneous because a more careful argument for bounding the log-sum gives
+  \begin{equation*}
+    \sum_{k=1}^{n-1} \log \bigg(1 + \frac{1}{\sqrt{k+1}} \bigg) \leq \int_1^n \log \bigg(1 + \frac{1}{\sqrt{x}} \bigg) \dif x = \sqrt{n} + (n-1)\log\bigg( 1 + \frac{1}{n}\bigg) - \frac{1}{2} \log n - 1,
+  \end{equation*}
+  which implies that $L_n(-1) = \mathcal{O}(n^{-1/2} e^{2\sqrt{n}})$.
+  This contradicts the Laguerre asymptotics in~\cite{Borwein2008}.
+  Although its proof is erroneous, the upper bound $L_n(-1) \leq 2 e^{2\sqrt{n}}$ derived in the proof of the lemma in question is correct (at least for sufficiently large $n$) in the light of~\cite{Borwein2008} and our \Cref{prop:laguerre}.
+}
+See also~\cite[Sec.\@~6.4]{ZwicknaglSchaback2013}.
+
+\begin{lemma} \label{lemma:CK-2n-bound}
+  Suppose that~\eqref{eq:alpha-assumption} holds and let $R$ be the unweighted kernel in~\eqref{eq:K0-kernel}.
+  Then
+  \begin{equation*}
+    C_{R}^{2n} \leq c_L(\lambda) \, n^{-1/4} e^{2\sqrt{\smash[b]{\lambda n}}} \alpha_n^{-1} n!^2
+  \end{equation*}
+  for every $n \geq m_L(\lambda)$, where
+  \begin{equation} \label{eq:cL-constant}
+    c_L(\lambda) = \frac{e^{-\frac{3}{2} \lambda + 2\sqrt{\smash[b]{\lambda}}}}{2\sqrt{\pi} \lambda^{1/4}} \bigg( 3 + \sqrt{\frac{\pi}{e}} + \frac{2}{\sqrt{\pi} \lambda^{1/4}} + \frac{7}{16 \sqrt{\lambda}} + \sqrt{\lambda} (2 + \lambda) \bigg).
+  \end{equation}
+  and
+  \begin{equation} \label{eq:mL-constant}
+    m_L(\lambda) = \max\bigg\{ 5\lambda, \lambda\bigg(1+\frac{\lambda}{2} \bigg)^2, \frac{9}{\lambda} \bigg\}.
+  \end{equation}
+\end{lemma}
+\begin{proof}
+  We compute
+  \begin{equation*}
+      C_{R}^{2n} = \sup_{x \in [-1, 1]} \sum_{k=n}^\infty \alpha_k^{-1} \bigg(\frac{k!}{(k - n)!}\bigg)^2 x^{k-n} y^{k-n} = \sum_{k=n}^\infty \alpha_k^{-1} \bigg(\frac{k!}{(k - n)!}\bigg)^2.
+  \end{equation*}
+  Assumption~\eqref{eq:alpha-assumption} yields
+  \begin{equation} \label{eq:CK2n-definition}
+    \begin{split}
+      C_{R}^{2n} = \alpha_n^{-1} \sum_{k=n}^\infty \frac{\alpha_n}{\alpha_k} \bigg(\frac{k!}{(k - n)!}\bigg)^2 &= \alpha_n^{-1} \sum_{k=0}^\infty \frac{\alpha_n}{\alpha_{n+k}} \bigg(\frac{(n + k)!}{k!}\bigg)^2 \\
+      &\leq \alpha_n^{-1} \sum_{k=0}^\infty \lambda^k \frac{n!}{(n + k)!} \bigg(\frac{(n + k)!}{k!}\bigg)^2 \\
+      &= \alpha_n^{-1} n! \sum_{k=0}^\infty \lambda^k \frac{(n + k)!}{k!^2}.
+      \end{split}
+  \end{equation}
+  From these computations it is easy to see that (set $\alpha_k = \lambda^{-k} k!$ so that each inequality becomes an equality)
+  \begin{equation} \label{eq:exp-kernel-CK2n-proof-1}
+    \frac{\partial^{2n}}{\partial x^n \partial y^n} e^{\lambda xy} \biggl|_{\substack{x = 1 \\ y = 1}} = \lambda^n \sum_{k=0}^\infty \lambda^k \frac{(n + k)!}{k!^2}.
+  \end{equation}
+  However, by~\eqref{eq:laguerre-polynomial} we have an alternative expression for the above derivative in terms of Laguerre polynomials:
+  \begin{equation} \label{eq:exp-kernel-CK2n-proof-2}
+    \frac{\partial^{2n}}{\partial x^n \partial y^n} e^{\lambda xy} \biggl|_{\substack{x = 1 \\ y = 1}} = \frac{\dif^{\, n}}{\dif y^n} \lambda^n y^n e^{\lambda y} \biggl|_{y = 1} = e^{-\lambda} \lambda^n n! L_n(-\lambda).
+  \end{equation}
+  Combining Equations~\eqref{eq:CK2n-definition}--\eqref{eq:exp-kernel-CK2n-proof-2} therefore yields
+  \begin{equation*}
+    C_R^{2n} \leq e^{-\lambda} L_n(-\lambda) \alpha_n^{-1} n!^2.
+  \end{equation*}
+  The claim follows from \Cref{prop:laguerre}.
+\end{proof}
+
+It is useful, though not necessary for what follows, to observe that assumption~\eqref{eq:alpha-assumption} and the analyticity $\varphi$ ensure that $H(K)$ consists of analytic functions.
+We refer to~\cite[pp.\@~40--43]{Saitoh1997} and~\cite{SunZhou2008} for general discussion and results on analyticity in the context of reproducing kernel Hilbert spaces.
+Results on analyticity and related properties for kernels defined via Hermite polynomials may be found in~\cite[Sec.\@~3.1]{Gnewuch2022} and references therein.
+
+\begin{proposition} \label{prop:analytic}
+  Suppose that~\eqref{eq:alpha-assumption} holds.
+  If $\varphi$ is analytic, then every element of $H(K)$ is analytic.
+\end{proposition}
+\begin{proof}
+  Recall that assumption~\eqref{eq:alpha-assumption} implies that $\alpha_n \geq \lambda^{-n} n!$.
+  If $f \in H(R)$ for the unweighted kernel $R$ in~\eqref{eq:K0-kernel}, Lemmas~\ref{lemma:rkhs-norm-derivative} and~\ref{lemma:CK-2n-bound} yield
+  \begin{equation*}
+    \begin{split}
+      \norm[0]{f^{(n)}}_\infty \leq \norm[0]{f}_{R} C^n n! \, \alpha_n^{-1/2} \leq \norm[0]{f}_{R} C^n n! \sqrt{ \frac{ \lambda^n }{n!}} &\leq \norm[0]{f}_{R} (C \lambda^{1/2} \, )^n \sqrt{n!} \\
+      &\leq \norm[0]{f}_{R} (C \lambda^{1/2} \, )^n n!
+      \end{split}
+  \end{equation*}
+  for a certain positive $C$.
+  This shows that every element of $H(R)$ is analytic.
+  Since the mapping $f \mapsto \varphi f$ in~\eqref{eq:mapping-T0} is an isometric isomorphism between $H(R)$ and $H(K)$, we see that if $\varphi$ is analytic, every element of $H(K)$ is analytic, being a product of two analytic functions.
+\end{proof}
+
+\subsection{Weighted polynomial interpolation}
+
+Let $f \colon I \to \R$ be an $n$ times continuously differentiable function on a closed interval $I$
+The unique polynomial $S_n f$ of degree $n-1$ that interpolates $f$ at some pairwise distinct points $x_1, \ldots, x_n \in I$ can be written in terms of the Lagrange basis functions as
+\begin{equation} \label{eq:polynomial-interpolant}
+  (S_{n} f)(x) = \sum_{k=1}^n f(x_k) \prod_{i \neq k} \frac{x - x_i}{x_i - x_k}.
+\end{equation}
+Define the \emph{weighted polynomial interpolant}
+\begin{equation} \label{eq:polynomial-interpolant-weighted}
+  (S_{n}^\varphi f)(x) = \varphi(x) \sum_{k=1}^n \frac{f(x_k)}{\varphi(x_k)} \prod_{i \neq k} \frac{x - x_i}{x_i - x_k}.
+\end{equation}
+Both of these interpolants are clearly linear approximations of the form~\eqref{eq:linear-algorithm}.
+It is a standard result~\cite[Sec.\@~2.6]{Hildebrand1987} that for each $x \in I$ there exists $\xi_x \in I$ such that
+\begin{equation} \label{eq:polynomial-interpolation-error}
+  f(x) - (S_{n} f)(x) = \frac{f^{(n)}(\xi_x)}{n!} \prod_{k=1}^n (x - x_k).
+\end{equation}
+Upper bounds on the worst-case errors will be straightforward corollaries of the following proposition.
+
+\begin{proposition} \label{prop:poly-interp-bound}
+  Suppose that~\eqref{eq:phi-assumption} holds.
+  If $f \in H(K)$, then
+  \begin{equation} \label{eq:poly-interp-bound-1}
+    \abs[0]{ f(x) - (S_{n}^\varphi f)(x) } \leq \varphi_{\max} \norm[0]{f}_K \frac{(C_{R}^{2n})^{1/2}}{n!} \, \abs[3]{ \prod_{k=1}^n (x - x_k) }
+  \end{equation}
+  for every $n \geq 1$ and $x \in [-1, 1]$.
+\end{proposition}
+\begin{proof}
+  Since the mapping $f \mapsto \varphi f$ in~\eqref{eq:mapping-T0} is an isometric isomorphism, for every $f \in H(K)$ there is $g \in H(R)$ such that $f = \varphi g$ and $\norm[0]{f}_K = \norm[0]{g}_{R}$.
+  The definitions of $S_{n}$ and $S_{n}^\varphi$ and the assumption~\eqref{eq:phi-assumption} that $\varphi$ is bounded from above give
+  \begin{equation*}
+    \abs[0]{ f(x) - (S_{n}^\varphi f)(x) } \leq \abs[0]{\varphi(x)} \abs[0]{ g(x) - (S_{n} g)(x) } \leq \varphi_{\max} \abs[0]{ g(x) - (S_{n} g)(x) }.
+  \end{equation*}
+  By Equation~\eqref{eq:polynomial-interpolation-error} and Lemma~\ref{lemma:rkhs-norm-derivative},
+  \begin{equation*}
+    \begin{split}
+    \abs[0]{ g(x) - (S_{n} g)(x) } \leq \frac{\norm[0]{g^{(n)}}_\infty}{n!} \, \abs[3]{ \prod_{k=1}^n (x - x_k) } &\leq \norm[0]{g}_{R} \frac{(C_{R}^{2n})^{1/2}}{n!} \, \abs[3]{ \prod_{k=1}^n (x - x_k) } \\
+    &= \norm[0]{f}_{K} \frac{(C_{R}^{2n})^{1/2}}{n!} \, \abs[3]{ \prod_{k=1}^n (x - x_k) },
+    \end{split}
+  \end{equation*}
+  which gives the claim.
+\end{proof}
+
+Note that the above proposition does not require that $\varphi$ be differentiable.
+If $\varphi$ is assumed to be infinitely differentiable and $C_K^{2n}$ can be computed or estimated, one can use the polynomial interpolant~\eqref{eq:polynomial-interpolant} and the estimate
+\begin{equation} \label{eq:poly-interp-bound-2}
+  \abs[0]{ f(x) - (S_{n} f)(x) } \leq \norm[0]{f}_K \frac{(C_{K}^{2n})^{1/2}}{n!} \, \abs[3]{ \prod_{k=1}^n (x - x_k) }
+\end{equation}
+instead of~\eqref{eq:poly-interp-bound-1}.
+However, since the weighting by $\varphi$ in $S_n^\varphi$ yields an interpolant that, at least intuitively, more resembles the elements of $H(K)$ than a polynomial interpolant, it is to be expected that~\eqref{eq:poly-interp-bound-1} is tighter than~\eqref{eq:poly-interp-bound-2}.
+In \Cref{sec:app-gaussian} we demonstrate that this is indeed the case if $K$ is the Gaussian kernel.
+
+\section{General results for approximation in $L^\infty([-1, 1])$-norm} \label{sec:unif}
+
+In this section we prove upper and lower bounds for $e_\infty^{\min}(n)$ and $e_\infty(A_n)$.
+Furthermore, in \Cref{sec:derivative-information} we consider derivative information at a single point $a \in (-1, 1)$.
+
+\subsection{Norm estimates} \label{sec:norm-estimates-unif}
+
+The Chebyshev polynomial of the first kind of degree $n$ is 
+\begin{equation*}
+  T_n(x) = \sum_{k=0}^n t_{n,k} x^k,
+\end{equation*}
+where the non-zero coefficients are
+\begin{equation} \label{eq:chebyshev-coefs}
+  t_{n, n - 2k} = (-1)^k \frac{2^{n-2k-1} n (n-k-1)!}{k! (n - 2k)!} \quad \text{ for } \quad 0 \leq k \leq \floor[\bigg]{\frac{n}{2}}.
+\end{equation}
+Note that the leading coefficient, $t_{n,n}$, equals $2^{n-1}$.
+The roots of $T_n$ are the Chebyshev nodes
+\begin{equation} \label{eq:chebyshev-nodes}
+  x_{n,k} = \cos\bigg( \frac{\pi(k - 1/2)}{n} \bigg) \in (-1, 1) \quad \text{ for } \quad 1 \leq k \leq n.
+\end{equation}
+The extrema, which are either $1$ or $-1$, of $T_n$ on $[-1, 1]$ are located at
+\begin{equation} \label{eq:chebyshev-extrema}
+  \tilde{x}_{n,k} = \cos(\pi k/n) \quad \text{ for } \quad 0 \leq k \leq n.
+\end{equation}
+That is, $T_n(x) \in [-1, 1]$ for all $x \in [-1, 1]$.
+For our purposes the importance of Chebyshev polynomials lies in a classical result by V.\ A.\ Markov from 1892 (for a brief history, see~\cite[p.\@~679]{RahmanSchmeisser2002}) and its generalisations~\cite[Sec.\@~16.3]{RahmanSchmeisser2002} that $T_n$ has the maximal coefficients among polynomials of degree~$n$ that take values in $[-1, 1]$.
+Specifically~\cite[Thm.\@~16.3.3]{RahmanSchmeisser2002}, if $P_n(x) = \sum_{k=0}^n a_k x^k$ is a polynomial of degree $n$ with real coefficients $a_k$ and $P_n(\tilde{x}_{n,k}) \leq 1$ for every $0 \leq k \leq n$, then
+\begin{equation} \label{eq:general-markov-inequality}
+  \abs[0]{a_{n-2k}} + \abs[0]{a_{n-2k-1}} \leq \abs[0]{t_{n,n-2k}} \quad \text{ for every } \quad 0 \leq k \leq \floor[\bigg]{\frac{n-1}{2}}.
+\end{equation}
+The lemmas below use this result to estimate the $H(K)$-norm of the weighted polynomial $f_n(x) = \varphi(x) P_n(x)$.
+
+\begin{lemma} \label{lemma:chebyshev-c-lemma}
+  Suppose that~\eqref{eq:alpha-assumption} holds.
+  Then for every $n \geq 1$ we have
+  \begin{equation} \label{eq:chebyshev-norm-lemma}
+    \tau_1 2^{2n} \alpha_n \leq \sum_{k=0}^{\floor{n/2}} \alpha_{n - 2k} t_{n, n - 2k}^2 \leq \tau_2 2^{2n} \alpha_n, 
+  \end{equation}
+  where
+  \begin{equation} \label{eq:chebyshev-norm-lemma-constants}
+    \tau_1 = \frac{1}{4} \quad \text{ and } \quad \tau_2 = \frac{1}{2} e^{\frac{1}{16} \lambda^2 }.
+  \end{equation}
+\end{lemma}
+\begin{proof}
+  Equation~\eqref{eq:chebyshev-coefs} gives
+  \begin{equation*}
+    \begin{split}
+      \sum_{k=0}^{\floor{n/2}} \alpha_{n - 2k} t_{n, n - 2k}^2 &= \alpha_n t_{n,n}^2 \sum_{k=0}^{\floor{n/2}} \frac{\alpha_{n-2k}}{\alpha_n} \bigg( \frac{t_{n, n - 2k}}{t_{n,n}} \bigg)^2 \\
+      &= 2^{2n-2} \alpha_n \sum_{k=0}^{\floor{n/2}} \frac{\alpha_{n-2k}}{\alpha_n} \bigg(\frac{n (n-k-1)!}{(n-2k)!}\bigg)^2 \frac{1}{2^{4k} k!^2}.
+      \end{split}
+  \end{equation*}
+  Denote the sum on the last line by $s_n$ and use assumption~\eqref{eq:alpha-assumption} to obtain the estimate
+  \begin{equation*}
+      s_n \leq \sum_{k=0}^{\floor{n/2}} \lambda^{2k} \frac{(n-2k)!}{n!}  \bigg(\frac{n (n-k-1)!}{(n-2k)!}\bigg)^2 \frac{1}{2^{4k} k!^2} = \sum_{k=0}^{\floor{n/2}} b_{n,k} \bigg( \frac{\lambda^2}{16} \bigg)^{k} \frac{1}{k!^2},
+\end{equation*}
+where
+\begin{equation*}
+  b_{n, k} = \frac{n (n-k-1)!^2}{(n-1)!(n-2k)!}.
+\end{equation*}
+It is straightforward to compute that $b_{n, 0} = 1$ for any $n \geq 1$ and $b_{n, 1} = n/(n-1) \leq 2$ for any $n \geq 2$.
+Furthermore,
+\begin{equation*}
+  \frac{b_{n,k}}{b_{n,k+1}} = \frac{(n-k-1)^2}{(n-2k)(n-2k-1)} > 1
+\end{equation*}
+for any $n \geq 2$ if $k \geq 1$.
+Therefore
+\begin{equation*}
+  s_n \leq 2 \sum_{k=0}^{\floor{n/2}} \bigg( \frac{\lambda}{4} \bigg)^{2k} \frac{1}{k!^2} \leq 2 e^{\frac{1}{16} \lambda^2 },
+\end{equation*}
+which gives the claimed upper bound.
+The lower bound follows from $s_n \geq 1$.
+\end{proof}
+
+\begin{remark} \label{rmk:alpha-assumption-unif}
+From the proof of \Cref{lemma:chebyshev-c-lemma} we see that the purpose of assumption~\eqref{eq:alpha-assumption}, which states that
+\begin{equation} \label{eq:alpha-assumption-2}
+  \frac{\alpha_{k}}{\alpha_n} \leq \lambda^{n-k} \frac{k!}{n!}
+\end{equation}
+for every $n \geq 0$ and $0 \leq k \leq n$, is to ensure that the sum in~\eqref{eq:chebyshev-norm-lemma} is dominated by the highest order term $\alpha_{n} t_{n, n}^2$.
+Suppose that $\alpha_k = k!^\beta$ for some $\beta > 0$ and note that~\eqref{eq:alpha-assumption-2} is satisfied if and only if $\beta \geq 1$.
+Then
+\begin{equation*}
+  %\alpha_n t_{n, n}^2 = 2^{2(n-1)} (n!)^\beta \quad \text{ and } \quad \alpha_{n - 2} t_{n, n - 2}^2 = 2^{2(n-3)} n^2 ((n-2)!)^\beta.
+  \frac{\alpha_{n - 2} t_{n, n - 2}^2}{\alpha_n t_{n, n}^2} = \frac{1}{16} \cdot \frac{n^2}{n^\beta (n-1)^\beta}
+\end{equation*}
+is bounded from above if and only if $\beta \geq 1$, which shows that for $\beta \in (0, 1)$ the sum in~\eqref{eq:chebyshev-norm-lemma} is \emph{not} dominated by $\alpha_{n} t_{n, n}^2$.
+\end{remark}
+
+\begin{lemma}
+  \label{lemma:chebyshev-norm-bound}
+  The function $f_n(x) = \varphi(x) T_n(x)$ is an element of $H(K)$.
+  If assumption~\eqref{eq:alpha-assumption} holds, then
+  \begin{equation*}
+    \tau_1 2^{2n} \alpha_n \leq \norm[0]{f_n}_K^2 \leq \tau_2 2^{2n} \alpha_n
+  \end{equation*}
+  for every $n \geq 1$, where the constants $\tau_1$ and $\tau_2$ are given in~\eqref{eq:chebyshev-norm-lemma-constants}.
+\end{lemma}
+\begin{proof}
+  The claim follows from \Cref{lemma:chebyshev-c-lemma} and the Hilbert space characterisation in~\eqref{eq:rkhs-norm} that gives $\norm[0]{f_n}_K^2 = \sum_{k=0}^{\floor{n/2}} \alpha_{n-2k} t_{n, n - 2k}^2$.
+\end{proof}
+
+\begin{lemma}
+  \label{lemma:unif-norm-bound}
+  Let $P_n(x) = \sum_{k=0}^n a_k x^k$ for $a_k \in \R$ be a polynomial of degree $n$.
+  The function $f_n(x) = \varphi(x) P_n(x)$ is an element of $H(K)$.
+  If assumption~\eqref{eq:alpha-assumption} holds, then
+  \begin{equation*}
+    \norm[0]{f_n}_K^2 \leq (1 + \lambda) \, \tau_2 2^{2n} \alpha_n \norm[0]{P_n}_\infty^2
+  \end{equation*}
+  for every $n \geq 1$, where the constant $\tau_2$ is given in~\eqref{eq:chebyshev-norm-lemma-constants}.
+\end{lemma}
+\begin{proof}
+  We can assume without loss of generality that $\norm[0]{P_n}_\infty \leq 1$.
+  In particular, $P_n(\tilde{x}_{n,k}) \leq 1$ for every $0 \leq k \leq n$, where $\tilde{x}_{n,k}$ are extremal points of $T_n$ in~\eqref{eq:chebyshev-extrema}.
+  We get from~\eqref{eq:general-markov-inequality} that
+  \begin{equation*}
+    \abs[0]{a_{n-2k}} + \abs[0]{a_{n-2k-1}} \leq \abs[0]{t_{n,n-2k}} \quad \text{ for every } \quad 0 \leq k \leq \floor[\bigg]{\frac{n-1}{2}}.
+  \end{equation*}
+  Furthermore, it is obvious that $\abs[0]{a_0} \leq \norm[0]{P_n}_\infty \leq t_{n, 0} = 1$ when $n$ is even.
+  These inequalities and the characterisation~\eqref{eq:rkhs-norm} give
+  \begin{equation*}
+    \begin{split}
+      \norm[0]{f_n}_K^2 = \sum_{k=0}^n \alpha_k a_k^2 &= \sum_{k=0}^{\floor{n/2}} \alpha_{n - 2k} a_{n - 2k}^2 + \sum_{k=0}^{\floor{(n-1)/2}} \alpha_{n - 2k -1} a_{n - 2k - 1}^2 \\
+      &\leq \sum_{k=0}^{\floor{n/2}} \alpha_{n - 2k} t_{n, n - 2k}^2 + \sum_{k=0}^{\floor{(n-1)/2}} \alpha_{n - 2k -1} t_{n, n - 2k}^2.
+      \end{split}
+  \end{equation*}
+  From assumption~\eqref{eq:alpha-assumption} we get
+  \begin{equation*}
+      \sum_{k=0}^{\floor{(n-1)/2}} \alpha_{n - 2k -1} t_{n, n - 2k}^2 \leq \lambda \sum_{k=0}^{\floor{(n-1)/2}} \frac{1}{n-2k} \alpha_{n - 2k} t_{n, n - 2k}^2 \leq \lambda \sum_{k=0}^{\floor{n/2}} \alpha_{n - 2k} t_{n, n - 2k}^2,
+  \end{equation*}
+  so that the claim follows from \Cref{lemma:chebyshev-c-lemma}.
+\end{proof}
+
+
+\subsection{Worst-case error bounds for standard information}
+
+With these tools at hand we are now ready to bound $e_\infty^{\min}(n)$ and $e_\infty(A_n)$.
+
+\begin{theorem} \label{thm:e-min-unif}
+  Suppose that~\eqref{eq:phi-assumption} and~\eqref{eq:alpha-assumption} hold.
+  Let $c_L$ and $m_L$ be the functions defined in~\eqref{eq:cL-constant} and~\eqref{eq:mL-constant}.
+  Then for every $n \geq m_L(\lambda)$ we have
+  \begin{equation*}
+    c_{1,\infty} 2^{-n} \alpha_n^{-1/2} \leq e_\infty^{\min}(n) \leq  c_{2,\infty} n^{-1/8} e^{\sqrt{\smash[b]{\lambda n}}} \, 2^{-n} \alpha_n^{-1/2},
+  \end{equation*}
+  where
+  \begin{equation} \label{eq:unif-constants}
+    c_{1,\infty} = \sqrt{ \frac{2}{1 + \lambda}} \, e^{-\frac{1}{32} \lambda^2} \varphi_\textup{min} \quad \text{ and } \quad c_{2,\infty} = 2 \sqrt{c_L(\lambda)} \, \varphi_{\max}.
+  \end{equation}
+\end{theorem}
+\begin{proof}
+  We first prove the lower bound.
+  Let $x_{1}, \ldots, x_{n} \in [-1, 1]$ be any points and let $P_n(x) = (x - x_1) \cdots (x - x_n)$ be a non-zero polynomial of degree $n$ which has its roots at these points.
+  The function $f_n(x) = \varphi(x) P_n(x)$ is an element of $H(K)$ and vanishes at $x_{1}, \ldots, x_{n}$
+  Therefore $A_nf_n \equiv 0$ for any approximation $A_n$ of the form~\eqref{eq:linear-algorithm} and thus
+  \begin{equation*}
+    e_\infty(A_n) = \sup_{0 \neq f \in H(K)} \frac{\norm[0]{f - A_nf}_\infty}{\norm[0]{f}_K} \geq \frac{\norm[0]{f_n}_\infty}{\norm[0]{f_n}_K}.
+  \end{equation*}
+  The lower bound now follows from \Cref{lemma:unif-norm-bound} and
+  \begin{equation*}
+    \norm[0]{f_n}_\infty = \sup_{x \in [-1, 1]} \abs[0]{\varphi(x) P_n(x)} \geq \varphi_\textup{min} \norm[0]{P_n}_\infty.
+  \end{equation*}
+
+  To prove the upper bound, let $x_1, \ldots, x_n$ be the Chebyshev nodes in~\eqref{eq:chebyshev-nodes} and consider the weighted polynomial interpolant in~\eqref{eq:polynomial-interpolant-weighted}:
+  \begin{equation*}
+    (A_n f)(x) = (S_n^\varphi f)(x) = \varphi(x) \sum_{k=1}^n \frac{f(x_k)}{\varphi(x_k)} \prod_{i \neq k} \frac{x - x_i}{x_i - x_k}.
+  \end{equation*}
+  Proposition~\ref{prop:poly-interp-bound} and Lemma~\ref{lemma:CK-2n-bound} yield
+  \begin{equation*}
+    \begin{split}
+    \norm[0]{ f - A_n f }_\infty &\leq \varphi_{\max} \norm[0]{f}_K \frac{(C_{R}^{2n})^{1/2}}{n!} \sup_{x \in [-1, 1]} \, \abs[3]{ \prod_{k=1}^n (x - x_k) } \\
+    &\leq \varphi_{\max} \norm[0]{f}_K \sqrt{c_L(\lambda)} \, n^{-1/8} e^{\sqrt{\smash[b]{\lambda n}}} \alpha_n^{-1/2} \sup_{x \in [-1, 1]} \, \abs[3]{ \prod_{k=1}^n (x - x_k) }
+    \end{split}
+  \end{equation*}
+  when $n \geq m_L(\lambda)$.
+  Because $x_1, \ldots, x_n$ are the roots of the $n$th Chebyshev polynomial $T_n$ and the leading coefficients of $T_n$ is $2^{n-1}$, we have
+  \begin{equation} \label{eq:chebyshev-sup-unif-proof}
+    \sup_{x \in [-1,1]} \, \abs[3]{ \prod_{k=1}^n (x - x_{k}) } = 2^{-n+1} \norm[0]{T_n}_\infty,
+  \end{equation}
+  so that the upper bound follows from $\norm[0]{T_n}_\infty = 1$.
+\end{proof}
+
+\begin{theorem} \label{thm:e-any-unif}
+  Suppose that~\eqref{eq:phi-assumption} and~\eqref{eq:alpha-assumption} hold.
+  Let $c_L$ and $m_L$ be the functions defined in~\eqref{eq:cL-constant} and~\eqref{eq:mL-constant}.
+  Then for any $n \geq m_L(\lambda)$ and any pairwise distinct points $x_1, \ldots, x_n \in [-1, 1]$ there is a linear approximation $A_n$ of the form~\eqref{eq:linear-algorithm} such that
+  \begin{equation*}
+    c_{1,\infty} 2^{-n} \alpha_n^{-1/2} \leq e_\infty(A_n) \leq  \frac{c_{2,\infty}}{2}  n^{-1/8} e^{\sqrt{\smash[b]{\lambda n}}} \, 2^{n} \alpha_n^{-1/2},
+  \end{equation*}
+  where the constants $c_{1,\infty}$ and $c_{2,\infty}$ are given in~\eqref{eq:unif-constants}.
+\end{theorem}
+\begin{proof}
+  The lower bound is a trivial consequence of Theorem~\ref{thm:e-min-unif}.
+  As in the proof of Theorem~\ref{thm:e-min-unif}, we let $A_n$ be the weighted polynomial interpolant $S_n^\varphi$ in~\eqref{eq:polynomial-interpolant-weighted} and obtain the estimate
+  \begin{equation*}
+    \norm[0]{ f - A_n f }_\infty \leq \varphi_{\max} \norm[0]{f}_K \sqrt{c_L(\lambda)} \, n^{-1/8} e^{\sqrt{\smash[b]{\lambda n}}} \alpha_n^{-1/2} \sup_{x \in [-1, 1]} \, \abs[3]{ \prod_{k=1}^n (x - x_k) }
+  \end{equation*}
+  for $n \geq m_L(\lambda)$.
+  However, this time we use the crude upper bound
+  \begin{equation*}
+    \sup_{x \in [-1, 1]} \, \abs[3]{ \prod_{k=1}^n (x - x_k) } \leq 2^n,
+  \end{equation*}
+  which is valid for any $x_1, \ldots, x_n \in [-1, 1]$.
+\end{proof}
+
+\subsection{Worst-case error bounds for derivative information} \label{sec:derivative-information}
+
+It is instructive to compare Theorem~\ref{thm:e-any-unif} to bounds for approximations based on derivative information at a single point.
+Let $a \in (-1, 1)$ and consider the weighted Taylor approximation
+\begin{equation*}
+  A_n^{\textup{d},a} f = \varphi(x) \sum_{k=0}^{n-1} \frac{g^{(k)}(a)}{k!} (x - a)^k,
+\end{equation*}
+where $g = T_R^{-1} f \in H(R)$ is the unique function such that $f = \varphi g$.
+Note that $g$ is analytic by Proposition~\ref{prop:analytic}.
+
+\begin{theorem} \label{thm:derivative-unif}
+  Suppose that~\eqref{eq:phi-assumption} and~\eqref{eq:alpha-assumption} hold.
+  Let $c_L$ and $m_L$ be the functions defined in~\eqref{eq:cL-constant} and~\eqref{eq:mL-constant} and $a \in (-1, 1)$.
+  Then for every $n \geq m_L(\lambda)$ we have
+  \begin{equation*}
+    \varphi_{\min} \bigg( \frac{1 + \abs[0]{a}}{(1 + \lambda a^2)^{1/2}}\bigg)^n \alpha_n^{-1/2} \leq e_\infty(A_n^{\textup{d}, a}) \leq \varphi_{\max} \sqrt{c_L(\lambda)} \, n^{-1/8} e^{\sqrt{\smash[b]{\lambda n}}} (1 + \abs[0]{a})^n \alpha_n^{-1/2}.
+  \end{equation*}
+\end{theorem}
+\begin{proof}
+    Taylor's theorem and $f = \varphi g$ yield
+  \begin{equation*}
+    \norm[0]{f - A_{n}^{\textup{d},a}f}_\infty \leq \varphi_{\max} \frac{\norm[0]{g^{(n)}}_\infty}{n!} \sup_{x \in [-1, 1]} \abs[0]{x - a}^n = \varphi_{\max} \frac{\norm[0]{g^{(n)}}_\infty}{n!} (1 + \abs[0]{a})^n.
+  \end{equation*}
+  The upper bound follows from \Cref{lemma:rkhs-norm-derivative,lemma:CK-2n-bound} and $\norm[0]{f}_K = \norm[0]{g}_{R}$.
+  To prove the lower bound, let $g_n(x) = (x - a)^n$ and $f_n = \varphi g_n$.
+  It is clear that the derivatives up to order $n-1$ of $g_n$ vanish at $x = a$.
+  Thus $A_n^{\textup{d},a} f_n \equiv 0$.
+  From the Hilbert space characterisation~\eqref{eq:rkhs-norm} and the binomial theorem we compute
+  \begin{align*}
+    \norm[0]{f_n}_K^2 = \sum_{k=0}^n \alpha_{n-k} \binom{n}{k}^2 a^{2k} = \alpha_n \sum_{k=0}^n \frac{\alpha_{n-k}}{\alpha_n} \binom{n}{k}^2 a^{2k} &\leq \alpha_n \sum_{k=0}^n \lambda^k \frac{(n-k)!}{n!} \binom{n}{k}^2 a^{2k} \\
+    &= \alpha_n \sum_{k=0}^n \binom{n}{k} (\lambda a^2)^k \frac{1}{k!}  \\
+    &\leq \alpha_n \sum_{k=0}^n \binom{n}{k} (\lambda a^2)^k  \\
+    &= \alpha_n (1 + \lambda a^2)^n.
+  \end{align*}
+  Clearly,
+  \begin{equation} \label{eq:Adan-sup}
+    \norm[0]{f_n}_\infty = \norm[0]{ \varphi g_n}_\infty \geq \varphi_{\min} \max\{ g_n(-1), g_n(1) \} = \varphi_{\min} (1 + \abs[0]{a})^n.
+  \end{equation}
+  Because $A_n^{\textup{d},a} f_n \equiv 0$,
+  \begin{equation*}
+    e_\infty(A_n^{\textup{d},a}) \geq \frac{\norm[0]{f_n - A_n^{\textup{d},a} f_n}_\infty}{\norm[0]{f_n}_K} = \frac{\norm[0]{f_n}_\infty}{\norm[0]{f_n}_K}.
+  \end{equation*}
+  Using $\norm[0]{f_n}_K^2 \leq \alpha_n (1 + \lambda a^2)^n$ and~\eqref{eq:Adan-sup} yields the claimed lower bound.
+\end{proof}
+
+\section{General results for approximation in $L^2([-1, 1])$-norm} \label{sec:L2}
+
+In this section we prove upper and lower bounds for $e_2^{\min}(n)$ and $e_2(A_n)$.
+
+\subsection{Norm estimates}
+
+Define
+\begin{equation} \label{eq:lnk-definition}
+  l_{n,k} = \frac{(2k-1)!!}{k!} \sqrt{\smash[b]{k+\tfrac{1}{2}}} \binom{\floor{(n-k)/2} + k + \frac{1}{2}}{\floor{(n-k)/2}}
+\end{equation}
+for any $0 \leq k \leq n$.
+Here
+\begin{equation*}
+  \binom{r}{k} = \frac{r(r-1) \cdots (r-k+1)}{k!}
+\end{equation*}
+is the generalised binomial coefficient defined for any $r \in \R$ and $k \in \N_0$ 
+In this section the constants $l_{n,k}$ play an analogous role to that played by $t_{n, n - 2k}$ in \Cref{sec:norm-estimates-unif} because Labelle~\cite{Labelle1969} has proved an $L^2$-version of the polynomial coefficient bound~\eqref{eq:general-markov-inequality} that involves $l_{n,k}$.
+Namely, if $P_n(x) = \sum_{k=0}^n a_k x^k$ is a polynomial of degree $n$ with real coefficients $a_k$, then
+\begin{equation} \label{eq:labelle-bound}
+  \abs[0]{a_k} \leq l_{n,k} \norm[0]{P_n}_{2} \quad \text{ for every } \quad 0 \leq k \leq n.
+\end{equation}
+Equality in~\eqref{eq:labelle-bound} holds only for certain sums of Legendre polynomials, but we shall not use this fact.
+See also~\cite[pp.\@~676--7]{RahmanSchmeisser2002}.
+
+
+\begin{lemma} \label{lemma:legendre-c-lemma}
+  Suppose that~\eqref{eq:alpha-assumption} holds.
+  Then for every $n \geq 1$ we have
+  \begin{equation*}
+    \ell_1 2^{2n} \alpha_n \leq \sum_{k=0}^n \alpha_k l_{n,k}^2 \leq \ell_2 2^{2n} \alpha_n,
+  \end{equation*}
+  where
+  \begin{equation} \label{eq:c-ell-L2}
+    \ell_1 = \frac{1}{2\pi e^2} \quad \text{ and } \quad \ell_2 = \frac{9e^6}{2\pi} \bigg(1 + \frac{\lambda}{4} \bigg) e^{\frac{1}{16} \lambda^2}.
+  \end{equation}
+\end{lemma}
+\begin{proof}
+  For $k \geq 1$, Stirling's formula yields
+  \begin{equation*}
+    \bigg( \frac{(2k-1)!!}{k!}\bigg)^2 (k+\tfrac{1}{2}) = \frac{(2k)!^2}{2^{2k} k!^4} (k+\tfrac{1}{2}) \leq 2^{2k} \frac{e^2}{\pi} \cdot \frac{k+\frac{1}{2}}{k} \leq \frac{3e^2}{2\pi} \cdot 2^{2k} 
+  \end{equation*}
+  and, in a similar manner,
+  \begin{equation*}
+    \bigg( \frac{(2k-1)!!}{k!}\bigg)^2 (k + \tfrac{1}{2}) \geq 2^{2k} \frac{1}{\pi e^2} \cdot \frac{k+\frac{1}{2}}{k} \geq \frac{1}{2\pi e^2} \cdot 2^{2k}.
+  \end{equation*}
+  It is trivial to verify that these inequalities hold also for $k = 0$.
+  The definition of $l_{n,k}$ in~\eqref{eq:lnk-definition} thus gives
+  \begin{equation*}
+   \frac{1}{2\pi e^2} \cdot 2^{2k} \binom{\floor{(n-k)/2} + k + \frac{1}{2}}{\floor{(n-k)/2}}^2 \leq l_{n, k}^2 \leq \frac{3e^2}{2\pi} \cdot 2^{2k} \binom{\floor{(n-k)/2} + k + \frac{1}{2}}{\floor{(n-k)/2}}^2.
+  \end{equation*}
+  Note that the generalised binomial coefficient equals one when $\floor{(n-k)/2} = 0$, so that
+  \begin{equation*}
+    \frac{1}{2\pi e^2} \cdot 2^{2n} \leq l_{n, n}^2 = \bigg( \frac{(2n-1)!!}{n!}\bigg)^2 \leq \frac{3e^2}{2\pi} \cdot 2^{2n}.
+  \end{equation*}
+  We now get
+  \begin{equation*}
+    \sum_{k=0}^n \alpha_k l_{n,k}^2 \geq \alpha_n l_{n,n}^2 \geq \frac{1}{2\pi e^2} \cdot 2^{2n} \alpha_n,
+  \end{equation*}
+  which is the claimed lower bound, and
+  \begin{equation*}
+    \begin{split}
+    \sum_{k=0}^n \alpha_k l_{n,k}^2 &= \alpha_n l_{n,n}^2 \sum_{k=0}^n \frac{\alpha_k}{\alpha_n} \bigg( \frac{l_{n,k}}{l_{n,n}} \bigg)^2 \\
+    &\leq \frac{3e^2}{2\pi} \cdot 2^{2n} \alpha_n \sum_{k=0}^n \frac{\alpha_k}{\alpha_n} \cdot \frac{3e^2}{2\pi} \cdot \frac{2\pi e^2}{3} \cdot 2^{-2(n-k)} \binom{\floor{(n-k)/2} + k + \frac{1}{2}}{\floor{(n-k)/2}}^2 \\
+    &= \frac{3e^6}{2\pi} \cdot 2^{2n} \alpha_n \sum_{k=0}^n \frac{\alpha_k}{\alpha_n} \cdot 2^{-2(n-k)} \binom{\floor{(n-k)/2} + k + \frac{1}{2}}{\floor{(n-k)/2}}^2.
+    \end{split}
+  \end{equation*}
+  Assumption~\eqref{eq:alpha-assumption} therefore gives
+  \begin{equation} \label{eq:s-l2-1}
+    \sum_{k=0}^n \alpha_k l_{n,k}^2 \leq \frac{3e^6}{2\pi} \cdot 2^{2n} \alpha_n \sum_{k=0}^n \bigg( \frac{\lambda}{4} \bigg)^{n-k} \frac{k!}{n!} \binom{\floor{(n-k)/2} + k + \frac{1}{2}}{ \floor{(n-k)/2}}^2.
+  \end{equation}
+  We now show that the term
+  \begin{equation*}
+    b_{n, k} = \frac{k!}{n!} \binom{\floor{(n-k)/2} + k + \frac{1}{2}}{\floor{(n-k)/2}}^2
+  \end{equation*}
+  is approximately $(n - k)!$.
+  Denote $p_{n,k} = \floor{(n-k)/2}$ and suppose that $p_{n,k} \geq 1$.
+  Then
+  \begin{align*}
+      b_{n, k} &= \frac{k!}{n!} \cdot \frac{\prod_{\nu = 1}^{p(n,k)} (\nu + k + \frac{1}{2})^2}{p(n,k)!^2} \\
+    &= \frac{1}{ p(n,k)!^2 } \cdot \frac{\prod_{\nu = 1}^{p(n,k)} (\nu + k + \frac{1}{2})^2}{\prod_{\nu=1}^{n-k} (\nu + k)}. \\
+          &= \frac{1}{ p(n,k)!^2 } \cdot \frac{\prod_{\nu = 1}^{p(n,k)} (\nu + k + \frac{1}{2})}{\prod_{\nu=1}^{p(n,k)} (\nu + k)} \cdot \frac{\prod_{\nu = 1}^{p(n,k)} (\nu + k + \frac{1}{2})}{\prod_{\nu=p(n,k)+1}^{n-k} (\nu + k)} \\
+    &= \frac{1}{ p(n,k)!^2 } \cdot \frac{\prod_{\nu = 2}^{p(n,k)} (\nu + k - \frac{1}{2})}{\prod_{\nu=2}^{p(n,k)} (\nu + k)} \cdot \frac{p(n,k) + k + \frac{1}{2}}{k + 1} \cdot \frac{\prod_{\nu = 1}^{p(n,k)} (\nu + k + \frac{1}{2})}{\prod_{\nu=p(n,k)+1}^{n-k} (\nu + k)} \\
+      &\leq \frac{1}{ p(n,k)!^2 } \cdot \frac{p(n,k) + k + \frac{1}{2}}{k + 1} \cdot \frac{\prod_{\nu = 1}^{p(n,k)} (\nu + k + \frac{1}{2})}{\prod_{\nu=p(n,k)+1}^{n-k} (\nu + k)} \\
+      &= \frac{1}{ p(n,k)!^2 } \cdot \frac{p(n,k) + k + \frac{1}{2}}{k + 1} \cdot \frac{k + \frac{3}{2}}{n} \cdot \frac{\prod_{\nu = 2}^{p(n,k)} (\nu + k + \frac{1}{2})}{\prod_{\nu=p(n,k)+1}^{n-k-1} (\nu + k)} \\
+      &\leq \frac{3}{ p(n,k)!^2 } \cdot \frac{\prod_{\nu = 2}^{p(n,k)} (\nu + k + \frac{1}{2})}{\prod_{\nu=p(n,k)+1}^{n-k-1} (\nu + k)},
+  \end{align*}
+  where the last inequality is a consequence of the inequalities $(p(n,k) + k + \frac{1}{2})/n \leq \frac{3}{2}$ and $(k + \frac{3}{2}) / (k+1) \leq 2$.
+  Now, in the second term on the last line, each term in the denominator is larger than any term in the numerator and there are at least as many terms in the denominator as there are in the numerator.
+  Therefore,
+  \begin{equation} \label{eq:b-estimate-l2}
+    b_{n, k} \leq \frac{3}{ p(n,k)!^2 } = \frac{3}{\floor{(n-k)/2}!^2}
+  \end{equation}
+  if $n-k \geq 2$. By computing $b_{n,k}$ in the cases $k = n$ and $k = n - 1$ it is trivial to check that this inequality is valid for any $0 \leq k \leq n$.
+  Using the estimate~\eqref{eq:b-estimate-l2} in~\eqref{eq:s-l2-1} yields
+  \begin{equation*}
+    \begin{split}
+      \sum_{k=0}^n \alpha_k l_{n,k}^2 \leq \frac{3e^6}{2\pi} \cdot 2^{2n} \alpha_n \sum_{k=0}^n \bigg( \frac{\lambda}{4} \bigg)^{n-k} b_{n,k} &\leq \frac{9e^6}{2\pi} \cdot 2^{2n} \alpha_n \sum_{k=0}^n \bigg( \frac{\lambda}{4} \bigg)^{k} \frac{1}{\floor{k/2}!^2} \\
+      &\leq \frac{9e^6}{2\pi} \cdot 2^{2n} \alpha_n \sum_{k=0}^n \bigg( \frac{\lambda}{4} \bigg)^{2k} \bigg(1 + \frac{\lambda}{4} \bigg) \frac{1}{k!^2} \\
+      &\leq \frac{9e^6}{2\pi} \bigg(1 + \frac{\lambda}{4} \bigg) e^{\frac{1}{16} \lambda^2} \cdot 2^{2n} \alpha_n.
+    \end{split}
+  \end{equation*}
+  This completes the proof.
+\end{proof}
+
+\begin{remark} \label{rmk:alpha-assumption-l2}
+  Just as the proof of \Cref{lemma:chebyshev-c-lemma} (see \Cref{rmk:alpha-assumption-unif}), the proof of \Cref{lemma:legendre-c-lemma} is based on the fact that assumption~\eqref{eq:alpha-assumption} ensures that the term $\alpha_n l_{n,n}^2$ dominates the sum in~\eqref{eq:chebyshev-norm-lemma}.
+  Suppose that $\alpha_k = k!^\beta$ for some $\beta > 0$ and note that~\eqref{eq:alpha-assumption} is satisfied if and only if $\beta \geq 1$.
+  Then Stirling's formula yields
+  \begin{equation*}
+    \begin{split}
+      \frac{\alpha_{n-2} l_{n, n-2}^2}{\alpha_n l_{n,n}^2} &= \bigg( \frac{(n-2)!}{n!} \bigg)^\beta \bigg( \frac{(2n-5)!! \, n!}{(2n-1)!! \, (n-2)!} \bigg)^2 \frac{n - \frac{3}{2}}{n + \frac{1}{2}} \binom{n - \frac{1}{2}}{1}^2 \\
+      &\sim \bigg( \frac{1}{n(n-1)} \bigg)^\beta \frac{1}{16} \cdot \frac{n}{n-2} \cdot \frac{n - \frac{3}{2}}{n + \frac{1}{2}} \cdot (n - \tfrac{1}{2})^2 \\
+      &\sim \frac{1}{16} \cdot n^{2(1 - \beta)}
+      \end{split}
+  \end{equation*}
+  as $n \to \infty$.
+  That is, the ratio is bounded from above if and only if $\beta \geq 1$, which shows that for $\beta \in (0, 1)$ the sum in~\eqref{eq:chebyshev-norm-lemma} is \emph{not} dominated by $\alpha_{n} l_{n, n}^2$.
+\end{remark}
+
+\begin{lemma} \label{lemma:l2-norm-bound}
+  Let $P_n(x) = \sum_{k=0}^n a_k x^k$ for $a_k \in \R$ be a polynomial of degree $n$.
+  The function $f_n(x) = \varphi(x) P_n(x)$ is an element of $H(K)$.
+  If assumption~\eqref{eq:alpha-assumption} holds, then
+  \begin{equation*}
+    \norm[0]{f_n}_K^2 \leq \ell_2 2^{2n} \alpha_n \norm[0]{P_n}_{2}^2
+  \end{equation*}
+  for every $n \geq 1$, where the constant $\ell_2$ is given in~\eqref{eq:c-ell-L2}.
+\end{lemma}
+\begin{proof}
+  The characterisation~\eqref{eq:rkhs-norm} and inequality~\eqref{eq:labelle-bound} give
+  \begin{equation*}
+    \norm[0]{f_n}_K^2 = \sum_{k=0}^n \alpha_k a_k^2 \leq \norm[0]{P_n}_{2}^2 \sum_{k=0}^n \alpha_k l_{n,k}^2.
+  \end{equation*}
+  The claim then follows from \Cref{lemma:legendre-c-lemma}.
+\end{proof}
+
+ 
+\subsection{Worst-case error bounds}
+
+With these tools at hand we are now ready to bound $e_2^{\min}(n)$ and $e_2(A_n)$.
+The proofs are practically identical to those of \Cref{thm:e-min-unif,thm:e-any-unif}.
+
+\begin{theorem} \label{thm:e-min-L2}
+  Suppose that~\eqref{eq:phi-assumption} and~\eqref{eq:alpha-assumption} hold.
+  Let $c_L$ and $m_L$ be the functions defined in~\eqref{eq:cL-constant} and~\eqref{eq:mL-constant}.
+  Then every $n \geq m_L(\lambda)$ we have
+  \begin{equation*}
+    c_{1,2} 2^{-n} \alpha_n^{-1/2} \leq e_2^{\min}(n) \leq c_{2,2} n^{-1/8} e^{\sqrt{\smash[b]{\lambda n}}} \, 2^{-n} \alpha_n^{-1/2},
+  \end{equation*}
+  where
+  \begin{equation} \label{eq:l2-constants}
+    c_{1,2} = \frac{2\sqrt{2\pi}}{3e^3 \sqrt{\smash[b]{4 + \lambda}}} \, e^{-\frac{1}{32} \lambda^2 } \varphi_\textup{min} \quad \text{ and } \quad c_{2,2} = 2\sqrt{2 c_L(\lambda)} \, \varphi_{\max}.
+  \end{equation}
+\end{theorem}
+\begin{proof}
+  The lower bound is proved as in the proof of \Cref{thm:e-min-unif}, except for the use of \Cref{lemma:l2-norm-bound} to bound $\norm[0]{f_n}_K$.
+  The only difference in the proof of the upper bound is that we use
+  \begin{equation} \label{eq:Chebyshec-L2-norm}
+    \bigg( \int_{-1}^1 \prod_{k=1}^n (x - x_k)^2 \dif x \bigg)^{1/2} = \bigg( 2^{-2n+2} \int_{-1}^1 T_n(x) \dif x \bigg)^{1/2} \leq 2^{-n + 3/2}
+  \end{equation}
+  instead of~\eqref{eq:chebyshev-sup-unif-proof}.\footnote{By extremal properties of monic orthogonal polynomials, the constant $2^{3/2}$ in~\eqref{eq:Chebyshec-L2-norm} could be optimised by selecting $x_1, \ldots, x_n$ as the roots of the $n$th Legendre polynomial.}
+\end{proof}
+
+\begin{theorem} \label{thm:e-any-L2}
+  Suppose that~\eqref{eq:phi-assumption} and~\eqref{eq:alpha-assumption} hold.
+  Let $c_L$ and $m_L$ be the functions defined in~\eqref{eq:cL-constant} and~\eqref{eq:mL-constant}.
+  Then for any $n \geq m_L(\lambda)$ and any pairwise distinct points $x_1, \ldots, x_n \in [-1, 1]$ there is a linear approximation $A_n$ of the form~\eqref{eq:linear-algorithm} such that
+  \begin{equation*}
+    c_{1,2} 2^{-n} \alpha_n^{-1/2} \leq e_2(A_n) \leq  \frac{c_{2,2}}{2} n^{-1/8 - 1/2} e^{\sqrt{\smash[b]{\lambda n}}} \, 2^{n} \alpha_n^{-1/2},
+  \end{equation*}
+  where the constants $c_{1,2}$ and $c_{2,2}$ are given in~\eqref{eq:l2-constants}.
+\end{theorem}
+\begin{proof}
+  The lower bound is a trivial consequence of \Cref{thm:e-min-L2}.
+  To prove the upper bound we proceed as in the proof of \Cref{thm:e-any-unif}, obtaining
+  \begin{equation*}
+    \norm[0]{ f - A_n f }_{2} \leq \varphi_{\max} \norm[0]{f}_K \sqrt{c_L(\lambda)} \, n^{-1/8} e^{\sqrt{\smash[b]{\lambda n}}} \alpha_n^{-1/2} \bigg( \int_{-1}^1 \prod_{k=1}^n (x - x_k)^2 \dif x \bigg)^{1/2}
+  \end{equation*}
+  for $n \geq m_L(\lambda)$.
+  We are left estimate the integral term.
+  Let $A_-$ and $A_+$ be the sets of indices $k$ for which $x_k \leq 0$ or $x_k > 0$, respectively.
+  Then
+  \begin{equation*}
+    \begin{split}
+      \int_{-1}^1 \prod_{k=1}^n (x - x_k)^2 \dif x &= \int_{-1}^0 \prod_{k=1}^n (x - x_k)^2 \dif x + \int_0^1 \prod_{k=1}^n (x - x_k)^2 \dif x \\
+      &\leq \int_{-1}^0 \prod_{k \in A_+} (x - x_k)^2 \dif x + \int_0^1 \prod_{k \in A_-} (x - x_k)^2 \dif x \\
+      &\leq \int_{-1}^0 (x - 1)^{2 \abs[0]{A_+}} \dif x + \int_{0}^1 (x + 1)^{2 \abs[0]{A_-}} \dif x \\
+      &\leq \int_{-1}^0 (x - 1)^{2n} \dif x + \int_0^1 (x + 1)^{2n} \dif x \\
+      &= \frac{2(2^{2n+1} - 1)}{2n + 1} \\
+      &\leq n^{-1} 2^{2n + 1}.
+      \end{split}
+  \end{equation*}
+  This concludes the proof.
+\end{proof}
+
+It would be a simple exercise to prove an $L^2$-version of \Cref{thm:derivative-unif}.
+
+\section{Application to specific kernels} \label{sec:applications}
+
+In this section we apply \Cref{thm:e-min-unif,thm:e-any-unif} to the four kernels mentioned \Cref{sec:intro-kernels}.
+Derivation of analogous $L^2$-versions of each corollary in this section would be straightforward and is left to the reader.
+It is notable that for each kernel the rate of decay of the $n$th minimal error is controlled by the scale parameter $\varepsilon$:
+\begin{equation*}
+  \log e_\infty^{\min}(n) = -\beta_1 n \log n + \beta_2 n \log \frac{\varepsilon^{\beta_3}}{2} + \mathcal{O}\big( n^{1/2} \big)
+\end{equation*}
+for some positive constants $\beta_1$, $\beta_2$ and $\beta_3$ that do not depend on $\varepsilon$.
+
+
+\subsection{Gaussian kernel} \label{sec:app-gaussian}
+
+The Gaussian kernel
+\begin{equation} \label{eq:app-gaussian}
+  K(x, y) = \exp\bigg(\! -\frac{1}{2} \varepsilon^2 (x - y)^2 \bigg)
+\end{equation}
+is obtained from~\eqref{eq:kernel} by selecting
+\begin{equation*}
+  \alpha_k = \varepsilon^{-2k} k! \quad \text{ and } \quad \varphi(x) = \exp\bigg(\!-\frac{1}{2} \varepsilon^2 x^2 \bigg).
+\end{equation*}
+
+\begin{corollary} \label{cor:gaussian}
+  Let $K$ be the Gaussian kernel in~\eqref{eq:app-gaussian}.
+  Let $c_L$ and $m_L$ be the functions defined in~\eqref{eq:cL-constant} and~\eqref{eq:mL-constant} and suppose that $n \geq m_L(\varepsilon^2)$.
+  Then
+  \begin{equation*}
+    c_1 \bigg( \frac{\varepsilon}{2} \bigg)^n (n!)^{-1/2} \leq e_\infty^{\min}(n) \leq  c_2 n^{-1/8} e^{\varepsilon \sqrt{\smash[b]{n}}} \bigg( \frac{\varepsilon}{2} \bigg)^n (n!)^{-1/2}
+  \end{equation*}
+  and for any pairwise distinct $x_1, \ldots, x_n \in [-1, 1]$ there is a linear approximation $A_n$ of the form~\eqref{eq:linear-algorithm} such that
+  \begin{equation*}
+    c_1 \bigg( \frac{\varepsilon}{2} \bigg)^n (n!)^{-1/2} \leq e_\infty(A_n) \leq \frac{c_2}{2} n^{-1/8} e^{ \varepsilon \sqrt{\smash[b]{n}}} (2\varepsilon)^n (n!)^{-1/2},
+  \end{equation*}
+  where
+  \begin{equation*}
+    c_1 = \sqrt{ \frac{2}{1 + \varepsilon^2}} \, e^{-(\frac{1}{32} \varepsilon^4 + \frac{1}{2} \varepsilon^2)} \quad \text{ and } \quad c_2 = 2 \sqrt{c_L(\varepsilon^2)}.
+  \end{equation*}
+\end{corollary}
+
+The upper bounds of \Cref{cor:gaussian} are proved using weighted polynomial interpolation and \Cref{prop:poly-interp-bound}.
+For the Gaussian kernel it is however easy to use polynomial interpolation and the estimate~\eqref{eq:poly-interp-bound-2}.
+Straightforward differentation of the Taylor series of the Gaussian function yields
+\begin{equation*}
+    C_K^{2n} = \sup_{x \in [-1, 1]} \frac{\partial^{2n}}{\partial v^n \partial w^n} K(v, w) \biggl|_{\substack{v = x \\ w = x}} = (-1)^n \frac{\dif^{\,2n}}{\dif z^{2n}} e^{-\frac{1}{2} \varepsilon^2 z^2} \biggl|_{z = 0} = \varepsilon^{2n} \frac{(2n)!}{2^n n!}.
+\end{equation*}
+Plugging this in~\eqref{eq:poly-interp-bound-2} and using Stirling's formula produces
+\begin{equation*}
+  \norm[0]{f - S_n f}_\infty \leq c \norm[0]{f}_K n^{-1/2} (\sqrt{2 e} \, \varepsilon)^{n} n^{-n/2} \sup_{x \in [-1, 1]} \abs[3]{ \prod_{k=1}^n (x - x_k) }
+\end{equation*}
+for a positive constant $c$ if $f \in H(K)$.
+In contrast, in the proof of \Cref{thm:e-min-unif} we saw that
+\begin{equation*}
+  \begin{split}
+  \norm[0]{ f - S_n^\varphi f }_\infty &\leq \varphi_{\max} \norm[0]{f}_K \sqrt{c_L(\varepsilon^2)} \, n^{-1/8} e^{\varepsilon\sqrt{n}} \alpha_n^{-1/2} \sup_{x \in [-1, 1]} \, \abs[3]{ \prod_{k=1}^n (x - x_k) } \\
+  &\leq \tilde{c} \norm[0]{f}_K  n^{-1/8-1/4} e^{\varepsilon\sqrt{\smash[b]{n}}} (\sqrt{e} \, \varepsilon)^{n} n^{-n/2} \sup_{x \in [-1, 1]} \, \abs[3]{ \prod_{k=1}^n (x - x_k) }
+  \end{split}
+\end{equation*}
+for a positive constant $\tilde{c}$, where the second inequality uses Stirling's approximation.
+These estimates show that by using weighted polynomial interpolation one obtains an improvement of order $2^{-n/2}$ over polynomial interpolation.
+
+\subsection{Exponential kernel}
+
+The exponential kernel
+\begin{equation} \label{eq:app-exp}
+  K(x, y) = e^{\varepsilon x y}
+\end{equation}
+is obtained from~\eqref{eq:kernel} by selecting
+\begin{equation*}
+  \alpha_k = \varepsilon^{-k} k! \quad \text{ and } \quad \varphi(x) \equiv 1.
+\end{equation*}
+
+\begin{corollary}
+  Let $K$ be the exponential kernel in~\eqref{eq:app-exp}.
+  Let $c_L$ and $m_L$ be the functions defined in~\eqref{eq:cL-constant} and~\eqref{eq:mL-constant} and suppose that $n \geq m_L(\varepsilon)$.
+  Then
+  \begin{equation*}
+    c_1 \bigg( \frac{\varepsilon^{1/2}}{2} \bigg)^{n} (n!)^{-1/2} \leq e_\infty^{\min}(n) \leq  c_2 n^{-1/8} e^{\sqrt{\smash[b]{\varepsilon n}}} \bigg( \frac{\varepsilon^{1/2}}{2} \bigg)^{n} (n!)^{-1/2}
+  \end{equation*}
+  and for any pairwise distinct $x_1, \ldots, x_n \in [-1, 1]$ there is a linear approximation $A_n$ of the form~\eqref{eq:linear-algorithm} such that
+  \begin{equation*}
+    c_1 \bigg( \frac{\varepsilon^{1/2}}{2} \bigg)^{n} (n!)^{-1/2} \leq e_\infty(A_n) \leq  \frac{c_2}{2} n^{-1/8} e^{\sqrt{\smash[b]{\varepsilon n}}} (2\varepsilon^{1/2})^{n} (n!)^{-1/2},
+  \end{equation*}
+  where
+  \begin{equation*}
+    c_1 = \sqrt{ \frac{2}{1 + \varepsilon}} \, e^{-\frac{1}{32} \varepsilon^2} \quad \text{ and } \quad c_2 = 2 \sqrt{c_L(\varepsilon)}.
+  \end{equation*}
+\end{corollary}
+
+\subsection{Analytic Hermite kernel}
+
+Let $\tau > 0$.
+The analytic Hermite kernel
+\begin{equation} \label{eq:app-hermite}
+  K(x, y) = \exp\bigg( \! - \frac{1}{2} \varepsilon^2(x^2 + y^2)  + \tau^2 \varepsilon^2 xy \bigg)
+\end{equation}
+is obtained from~\eqref{eq:kernel} by selecting
+\begin{equation*}
+  \alpha_k = (\tau \varepsilon)^{-2k} k! \quad \text{ and } \quad \varphi(x) = \exp\bigg(\!-\frac{1}{2} \varepsilon^2 x^2 \bigg).
+\end{equation*}
+
+\begin{corollary}
+  Let $K$ be the analytic Hermite kernel in~\eqref{eq:app-hermite}.
+  Let $c_L$ and $m_L$ be the functions defined in~\eqref{eq:cL-constant} and~\eqref{eq:mL-constant} and suppose that $n \geq m_L(\tau^2 \varepsilon^2)$.
+  Then
+  \begin{equation*}
+    c_1 \bigg( \frac{\tau \varepsilon}{2} \bigg)^n (n!)^{-1/2} \leq e_\infty^{\min}(n) \leq  c_2 n^{-1/8} e^{\tau \varepsilon \sqrt{\smash[b]{n}}} \bigg( \frac{\tau \varepsilon}{2} \bigg)^n (n!)^{-1/2}
+  \end{equation*}
+  and for any pairwise distinct $x_1, \ldots, x_n \in [-1, 1]$ there is a linear approximation $A_n$ of the form~\eqref{eq:linear-algorithm} such that
+  \begin{equation*}
+    c_1 \bigg( \frac{\tau \varepsilon}{2} \bigg)^n (n!)^{-1/2} \leq e_\infty(A_n) \leq  \frac{c_2}{2} n^{-1/8} e^{\tau \varepsilon \sqrt{\smash[b]{n}}} (2 \tau \varepsilon)^n (n!)^{-1/2},
+  \end{equation*}
+  where
+  \begin{equation*}
+    c_1 = \sqrt{ \frac{2}{1 + \tau^2 \varepsilon^2}} \, e^{-(\frac{1}{32} \tau^4 \varepsilon^4 + \frac{1}{2} \varepsilon^2 ) } \quad \text{ and } \quad c_2 = 2 \sqrt{c_L(\tau^2 \varepsilon^2)}.
+  \end{equation*}
+\end{corollary}
+
+\subsection{Bessel kernel}
+
+The Bessel kernel
+\begin{equation} \label{eq:app-bessel}
+  K(x, y) =  \mathcal{I}_0( 2 \varepsilon \sqrt{\smash[b]{x y}} \, )
+\end{equation}
+is obtained from~\eqref{eq:kernel} by selecting
+\begin{equation*}
+  \alpha_k = \varepsilon^{-k} k!^2 \quad \text{ and } \quad \varphi \equiv 1.
+\end{equation*}
+
+\begin{corollary}
+  Let $K$ be the Bessel kernel in~\eqref{eq:app-bessel}.
+  Let $c_L$ and $m_L$ be the functions defined in~\eqref{eq:cL-constant} and~\eqref{eq:mL-constant} and suppose that $n \geq m_L(\varepsilon)$.
+  Then
+  \begin{equation*}
+    c_1 \bigg( \frac{\varepsilon^{1/2}}{2} \bigg)^{n} (n!)^{-1} \leq e_\infty^{\min}(n) \leq  c_2 n^{-1/8} e^{\sqrt{\smash[b]{\varepsilon n}}} \bigg( \frac{\varepsilon^{1/2}}{2} \bigg)^{n} (n!)^{-1}
+  \end{equation*}
+  and for any pairwise distinct $x_1, \ldots, x_n \in [-1, 1]$ there is a linear approximation $A_n$ of the form~\eqref{eq:linear-algorithm} such that
+  \begin{equation*}
+    c_1 \bigg( \frac{\varepsilon^{1/2}}{2} \bigg)^{n} (n!)^{-1} \leq e_\infty(A_n) \leq \frac{c_2}{2} n^{-1/8} e^{\sqrt{\smash[b]{\varepsilon n}}} (2\varepsilon^{1/2})^{n} (n!)^{-1},
+  \end{equation*}
+  where
+  \begin{equation*}
+    c_1 = \sqrt{ \frac{2}{1 + \varepsilon}} \, e^{-\frac{1}{32} \varepsilon^2} \quad \text{ and } \quad c_2 = 2 \sqrt{c_L(\varepsilon)}.
+  \end{equation*}
+\end{corollary}
+
+\section{Some remarks on higher dimensions}
+
+Let us conclude with a few short remarks about how the results in this article could and could not be generalised to higher dimensions.
+The natural generalisation of the kernel~\eqref{eq:kernel} to dimension $d \in \N$ is
+\begin{equation} \label{eq:kernel-multivariate}
+  K_d(\b{x}, \b{y}) = \varphi(\b{x}) \varphi(\b{y}) \sum_{ \b{k} \in \N_0^d} \alpha_{\b{k}}^{-1} \b{x}^{\pmb{k}} \b{y}^{\pmb{k}} \quad \text{ for } \quad \b{x}, \b{y} \in [-1, 1]^d.
+\end{equation}
+This kernel is well-defined and strictly positive-definite if $\varphi \colon [-1, 1]^d \to \R$ is non-vanishing and $\sum_{\b{k} \in \N_0^d} \alpha_{\b{k}}^{-1} < \infty$.
+The definitions of worst-case errors and the Hilbert space characterisations in \Cref{sec:rkhs} generalise naturally.
+Due to non-uniqueness of polynomial interpolation in dimensions higher than one it is no surprise that the worst-case error no longer tends to zero for an arbitrary sequence of points.
+
+\begin{proposition}
+  Suppose that $d \geq 2$ and $1 \leq p \leq \infty$.
+  Let $K_d$ be any kernel of the form~\eqref{eq:kernel-multivariate}.
+  Then there exists a positive constant $c$ such that for every $n \geq 1$ there are pairwise distinct points $\b{x}_1, \ldots, \b{x}_n \in [-1, 1]^d$ such that
+  \begin{equation*}
+    e_p(A_n) \geq c
+  \end{equation*}
+  for any linear approximation of the form~\eqref{eq:linear-algorithm}.
+\end{proposition}
+\begin{proof}
+  Let $\b{x}_1, \ldots, \b{x}_n$ be any pairwise distinct points on the unit circle.
+  The polynomial $P(\b{x}) = x_1^2 + \cdots + x_d^2 - 1$ vanishes on the unit circle and the function defined as $f(\b{x}) = \varphi(\b{x}) P(\b{x})$ is a non-zero element of $H(K_d)$.
+  Therefore $A_n f \equiv 0$ for any linear approximation of the form~\eqref{eq:linear-algorithm}.
+  It follows that $e_p(A_n) \geq \norm[0]{f}_p / \norm[0]{f}_{K_d} > 0$, where the lower bound does not depend on $n$.
+\end{proof}
+
+It would be straightforward to use tensor grids to prove limited generalisations to higher dimensions of \Cref{thm:e-min-unif,thm:e-any-unif,thm:e-min-L2,thm:e-any-L2}, which is the approach taken in~\cite{KuoSloanWozniakowski2017} in the context of integration.
+We also note that a certain multivariate extension of the Markov inequality used in \Cref{sec:norm-estimates-unif} has been proved by Bernstein~\cite{Bernstein1948} (see~\cite{Ganzburg2021} for a somewhat more accessible source).
+
+\bibliographystyle{acm}
+
+\begin{thebibliography}{10}
+
+\bibitem{AnderssonBojanov1984}
+{\sc Andersson, J.-E., and Bojanov, B.~D.}
+\newblock A note on the optimal quadrature in {$H^p$}.
+\newblock {\em Numerische Mathematik 44\/} (1984), 301--308.
+
+\bibitem{Arcangeli2007}
+{\sc Arcang{\'e}li, R., de~Silanes, M. C.~L., and Torrens, J.~J.}
+\newblock An extension of a bound for functions in {S}obolev spaces, with
+  applications to $(m,s)$-spline interpolation and smoothing.
+\newblock {\em Numerische Mathematik 107}, 2 (2007), 181--211.
+
+\bibitem{Bernstein1948}
+{\sc Bernstein, S.~N.}
+\newblock On certain elementary extremal properties of polynomials in several
+  variables.
+\newblock {\em Doklady Akademii Nauk SSSR 59}, 5 (1948), 833--836.
+\newblock In Russian.
+
+\bibitem{Borwein2008}
+{\sc Borwein, D., Borwein, J.~M., and Crandall, R.~E.}
+\newblock Effective {L}aguerre asymptotics.
+\newblock {\em SIAM Journal on Numerical Analysis 46}, 6 (2008), 3285--3312.
+
+\bibitem{ChenWang2019}
+{\sc Chen, J., and Wang, H.}
+\newblock Average case tractability of multivariate approximation with
+  {G}aussian kernels.
+\newblock {\em Journal of Approximation Theory 239\/} (2019), 51--71.
+
+\bibitem{Chernih2014}
+{\sc Chernih, A., Sloan, I.~H., and Womersley, R.~S.}
+\newblock {W}endland functions with increasing smoothness converge to a
+  {G}aussian.
+\newblock {\em Advances in Computational Mathematics 40}, 1 (2014), 185--200.
+
+\bibitem{EbertsSteinwart2013}
+{\sc Eberts, M., and Steinwart, I.}
+\newblock Optimal regression rates for {SVM}s using {G}aussian kernels.
+\newblock {\em Electronic Journal of Statistics 7\/} (2013), 1--42.
+
+\bibitem{FasshauerHickernell2010}
+{\sc Fasshauer, G., Hickernell, F., and Wo{\'z}niakowski, H.}
+\newblock Average case approximation: Convergence and tractability of
+  {G}aussian kernels.
+\newblock In {\em Monte Carlo and Quasi-Monte Carlo Methods 2010\/} (2010),
+  Springer Verlag, pp.~329--344.
+
+\bibitem{FasshauerHickernell2012}
+{\sc Fasshauer, G., Hickernell, F., and Wo{\'z}niakowski, H.}
+\newblock On dimension-independent rates of convergence for function
+  approximation with {G}aussian kernels.
+\newblock {\em SIAM Journal on Numerical Analysis 50}, 1 (2012), 247--271.
+
+\bibitem{Ganzburg2021}
+{\sc Ganzburg, M.~I.}
+\newblock Sharp constants of approximation theory. {V}. {A}n asymptotic
+  equality related to polynomials with given {N}ewton polyhedra.
+\newblock {\em Journal of Mathematical Analysis and Applications 499}, 1
+  (2021), 125026.
+
+\bibitem{Gnewuch2022}
+{\sc Gnewuch, M., Hefter, M., Hinrichs, A., and Ritter, K.}
+\newblock Countable tensor products of {H}ermite spaces and spaces of
+  {G}aussian kernels.
+\newblock {\em Journal of Complexity 71\/} (2022), 101654.
+
+\bibitem{Hildebrand1987}
+{\sc Hildebrand, F.~B.}
+\newblock {\em {Introduction to Numerical Analysis}}.
+\newblock Courier Corporation, 1987.
+
+\bibitem{Irrgeher2015}
+{\sc Irrgeher, C., Kritzer, P., Leobacher, G., and Pillichshammer, F.}
+\newblock Integration in {H}ermite spaces of analytic functions.
+\newblock {\em Journal of Complexity 31}, 3 (2015), 380--404.
+
+\bibitem{Irrgeher2016}
+{\sc Irrgeher, C., Kritzer, P., Pillichshammer, F., and Wo{\'z}niakowski, H.}
+\newblock Approximation in {H}ermite spaces of smooth functions.
+\newblock {\em Journal of Approximation Theory 207\/} (2016), 98--126.
+
+\bibitem{IrrgeherLeobacher2015}
+{\sc Irrgeher, C., and Leobacher, G.}
+\newblock High-dimensional integration on $\mathbb{R}^d$, weighted {H}ermite
+  spaces, and orthogonal transforms.
+\newblock {\em Journal of Complexity 31}, 2 (2015), 174--205.
+
+\bibitem{Karvonen2022-smoothness}
+{\sc Karvonen, T.}
+\newblock Asymptotic bounds for smoothness parameter estimates in {G}aussian
+  process interpolation.
+\newblock {\em arXiv:2203.05400v2\/} (2022).
+
+\bibitem{Karvonen2022-sample}
+{\sc Karvonen, T.}
+\newblock Small sample spaces for {G}aussian processes.
+\newblock {\em Bernoulli\/} (2022).
+\newblock To appear.
+
+\bibitem{Karvonen2021}
+{\sc Karvonen, T., Oates, C.~J., and Girolami, M.}
+\newblock Integration in reproducing kernel {H}ilbert spaces of {G}aussian
+  kernels.
+\newblock {\em Mathematics of Computation 90}, 331 (2021), 2209--2233.
+
+\bibitem{Karvonen2019}
+{\sc Karvonen, T., and S{\"a}rkk{\"a}, S.}
+\newblock {G}aussian kernel quadrature at scaled {G}auss--{H}ermite nodes.
+\newblock {\em BIT Numerical Mathematics 59}, 4 (2019), 877--902.
+
+\bibitem{KarvonenTanaka2021}
+{\sc Karvonen, T., Tanaka, K., and S{\"a}rkk{\"a}, S.}
+\newblock Kernel-based interpolation at approximate {F}ekete points.
+\newblock {\em Numerical Algorithms 87\/} (2021), 445--468.
+
+\bibitem{KhartovLimar2022}
+{\sc Khartov, A.~A., and Limar, I.~A.}
+\newblock Asymptotic analysis in multivariate average case approximation with
+  {G}aussian kernels.
+\newblock {\em Journal of Complexity 70\/} (2022), 101631.
+
+\bibitem{Kuhn2011}
+{\sc K{\"u}hn, T.}
+\newblock Covering numbers of {G}aussian reproducing kernel {H}ilbert spaces.
+\newblock {\em Journal of Complexity 27}, 5 (2011), 489--499.
+
+\bibitem{KuoSloanWozniakowski2017}
+{\sc Kuo, F.~Y., Sloan, I.~H., and Wo{\'z}niakowski, H.}
+\newblock Multivariate integration for analytic functions with {G}aussian
+  kernels.
+\newblock {\em Mathematics of Computation 86}, 304 (2017), 829--853.
+
+\bibitem{KuoWozniakowski2012}
+{\sc Kuo, F.~Y., and Woźniakowski, H.}
+\newblock {G}auss--{H}ermite quadratures for functions from {H}ilbert spaces
+  with {G}aussian reproducing kernels.
+\newblock {\em BIT Numerical Mathematics 52}, 2 (2012), 425--436.
+
+\bibitem{Labelle1969}
+{\sc Labelle, G.}
+\newblock Concerning polynomials on the unit interval.
+\newblock {\em Proceedings of the American Mathematical Society 20}, 2 (1969),
+  321--326.
+
+\bibitem{MadychNelson1992}
+{\sc Madych, W.~R., and Nelson, S.~A.}
+\newblock Bounds on multivariate polynomials and exponential error estimates
+  for multiquadric interpolation.
+\newblock {\em Journal of Approximation Theory 70}, 1 (1992), 94--114.
+
+\bibitem{Minh2010}
+{\sc Minh, H.~Q.}
+\newblock Some properties of {G}aussian reproducing kernel {H}ilbert spaces and
+  their implications for function approximation and learning theory.
+\newblock {\em Constructive Approximation 32}, 2 (2010), 307--338.
+
+\bibitem{NovakTriebel2006}
+{\sc Novak, E., and Triebel, H.}
+\newblock Function spaces in {L}ipschitz domains and optimal rates of
+  convergence for sampling.
+\newblock {\em Constructive Approximation 23\/} (2006), 325--350.
+
+\bibitem{Platte2011}
+{\sc Platte, R.~B.}
+\newblock How fast do radial basis function interpolants of analytic functions
+  converge?
+\newblock {\em IMA Journal of Numerical Analysis 31}, 4 (2011), 1578--1597.
+
+\bibitem{PlatteDriscoll2005}
+{\sc Platte, R.~B., and Driscoll, T.~A.}
+\newblock Polynomials and potential theory for {G}aussian radial basis function
+  interpolation.
+\newblock {\em SIAM Journal on Numerical Analysis 43}, 2 (2005), 750--766.
+
+\bibitem{RahmanSchmeisser2002}
+{\sc Rahman, Q.~I., and Schmeisser, G.}
+\newblock {\em Analytic Theory of Polynomials}, vol.~26 of {\em London
+  Mathematical Society Monographs New Series}.
+\newblock Clarendon Press, 2002.
+
+\bibitem{RasmussenWilliams2006}
+{\sc Rasmussen, C.~E., and Williams, C. K.~I.}
+\newblock {\em Gaussian Processes for Machine Learning}.
+\newblock Adaptive Computation and Machine Learning. MIT Press, 2006.
+
+\bibitem{RiegerZwicknagl2010}
+{\sc Rieger, C., and Zwicknagl, B.}
+\newblock Sampling inequalities for infinitely smooth functions, with
+  applications to interpolation and machine learning.
+\newblock {\em Advances in Computational Mathematics 32\/} (2010), 103--129.
+
+\bibitem{RiegerZwicknagl2014}
+{\sc Rieger, C., and Zwicknagl, B.}
+\newblock Improved exponential convergence rates by oversampling near the
+  boundary.
+\newblock {\em Constructive Approximation 39\/} (2014), 323--341.
+
+\bibitem{Sacks1989}
+{\sc Sacks, J., Welch, W.~J., Mitchell, T.~J., and Wynn, H.~P.}
+\newblock Design and analysis of computer experiments.
+\newblock {\em Statistical Science 4}, 4 (1989), 409--435.
+
+\bibitem{Saitoh1997}
+{\sc Saitoh, S.}
+\newblock {\em {Integral Transforms, Reproducing Kernels and Their
+  Applications}}.
+\newblock Chapman and Hall, 1997.
+
+\bibitem{SloanWozniakowski2018}
+{\sc Sloan, I.~H., and Wo{\'z}niakowski, H.}
+\newblock Multivariate approximation for analytic functions with {G}aussian
+  kernels.
+\newblock {\em Journal of Complexity 45\/} (2018), 1--21.
+
+\bibitem{Stein1999}
+{\sc Stein, M.~L.}
+\newblock {\em Interpolation of Spatial Data: Some Theory for Kriging}.
+\newblock Springer Series in Statistics. Springer, 1999.
+
+\bibitem{Steinwart2008}
+{\sc Steinwart, I., and Christmann, A.}
+\newblock {\em {Support Vector Machines}}.
+\newblock Information Science and Statistics. Springer, 2008.
+
+\bibitem{SteinwartFischer2021}
+{\sc Steinwart, I., and Fischer, S.}
+\newblock A closer look at covering number bounds for {G}aussian kernels.
+\newblock {\em Journal of Complexity 62\/} (2021), 101513.
+
+\bibitem{SunZhou2008}
+{\sc Sun, H.-W., and Zhou, D.-X.}
+\newblock Reproducing kernel {H}ilbert spaces associated with analytic
+  translation-invariant {M}ercer kernels.
+\newblock {\em Journal of Fourier Analysis and Applications 14}, 1 (2008),
+  89--101.
+
+\bibitem{VaartZanten2009}
+{\sc van~der Vaart, A.~W., and van Zanten, J.~H.}
+\newblock Adaptive {B}ayesian estimation using a {G}aussian random field with
+  inverse {G}amma bandwidth.
+\newblock {\em The Annals of Statistics 37}, 5B (2009), 2655--2675.
+
+\bibitem{Wendland2005}
+{\sc Wendland, H.}
+\newblock {\em Scattered Data Approximation}.
+\newblock No.~17 in Cambridge Monographs on Applied and Computational
+  Mathematics. Cambridge University Press, 2005.
+
+\bibitem{Zhou2002}
+{\sc Zhou, D.-X.}
+\newblock The covering number in learning theory.
+\newblock {\em Journal of Complexity 18}, 3 (2002), 739--767.
+
+\bibitem{Zhou2003}
+{\sc Zhou, D.-X.}
+\newblock Capacity of reproducing kernel spaces in learning theory.
+\newblock {\em IEEE Transactions on Information Theory 49}, 7 (2003),
+  1743--1752.
+
+\bibitem{Zwicknagl2009}
+{\sc Zwicknagl, B.}
+\newblock Power series kernels.
+\newblock {\em Constructive Approximation 29}, 1 (2009), 61--84.
+
+\bibitem{ZwicknaglSchaback2013}
+{\sc Zwicknagl, B., and Schaback, R.}
+\newblock Interpolation and approximation in {T}aylor spaces.
+\newblock {\em Journal of Approximation Theory 171\/} (2013), 65--83.
+
+\end{thebibliography}
+
+\end{document}
+

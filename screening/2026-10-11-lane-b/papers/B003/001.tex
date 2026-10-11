@@ -1,0 +1,1241 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage[dvipsnames]{xcolor}
+%\usepackage[inline]{showlabels}
+%\usepackage{refcheck}
+\usepackage{comment}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{mathtools}
+\usepackage{abraces}
+
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\Bdist}{\mathrm{Beta}}
+\newcommand{\Bfun}{\mathrm{B}}
+\newcommand{\dx}{\,\mathrm{d}x}
+\newcommand{\dy}{\,\mathrm{d}y}
+\newcommand{\dz}{\,\mathrm{d}z}
+
+\usepackage{eqparbox}
+\renewcommand{\algorithmiccomment}[1]{\hfill\eqparbox{COMMENT}{\# #1}}
+\newcommand\LONGCOMMENT[1]{%
+  \hfill\#\ \begin{minipage}[t]{\eqboxwidth{COMMENT}}#1\strut\end{minipage}%
+}
+\usepackage{geometry}
+\geometry{
+	a4paper,
+	total={170mm,257mm},
+	left=20mm,
+	top=30mm,
+	bottom=30mm
+}
+
+\DeclareMathOperator{\nrank}{nrank}
+\DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\Span}{Span}
+\DeclareMathOperator{\sign}{sign}
+\DeclareMathOperator{\rev}{rev}
+
+%\theoremstyle{definition}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{example}[theorem]{Example}
+
+\title{Singular quadratic eigenvalue problems: \\ Linearization and weak condition numbers\footnote{The work of the first author was supported by the SNSF research project \emph{Probabilistic methods for joint and singular eigenvalue problems}, grant number: 200021L\_192049. The work of the second author was supported by the CSF research project \emph{Randomized low rank algorithms and applications to parameter dependent problems}, grant number: IP-2019-04-6268. Part of this work was
+done while the second author was a PostDoctoral researcher at EPFL.}}
+\date{}
+\author{
+  Daniel Kressner\footnote{Institute of Mathematics, EPFL, CH-1015 Lausanne, Switzerland. E-mail: daniel.kressner@epfl.ch.} 
+  \and
+  Ivana \v{S}ain Glibi\'{c}\footnote{Faculty of Science, Department of Mathematics, University of Zagreb, HR-10000 Zagreb, Croatia. E-mail: ivanasai@math.hr.}
+}
+
+\begin{document}
+
+\maketitle
+\begin{comment}
+\section*{Story}
+
+Story:
+\begin{itemize}
+    \item Singular quadratic eigenvalue problems are challenging because an arbitrary small perturbation can completely destroy the accuracy of its eigenvalues
+    \item Lotz Noferini introduced and analyzed a new concept of condition number \textcolor{red}{??? if possible, give definition of condition number and summarize their main result, especially upper bound ???}. This partly explains the observation that the QZ algorithm applied to a singular pencil returns good approximations to the true eigenvalues plus spurious perturbed eigenvalues originating from the singular part 
+    \item  Now, the QZ cannot be applied directly to QEP. We need to apply linearization. From a theoretical perspective, the choice of linearization has been studied by De Teran/Dopico/Mackey + briefly recall their result. \textcolor{red}{Question: We need two linearizations, for the small and large eigenvalues. Do we get both from the work by Dopico et al? Can we use the reversed polynomial or do we need to use another linearization?}
+    In this paper, we quantify this choice by studying the impact of the linearization on the condition number. 
+    \item In the regular case, the impact of the condition number is quantified by Higham et al. In the singular case, this gets more complicated by two facts: (1) there is no meaningful notion of eigenvectors because of the presence of nullspaces and therefore structure of the nullspace for the linearization needs to be taken carefully into account, (2) Lotz Noferini yield an upper bound for the pencil and polynomial, but we cannot meaningfully compare upper bound, we need a lower bound for the polynomial, requiring us to extend their analysis
+    \item On the computational side, the QZ algorithm has the disadvantage that one cannot control the perturbations that are introduced by roundoff error, in particular they do not follow a common random matrix model. Hence, based on our results on linearizations it makes sense to apply sampled random perturbations. Point out work by Hochstenbach/Mehl/plestenjak -> Problem no quantification [need to carefully reflect what to say here]
+    New: explain what needs to be added to Lotz Noferini, false positives, true negatives.
+\end{itemize}
+
+\end{comment}
+\begin{abstract}
+The numerical solution of singular eigenvalue problems is complicated by the fact that small perturbations of the coefficients may have an arbitrarily bad effect on eigenvalue accuracy. However, it has been known for a long time that such perturbations are exceptional and standard eigenvalue solvers, such as the QZ algorithm, tend to yield good accuracy despite the inevitable presence of roundoff error.
+Recently, Lotz and Noferini quantified this phenomenon by introducing the concept of $\delta$-weak eigenvalue condition numbers. In this work, we consider singular quadratic eigenvalue problems and two popular linearizations. Our results show that a correctly chosen linearization increases $\delta$-weak eigenvalue condition numbers only marginally, justifying the use of these linearizations in numerical solvers also in the singular case. We propose a very simple but often effective algorithm for computing well-conditioned eigenvalues of a singular quadratic eigenvalue problems by adding small random perturbations to the coefficients. We prove that the eigenvalue condition number is, with high probability, a reliable criterion for detecting and excluding spurious eigenvalues created from the singular part.
+\end{abstract}
+
+
+
+\section{Introduction}
+
+
+This work is concerned with the \emph{quadratic eigenvalue problem} associated with a matrix polynomial of the form
+\begin{equation}\label{eq:qep}
+    Q(\lambda) = \lambda^2M + \lambda C + K, 
+\end{equation}
+where $M, C, K \in \mathbb{C}^{n\times n}$. We will study the numerical computation of eigenvalues when $Q(\lambda)$ is \emph{singular}, that is, $\det (Q(\lambda)) \equiv 0$.
+Quadratic eigenvalue problems occur in a wide variety of applications in particular in mechanical and electrical engineering; see~\cite{Tisseur2001} for an overview. More specifically, differential algebraic equations and control problems frequently give rise to
+singular (linear or quadratic) eigenvalue problems; see, e.g.,~\cite{byers2008trimmed,Shi2004,VanDooren1981}. To define eigenvalues for such problems, one considers the \emph{normal rank} of $Q$ defined as \[ \nrank(Q) := \max_{\lambda \in\mathbb{C}}\rank(Q(\lambda)).\] Then 
+$\lambda_0 \in \C$ is called a (finite) eigenvalue of $Q$ if the rank of $Q(\lambda_0)$ is strictly smaller than $\nrank(Q)$.
+% In addition, we say that $\infty$ is an eigenvalue of $Q(\lambda)$ if $\rank M < \nrank Q(\lambda)$.
+
+The numerical solution of singular eigenvalue problems is complicated by the existence of arbitrarily small matrix perturbations that move eigenvalues anywhere in the complex plane~\cite{kaagstrom20008}. Therefore, it may seem futile to attempt to compute such eigenvalues in finite precision arithmetic. On the other hand, it was recognized early on by Wilkinson~\cite{wilkinson1979kronecker} that the QZ algorithm~\cite{Golub2013} applied to a singular linear eigenvalue problem usually returns good eigenvalue approximations, despite the presence of perturbations introduced by roundoff error.
+More recently, De Ter\'an, Dopico, and Moro~\cite{de2008first} explained Wilkinson's observation by proving that perturbation directions causing arbitrarily large eigenvalue changes are rare; in fact, they form a set of measure zero. For the other perturbation directions, the eigenvalue sensitivity has been analyzed in~\cite{de2008first} and~\cite{de2010first} for linear and polynomial eigenvalue problems, respectively. These results are of a qualitative nature; in particular, they do not allow to draw conclusions on the eigenvalue error one should normally \emph{expect}. Building on~\cite{de2008first,de2010first}, Lotz and Noferini~\cite{lotz2020wilkinson} address this question by assuming that the perturbation directions are uniformly distributed on the sphere and deriving the expected value as well as a tail bound for the eigenvalue sensitivity. The latter yields an upper bound on the so called \emph{$\delta$-weak (stochastic) condition number}, a quantity introduced in~\cite{lotz2020wilkinson} that bounds the eigenvalue sensitivity with probability $1-\delta$ for prescribed $0 \le \delta < 1$.
+
+\emph{Linearization} is often the first step of numerical solvers for a quadratic eigenvalue problem, which usually means turning it into a linear eigenvalue problem of double size. Various different linearizations are available in the literature; the seminal work by Mackey et al.~\cite{mackey2006vector} identifies two useful vector spaces of linearizations, $\mathbb{L}_1$ and $\mathbb{L}_2$, which include the popular companion linearizations. The choice of linearization influences the reliability and accuracy of the eigenvalue solver. For regular matrix polynomials, Higham et al.~\cite{higham2006conditioning} have analyzed the effect of linearization on the eigenvalue condition numbers for linearizations in $\mathbb{DL} = \mathbb{L}_1\cap \mathbb{L}_2$ as well as companion linearizations. For a \emph{singular} matrix polynomial $P(\lambda)$, 
+De T\'eran, Dopico and Mackey~\cite{de2009linearizations} showed that almost all elements from $\mathbb{L}_1$ and $\mathbb{L}_2$ still satisfy the usual definition of (strong) linearization. Additionally, they also explain how the so called minimal indices and minimal bases of $P$ are related to the minimal indices and minimal bases of the corresponding linearization. Interestingly, $\mathbb{DL}$ does \emph{not} contain a linearization for singular matrix polynomials.
+
+A common approach to solving a singular linear eigenvalue problem $C(\lambda) = A-\lambda B$ is to first extract the regular part by first computing the so called staircase form~\cite{Demmel1993,Demmel1993a,VanDooren1979} and then applying the QZ algorithm. For singular polynomial eigenvalue problems, this extraction can simply be applied after linearization; exploiting the result from~\cite{de2009linearizations} discussed above. A more sophisticated technique of combing extraction with linearization is derived in~\cite{byers2008trimmed}. As discussed, e.g., in~\cite[Pg. 1023]{hochstenbach2019solving}, the computation of the staircase form can be significantly more expensive than the QZ algorithm and, possibly more importantly, the identification of the regular part crucially relies on rank decisions that are prone to become incorrect in finite precision arithmetic. In view of Wilkinson's observation, one may wonder whether it is not possible to skip the extraction step and apply QZ directly to $C(\lambda)$.  One challenge, certainly from a theoretical perspective but quite possibly also from a practical perspective, is that it is unreasonable to use standard random matrix distributions for modeling the roundoff error incurred by the QZ algorithm; see~\cite[Sec. 2.8]{Higham2002}. One way to fix this is to introduce prescribed random perturbations in $A$ and $B$. Hochstenbach, Mehl, and Plestenjak~\cite{hochstenbach2019solving} proposed to use random perturbations of rank $k := n-\nrank(C)$, which -- with probability one -- leave the eigenvalues of $C(\lambda)$ unchanged and create
+additional spurious eigenvalues from the perturbed singular part. Heuristic yet effective criteria are used to identify and exclude these spurious eigenvalues. From a theoretical perspective, a major disadvantage of such rank-$k$ perturbations is that they are much harder to analyze than unstructured random perturbations; they certainly do not fit the framework of~\cite{lotz2020wilkinson}. In turn, the effect of such perturbations on weak eigenvalue condition numbers remains unclear and it is difficult to develop a theoretically justified criterion for identifying spurious eigenvalues.
+
+This work makes the following new theoretical contributions to the treatment of singular quadratic eigenvalue problems:
+\begin{enumerate}
+\item[(C1)] Theorems~\ref{t:FCFratio} and~\ref{t:ACFratio} bound the effect of companion linearizations on $\delta$-weak eigenvalue condition numbers; thereby extending some of the results from~\cite{higham2006conditioning} to the singular case.
+\item[(C2)] Section~\ref{sec:boundcond} develops a theoretical criterion for correctly identifying, with high probability, all simple well-conditioned eigenvalues of a matrix polynomial subject to uniformly distributed perturbations.
+ \end{enumerate}
+To achieve these contributions, our work closely follows and extends the work by Lotz and Noferini~\cite{lotz2020wilkinson}. For example, for (C1) the upper bounds on $\delta$-weak eigenvalue condition numbers from~\cite{lotz2020wilkinson} are combined with newly developed lower bounds; see Theorem~\ref{t:deltaWeakCondLowerBound}. Both, (C1) and (C2) have immediate practical consequences. In particular, we show that there is always a numerically safe choice of companion linearization, that is, the linearization only has a mild impact on condition numbers. Note, however, that one may have to choose a different companion linearization depending on whether the eigenvalues of interest have small or large magnitude, which is in line with similar results~\cite{higham2006conditioning,adhikari2011structured} for regular matrix polynomials.
+
+\section{Definitions and preliminaries}
+
+In order to introduce notation and definitions for linear and quadratic polynomials in a uniform way, we first consider a general matrix polynomial taking the form
+\begin{equation} \label{eq:genpoly} P(\lambda) = \sum^m_{i=0}\lambda^iA_i,\quad A_i\in\mathbb{C}^{n\times n}.
+\end{equation}
+  We recall that $\lambda_0$ is a (finite) eigenvalue of $P$ if
+$
+    \rank(P(\lambda_0)) < \nrank (P) := \max_{\lambda \in\mathbb{C}}\rank(P(\lambda)).
+$
+%Moreover, we say that $\infty$ is an eigenvalue of $P(\lambda)$ if $\rank (A_m)<\nrank P(\lambda)$, or equivalently if zero is an eigenvalue of the reversed problem
+%\begin{equation}\label{eq:revP}
+%    \rev P(\lambda) = \lambda^mA_0+\ldots+\lambda A_{m-1} + A_m.
+%\end{equation}
+In this work, we will only deal with simple eigenvalues; if $P$ is singular the Smith canonical form can be used to define when an eigenvalue is simple~\cite{de2010first}.
+
+To define eigenvectors for singular $P$, we follow~\cite{Dopico2020,lotz2020wilkinson}. Let $\mathbb{C}(\lambda)$ denote the field of rational functions with complex coefficients and $\mathbb{C}^n(\lambda)$ the vector space over $\mathbb{C}(\lambda)$ of $n$--tuples of rational functions.
+\begin{definition}[\cite{de2009linearizations}] \label{d:nullspaces}
+For an $n\times n$ matrix polynomial $P(\lambda)$, we call 
+\[
+ \mathcal{N}(P) : = \left\{ x(\lambda) \in \mathbb{C}(\lambda)^n:\; P(\lambda)x(\lambda) \equiv 0 \right\}
+\]
+and
+\[
+ \mathcal{N}_*(P) : = \left\{ y(\lambda) \in \mathbb{C}\big(\overline{\lambda}\big)^n:\; y(\lambda)^* P(\lambda) \equiv 0 \right\}
+\]
+the \emph{right} and \emph{left nullspace} of $P$, respectively.
+\end{definition}
+The two subspaces have the same dimension because \[ r:=\nrank(P) = n-\dim \mathcal{N}(P) = n-\dim \mathcal{N}_*(P). \]
+To work with these subspaces, we first note that one can always choose polynomial bases. In particular, an $n\times (n-r)$ matrix polynomial
+$\big[ x_1(\lambda),\ldots,x_{n-r}(\lambda)\big]$ is called a \emph{minimal basis} of $\mathcal{N}(P)$ if the sum of the degree of its columns is minimal among all polynomial bases of $\mathcal{N}(P)$. Analogously, we let 
+$\big[ y_1(\lambda),\ldots,y_{n-r}(\lambda)\big]$ denote a minimal basis of $\mathcal{N}_*(P)$.
+Then~\cite{Dopico2020},
+\begin{align*}
+\begin{split}
+\ker_{\lambda_0}(P) &:= \mathrm{range} \big[ x_1(\lambda_0),\ldots,x_{n-r}(\lambda_0)\big] \subsetneq \ker(P(\lambda_0)),  \\
+    \ker_{\lambda_0}(P^*) &:= \mathrm{range} \big[ y_1(\lambda_0),\ldots,y_{n-r}(\lambda_0)\big] \subsetneq \ker(P(\lambda_0)^*).
+\end{split}
+\end{align*}
+In accordance with~\cite{de2010first}, $\ker_{\lambda_0}(P)$ and $\ker_{\lambda_0}(P^*)$ are called \emph{right} and \emph{left singular space}, respectively.
+\begin{definition} \label{def:eigenvector}
+ Let $\lambda_0$ be an eigenvalue of an $n\times n$ matrix polynomial $P(\lambda)$. A vector $x$ is called a right eigenvector of $P$ if $[x] \in \ker( P(\lambda_0) )/ \ker_{\lambda_0}(P)$ and $[x] \not=[0]$. 
+ A vector $y$ is called a left eigenvector of $P$ if $y \in \ker( P(\lambda_0)^* ) / \ker_{\lambda_0}(P^*)$ and $[y] \not=[0]$. 
+\end{definition}
+
+Let us now suppose that $\lambda_0$ is simple, which implies $\dim \ker(P(\lambda_0)) = n-r+1$, and consider any basis $X\in\mathbb{C}^{n\times(n-r)}$ of $\ker_{\lambda_0}(P)$. Then $x$ is a right eigenvector if and only if
+$\begin{bmatrix} X & x \end{bmatrix} \in \mathbb{C}^{n\times (n-r+1)}$ is a basis for $\ker (P(\lambda_0))$. Given a basis $Y\in\mathbb{C}^{n\times(n-r)}$ of $\ker_{\lambda_0}(P^*)$, $y$ is a left eigenvector if and only if
+$\begin{bmatrix} Y & y \end{bmatrix} \in \mathbb{C}^{n\times (n-r+1)}$ is a basis for $\ker (P(\lambda_0)^*)$. Note that, compared to simple eigenvalues of regular eigenvalue problems, there is much more freedom in choosing eigenvectors, e.g., $x$ is only determined up to components from $\ker_{\lambda_0}(P)$.
+
+\subsection{$\delta$--weak eigenvalue condition number}\label{SectionDeltaWeak}
+
+We now perturb $P$ with another $n\times n$ matrix polynomial $E(\lambda) = \sum^m_{i=0}\lambda^iE_i$,
+\begin{equation}\label{eq:pertPEP}
+    \tilde{P}(\lambda) = P(\lambda)+\varepsilon E(\lambda),\;\varepsilon>0.
+\end{equation}
+The norm of $E$ is measured by
+\[
+    \|E\|^2 := \big\| \begin{bmatrix}
+    E_0 & E_1 & \cdots &E_m
+\end{bmatrix} \big\|_F^2 = \sum^m_{i=0}\|E_i\|^2_F,
+\]
+where $\|\cdot\|_F$ denotes the Frobenius norm of a matrix.
+In the singular case, the effect of perturbations on the accuracy of eigenvalues can be arbitrarily bad. To demonstrate this, we use a variation of an example from~\cite{kaagstrom20008}.
+\begin{example}
+    Consider the singular quadratic eigenvalue problem
+    \begin{equation*}
+        Q(\lambda) = \lambda^2\begin{bmatrix}
+            1 & 0\\
+            0 & 0
+        \end{bmatrix} + \lambda \begin{bmatrix}
+            -3 & 0\\
+            0 & 0
+        \end{bmatrix} + \begin{bmatrix}
+            2 & 0\\
+            0 & 0
+        \end{bmatrix},
+    \end{equation*}
+    with two simple eigenvalues $1$ and $2$. The perturbed polynomial
+    \begin{equation*}
+        \tilde{Q}(\lambda) = \lambda^2\begin{bmatrix}
+            1 & \varepsilon_1\\
+            \varepsilon_2 & 0
+        \end{bmatrix} + \lambda \begin{bmatrix}
+            -3 & \varepsilon_3\\
+            \varepsilon_4 & 0
+        \end{bmatrix} + \begin{bmatrix}
+            2 & \varepsilon_5\\
+            \varepsilon_6 & 0
+        \end{bmatrix}
+    \end{equation*}
+    is regular when $\varepsilon_i \not = 0$ and its eigenvalues are the zeros of \[ (\varepsilon_1\lambda^2 + \varepsilon_3\lambda + \varepsilon_5)(\varepsilon_2\lambda^2+\varepsilon_1\lambda+\varepsilon_6).\] By choosing the ratios
+    $\varepsilon_3/\varepsilon_1$, $\varepsilon_3/\varepsilon_5$, $\varepsilon_1/\varepsilon_2$, $\varepsilon_6/\varepsilon_2$ appropriately, these perturbed eigenvalues can be placed anywhere in the complex again for arbitrarily small $\varepsilon_i$. As shown in~\cite{de2010first} and easily verified for $Q$, this perturbation constitutes an exception. For generic $E$, the perturbed polynomial $\tilde Q(\lambda) = Q(\lambda) + \varepsilon E(\lambda)$ has eigenvalues close to $1,2$ for $\varepsilon>0$ sufficiently small.
+\end{example}
+
+To quantify the effect of perturbations in the generic case, let $\begin{bmatrix}
+    X & x
+\end{bmatrix}$ and $\begin{bmatrix}
+    Y & y
+\end{bmatrix}$ denote the bases for $\ker P(\lambda_0)$ and $\ker P(\lambda_0)^*$ introduced above for a simple eigenvalue $\lambda_0$ of $P$. Assume that $Y^*E(\lambda_0) X$ is nonsingular, which is generically satisfied for $E(\lambda)$. The first-order eigenvalue perturbation expansion by De Ter\'an, and Dopico~\cite{de2010first} states that there is an eigenvalue $\lambda_0(\varepsilon)$ of the perturbed polynomial $\tilde{P}(\lambda)$ such that
+\begin{equation}\label{eq:Expansion}
+    \lambda_0(\varepsilon) = \lambda_0 - \frac{\det (\begin{bmatrix} Y & y \end{bmatrix}^*E(\lambda_0)\begin{bmatrix} X & x \end{bmatrix})}{y^*P'(\lambda_0)x\cdot \det(Y^*E(\lambda_0)X)}\varepsilon + O(\varepsilon^2).
+\end{equation}
+% Well, in principle this does not exclude that there is a closer eigenvalues but this seems to be nitpicking.
+It follows that the \emph{directional sensitivity} of $\lambda_0$ satisfies
+\begin{align}
+    \sigma_E &:= \lim_{\varepsilon\to 0}\frac{|\lambda_0(\varepsilon) - \lambda_0|}{\varepsilon \|E\|} \nonumber  \\
+    &= \frac{1}{\|E\|}\left| \frac{\det (\begin{bmatrix} Y & y \end{bmatrix}^*E(\lambda_0)\begin{bmatrix} X & x \end{bmatrix})}{y^*P'(\lambda_0)x\cdot \det(Y^*E(\lambda_0)X)} \right|. \label{sigmaEformula}
+\end{align}
+The main difficulty in continuing from here is that $\sigma_E$ becomes arbitrarily large when $Y^*E(\lambda_0) X$ is close to a singular matrix. Still, one hopes that the set of such bad perturbation directions, for which $\sigma_E$ becomes large, remains small. In order to quantify this, one assumes that the matrix $\begin{bmatrix}
+    E_0 & E_1 & \cdots &E_m
+\end{bmatrix}$ defining the perturbation is randomly distributed, more precisely its vectorization is uniformly distributed over the unit sphere in $\C^{n^2(m+1)}$. In the following, this will be denoted by
+\[
+ E\sim \mathcal{U}(2N), \quad N=n^2(m+1).
+\]
+Lotz and Noferini~\cite{lotz2020wilkinson} have defined the $\delta$--weak condition number as the smallest bound $\kappa_w(\delta)$ such that the $\sigma_E$ stays below $\kappa_w(\delta)$ with probability at least $1-\delta$.
+\begin{definition}
+Let $\lambda_0$ be a simple eigenvalue of an $n\times n$ matrix polynomial $P$. Then 
+the $\delta$--weak condition number of $\lambda_0$ is defined as
+%\begin{equation}\label{eq:deltaWeakCond}
+\[
+    \kappa_w(\delta) = \inf \{t\in \mathbb{R}: \mathbb{P}(\sigma_E < t)\geq 1-\delta \},
+\]
+%\end{equation}
+where $\sigma_E$ is defined as in~\eqref{sigmaEformula} and $E\sim \mathcal{U}(2N)$.
+\end{definition}
+%In the case of uniformly distributed perturbation $E$, Lotz and Noferini proved the upper bound for $\kappa_w(\delta)$ \eqref{eq:deltaWeakCond} which can be computed in practice, and thus represent a reliability measure on the output, valid with probability $1-\delta$. We will discuss this bound in details in section ??.
+A crucial step in deriving bounds for $\kappa_w(\delta)$ is to exploit the unitary invariance of (complex) Gaussian random matrices. More specifically, since $\sigma_E$ is invariant under scaling $E$, we can remove the normalization of $E$ and assume that the entries of its coefficients are i.i.d. normal random variables with mean $0$ and variance $\big( \sum^m_{j=0}|\lambda_0|^{2j} \big)^{-1}$. In turn, $E(\lambda_0)$ is a complex Gaussian random matrix. \emph{If} the columns of $\begin{bmatrix}
+    X & x
+\end{bmatrix}$ and $\begin{bmatrix}
+    Y & y
+\end{bmatrix}$ are orthonormal, the invariance of complex Gaussian random matrix under multiplication with unitary matrices implies that we can choose w.l.o.g. bases of unit vectors and hence 
+\begin{equation*}
+    \frac{\left| \det \left(\begin{bmatrix} Y & y \end{bmatrix}^*E(\lambda_0)\begin{bmatrix} X & x \end{bmatrix}\right) \right|}{\left| \det(Y^*E\left(\lambda_0)X\right) \right|} \sim \frac{\left| \det (G) \right|}{\left| \det(\overline{G}) \right|} \sim \frac{1}{|h_{\ell \ell}|}, \;\; \ell = n-r+1,
+\end{equation*}
+where $G$ is an $\ell \times \ell$ complex Gaussian matrix, $\overline{G}$ is the leading principal $(\ell-1)\times (\ell-1)$ submatrix of $G$, and $H = [h_{ij}]_{i,j=1}^n=G^{-1}$. Setting
+\begin{equation}\label{eq:gammaP}
+    \gamma_P = |y^*P'(\lambda_0)x|\Big( \sum^m_{j=0} |\lambda_0|^{2j} \Big)^{-1/2},
+\end{equation}
+it follows from~\eqref{sigmaEformula} that
+\[
+ \mathbb{P}(\sigma_E\geq t) = \mathbb{P}\Big(  |h_{\ell\ell}|^{-2} \ge \gamma^2_P t^2 \|E\|^2 \sum^m_{j=0}|\lambda_0|^{2j}   \Big).
+\]
+Deriving an explicit expression for the distribution of $|h_{\ell\ell}|^{-1}$, the following result was obtained in~\cite{lotz2020wilkinson}.
+\begin{theorem} \label{t:sigmaEdistr}
+Let $\lambda_0$ be a simple eigenvalue of an $n\times n$ matrix polynomial $P$ with normal rank $r$. Let $\gamma_P$ be defined as in~\eqref{eq:gammaP}. If $E\sim \mathcal{U}(2N)$ the directional sensitivity of $\lambda_0$ satisfies
+%    \begin{equation}\label{eq:sigmaEdistr}
+\[
+        \mathbb{P}(\sigma_E\geq t) = \mathbb{P}(Z_N/Z_{n-r+1}\geq \gamma_P^2t^2),
+\]
+%    \end{equation}
+    where $Z_k\sim \Bdist(1,k-1)$ denotes a beta-distributed random variable with parameters $1$ and $k-1$, and $Z_N$ and $Z_{n-r+1}$ are independent.
+\end{theorem}
+Using the result of Theorem~\ref{t:sigmaEdistr}, Lotz and Noferini~\cite{lotz2020wilkinson} compute the expected value of $\sigma_E$ and derive the tail bound    
+%    \begin{equation}\label{eq:sigmaEtailbnd}
+\[
+        \mathbb{P}(\sigma_E\geq t) \leq \frac{1}{\gamma^2_P}\frac{n-r}{N}\frac{1}{t^2}
+%    \end{equation}
+\]
+for $t\geq \gamma_P^{-1}$. In turn, this yields the upper bound
+\begin{equation}\label{eq:deltaWeakCondUpperBound}
+\kappa_w(\delta) \leq \frac{1}{\gamma_P} \max \left\{  1,\sqrt{\frac{n-r}{\delta N}} \right\};
+\end{equation}
+see~\cite[Theorem 5.1]{lotz2020wilkinson}.
+\begin{remark}
+For a polynomial eigenvalue problem with real coefficient matrices, it would be more natural to work with  real perturbations. If $\lambda_0$ is real then $\begin{bmatrix}
+    X & x
+\end{bmatrix}$ and $\begin{bmatrix}
+    Y & y
+\end{bmatrix}$ can be chosen real and the discussion above can be easily adjusted to treat the case that $E$ is uniformly distributed on the unit sphere in $\R^{n^2(m+1)}$; the corresponding result is Theorem 5.2 in~\cite{lotz2020wilkinson}.
+
+If $\lambda_0$ is complex then 
+$\begin{bmatrix}
+    X & x
+\end{bmatrix}$ and $\begin{bmatrix}
+    Y & y
+\end{bmatrix}$ can \emph{not} be chosen real. As real Gaussian random matrices are clearly not invariant under (complex) unitary transformations, the arguments given above do not extend to this situation.
+In turn, the proof (and possibly the results themselves) of Theorem 5.2 and related statements in~\cite{lotz2020wilkinson} are incorrect. For regular eigenvalue problems, it is known~\cite{Byers2004a} that restricting the perturbations from complex to real does not have a significant impact on the condition number. It remains open whether such a result can be established for weak condition numbers.
+% The main problem to derive such an extension seems to be that the coefficient in the first order expansion does not seem to be linear in E.
+\end{remark}
+
+\subsection{Linearization of singular quadratic eigenvalue problem} \label{sec:linearization}
+
+As explained in the introduction, it is common to apply linearization when numerically solving polynomial eigenvalue problem.
+%The so called strong linearizations are of particular interest because of their nice properties.
+\begin{definition}
+A linear matrix polynomial (matrix pencil) $L(\lambda) = \lambda L_1 + L_0$ with $L_0,L_1 \in\mathbb{C}^{nm\times nm}$ is a \emph{linearization} of an $n\times n$ matrix polynomial $P(\lambda) = \sum^m_{i=0}\lambda^iA_i$ if there exist unimodular $nm\times nm$ matrices $E(\lambda)$ and $F(\lambda)$ such that
+\[
+    E(\lambda)L(\lambda)F(\lambda) = \begin{bmatrix}
+    P(\lambda) & 0\\
+    0 & I_{(m-1)n}
+    \end{bmatrix}.
+\]
+%or in the other words, if $L(\lambda)$ is equivalent to $\diag (P(\lambda),I_{(m-1)n})$.
+A linearization $L(\lambda)$ is called a \emph{strong linearization} if $\rev L(\lambda) = \lambda Y + X$ is also a linearization of $\rev P(\lambda) = \sum^m_{i=0}\lambda^iA_{k-i}$.
+\end{definition}
+As emphasized in~\cite{de2009linearizations}, % De Ter\'an, Dopico and Mackey proved 
+only strong linearizations preserves the complete eigenstructure of a singular matrix polynomial
+and it is therefore preferable to work with them.
+From now on, we will focus on (singular) quadratic matrix polynomials
+$Q(\lambda) = \lambda^2M + \lambda C + K$ and work with
+the \emph{first companion form linearization}
+\begin{equation}\label{eq:c1}
+    C_1(\lambda) = \lambda \begin{bmatrix} M & 0\\ 0 & I_n \end{bmatrix} + \begin{bmatrix} C & K\\ -I_n & 0 \end{bmatrix},
+\end{equation}
+which is known to be a strong linearization for both regular and singular matrix polynomials~ \cite{gohberg1988general,de2009linearizations}.
+
+The recovery of eigenvectors of a (regular) matrix polynomial from the eigenvectors of its linearization has been systematically studied in~\cite{mackey2006vector}. Extending these results to the singular case, the recovery of minimal bases is discussed in~\cite{de2009linearizations}. Applied to the linearization $C_1(\lambda)$ of $Q(\lambda)$, we obtain the following results.
+
+\begin{paragraph}{Minimal basis of $\mathcal{N}(C_1)$ and right eigenvector.}
+Given 
+a minimal basis $\big[ x_1(\lambda),\ldots,x_{n-r}(\lambda)\big]$ of $\mathcal{N}(Q)$, Theorem 5.2 in~\cite{de2009linearizations} states that
+\[
+\begin{bmatrix}
+ \lambda x_1(\lambda) & \ldots & \lambda x_{n-r}(\lambda) \\
+ x_1(\lambda) & \ldots & x_{n-r}(\lambda) 
+\end{bmatrix}
+\]
+is a \emph{minimal basis} of $\mathcal{N}(C_1)$. Setting $X = \big[ x_1(\lambda_0),\ldots,x_{n-r}(\lambda_0)\big]$ for a simple eigenvalue $\lambda_0$ of $Q$, we thus obtain that $\begin{bmatrix} \lambda_0 X \\ X \end{bmatrix}$ is a basis of $\ker_{\lambda_0}(C_1)$. Now, if $x$ is a right eigenvector of $Q$ in the sense of Definition~\ref{def:eigenvector} one easily verifies that $v := \begin{bmatrix} \lambda_0 x \\ x \end{bmatrix}$
+satisfies $C_1(\lambda_0) v = 0$ and $v \not\in \ker_{\lambda_0}(C_1)$. In other words, $v$ is a right eigenvector of $C_1$. To summarize,
+\begin{equation}\label{eq:rightC1norm1}
+    \begin{bmatrix}  X_L & x_L \end{bmatrix} := \frac{1}{\sqrt{1+|\lambda_0|^2}} \begin{bmatrix} \lambda_0 X & \lambda_0 x \\
+    X  & x \end{bmatrix}
+\end{equation}
+is a basis of $\ker(C_1(\lambda_0))$ with the first $n-r$ columns being a basis of $\ker_{\lambda_0}(C_1)$. For later purposes, the scaling is chosen such that $\begin{bmatrix}  X_L & x_L \end{bmatrix}$ becomes orthonormal if 
+$\begin{bmatrix} X  & x \end{bmatrix}$ is orthonormal.
+\end{paragraph}
+
+\begin{paragraph}{Minimal basis of $\mathcal{N}(C_1^*)$ and left eigenvector.}
+ Let $\big[ y_1(\lambda),\ldots,y_{n-r}(\lambda)\big]$ be a minimal basis of $\mathcal{N}(Q^*)$.
+ Then 
+ $
+  C_1(\lambda)^* \begin{bmatrix}
+                  y_i \\
+                  (\lambda M + C)^* y_i
+                 \end{bmatrix} = 0
+ $
+ for $i = 1,\ldots,n-r$. Together with Theorem 5.7 in~\cite{de2009linearizations} this implies that
+\[
+\begin{bmatrix}
+ y_1(\lambda) & \ldots & y_{n-r}(\lambda) \\
+ (\lambda M + C)^* y_1(\lambda) & \ldots & (\lambda M + C)^* y_{n-r}(\lambda) \\
+\end{bmatrix}
+\]
+is a minimal basis of $\mathcal{N}(C_1^*)$.
+Similarly, it follows that if $y$ is a left eigenvector of $Q$ associated with $\lambda_0$ then 
+$\begin{bmatrix}
+                  y \\
+                  (\lambda_0 M + C)^* y
+\end{bmatrix}$ is a left eigenvector of $C_1$.
+Letting
+$Y = \big[ y_1(\lambda_0),\ldots,y_{n-r}(\lambda_0)\big]$ we have thus obtained that 
+\begin{equation} \label{eq:LeftC1}
+ \begin{bmatrix}
+   \tilde Y_L & \tilde y_L
+   \end{bmatrix} = 
+ \begin{bmatrix} Y & y \\
+    (\lambda_0 M + C)^* Y  & (\lambda_0 M + C)^*y \end{bmatrix},
+\end{equation}
+is a basis of $\ker(C_1(\lambda_0)^*)$ with the first $n-r$ columns being a basis of $\ker_{\lambda_0}(C_1^*)$. If $\begin{bmatrix} Y  & y \end{bmatrix}$ is orthonormal, an orthonormal basis $\begin{bmatrix} Y_L  & y_L \end{bmatrix}$ of $\ker(C_1(\lambda_0)^*)$ with the same property is obtained by setting
+\begin{equation}  \label{eq:LeftC1orth}
+ Y_L:= \tilde Y_L (\tilde Y_L^* \tilde Y_L)^{-1/2} = \begin{bmatrix}
+                                        Y \\
+                                        (\lambda_0 M + C)^* Y
+                                       \end{bmatrix} S, \quad 
+y_L:= \frac{1}{\beta} \Pi_\perp\tilde y_L = \frac{1}{\beta} \Pi_\perp \begin{bmatrix}
+y \\
+(\lambda_0 M + C)^* y
+\end{bmatrix},
+\end{equation}
+with 
+the matrix $S = (I+Y^* (\lambda_0M+C) (\lambda_0M+C)^* Y )^{-1/2}$, the orthogonal projector $\Pi_\perp := I - Y_L Y_L^*$ onto $\ker_{\lambda_0}(C_1^*)^\perp$, and $\beta = \|\Pi_\perp\tilde y_L\|_2$.
+
+%$\begin{bmatrix}
+%   Y_L & y_L
+%   \end{bmatrix}$ is orthonormal.
+\end{paragraph}
+
+\section{$\delta$--weak condition number of the linearization}\label{s:DeltaCNLin}
+
+In this section we quantify the impact of the linearization \eqref{eq:c1} on $\delta$--weak eigenvalue condition numbers. More precisely, if $\kappa^{(Q)}_w(\delta)$ and
+$\kappa^{(C_1)}_w(\delta)$ denote the $\delta$--weak condition numbers of a simple eigenvalue $\lambda_0$ for the quadratic eigenvalue problem~\eqref{eq:qep} and the linearization~\eqref{eq:c1}, respectively, we aim at determining an upper bound on the ratio
+\begin{equation} \label{eq:ratio}
+    \frac{\kappa^{(C_1)}_w(\delta)}{\kappa^{(Q)}_w(\delta)}.
+\end{equation}
+%This bound will depend on the magnitude of the eigenvalue of interest together with the norm of the coefficient matrix $C$. More precisely, this linearization will be proven to be a good choice in case of eigenvalues larger than 1, while in the case of eigenvalues smaller than 1 we additionally need $\|C\|\leq 1$ to be satisfied. Otherwise, we can alternatively use linearization $\hat{C}_1(\lambda)$ given in \eqref{alternateLin}.
+For regular matrix polynomials, this question was first addressed in~\cite{higham2006conditioning}, followed up by a more detailed study of the quadratic case in~\cite{zeng2014backward}. 
+%Based on their analysis, they propose optimal choice of linearization depending on the magnitude of eigenvalues and the norm of the coefficient matrix $C$.
+To address the singular case, we face two complications. First, the relation between the eigenvectors of $C_1$ and $Q$ is more subtle due to the presence of singular spaces; see, e.g.,~\eqref{eq:LeftC1orth}. 
+%see Section~\ref{sec:linearization}. In particular, in order to be able to apply the upper bound~\eqref{eq:deltaWeakCondUpperBound} to 
+%$\kappa^{(C_1)}_w(\delta)$ we need to orthogonalize the basis~\eqref{eq:LeftC1} because this is needed in the definition of $\rho_{C_1}$ featuring prominently in~\eqref{eq:deltaWeakCondUpperBound}.
+Second, in order to get an upper bound for~\eqref{eq:ratio} we also need a \emph{lower} bound for the denominator $\kappa^{(Q)}_w(\delta)$, which requires an extension of the analysis in~\cite{lotz2020wilkinson}.
+
+\subsection{Lower bound for $\delta$--weak condition number}
+
+In this section, we establish a lower bound for $\delta$--weak eigenvalue condition numbers.
+\begin{theorem}\label{t:deltaWeakCondLowerBound}
+Let $\lambda_0$ be a simple eigenvalue of an $n\times n$ matrix polynomial $P$ of the form~\eqref{eq:genpoly} with normal rank $r<n$, let $\gamma_P$ be defined as in~\eqref{eq:gammaP}, and set $N = n^2(m+1)$. Then the $\delta$--weak eigenvalue condition number of $\lambda_0$ satisfies
+\begin{equation}\label{eq:deltaWeakCondLowerBound}
+    \kappa_w(\delta) \geq \sqrt{\frac{(N-1)(n-r)}{(N+n-r-2)(N+n-r-1)\delta}}\frac{1}{\gamma_P} \ge \frac{1}{\sqrt{N\delta}} \frac{1}{\gamma_P},
+\end{equation}
+for $\delta \leq \frac{(N-1)(n-r)}{(N+n-r-2)(N+n-r-1)}$.
+\end{theorem}
+In order to prove Theorem~\ref{t:deltaWeakCondLowerBound}, we need the following result, a variation of Lemma A.1 in~\cite{lotz2020wilkinson}.
+\begin{lemma}\label{l:TailBound}
+For $a,b,c,d>0$ consider independent beta-distributed random variables $X\sim \Bdist(a,b)$, $Y\sim \Bdist(c,d)$. Then
+\[
+    \mathbb{P}((X/Y)^{1/k}<t)\leq 1-\frac{1}{t^{ck}} \frac{\Bfun(a+c,b+d-1)}{c \Bfun(a,b)B(c,d)},
+\]
+holds for $t\geq 1$, where $\Bfun(\cdot,\cdot)$ denotes the beta function.
+\end{lemma}
+\begin{proof}
+We recall that the cdf of $\Bdist(a,b)$ is supported on $[0,1]$ and takes the form
+\[
+ \mathbb{P}(X \le t_0)= \frac{1}{\Bfun(a,b)} \int_0^{t_0} x^{a-1} (1-x)^{b-1}  \dx
+\]
+Setting $C = \frac{1}{\Bfun(a,b)\Bfun(c,d)}$ we obtain
+\begin{align*}
+    \mathbb{P}((X/Y)^{1/k}<t) &= 1-C\int^1_0\int^{t^{-k}x}_{0} x^{a-1}(1-x)^{b-1}y^{c-1}(1-y)^{d-1}\dy\dx \\
+    & = 1 - \frac{C}{t^{ck}}\int^1_0\int^{1}_0x^{a+c-1}(1-x)^{b-1}z^{c-1}(1-t^{-k}xz)^{d-1}\dz\dx\\
+    &\leq 1-\frac{C}{t^{ck}}\int^1_0\int^1_{0}x^{a+c-1}(1-x)^{(b+d-1)-1}z^{c-1}\dz\dx \\
+    &= 1-\frac{C}{t^{ck}}\frac{1}{c}\Bfun(a+c,b+d-1) = 1-\frac{1}{t^{ck}}\frac{1}{c}\frac{\Bfun(a+c,b+d-1)}{\Bfun(a,b)\Bfun(c,d)},
+\end{align*}
+where we substituted $y = t^{-k}x z$ in the second equality
+and used that $t\geq 1$ implies $t^{-k}xz\leq x$ in the inequality.
+\end{proof}
+%We now present the proof of the Theorem \ref{t:deltaWeakCondLowerBound}.
+\begin{proof}[Proof of Theorem~\ref{t:deltaWeakCondLowerBound}]
+We recall from Theorem~\ref{t:sigmaEdistr} that
+$
+ \mathbb{P}(\sigma_E<t) = \mathbb{P}(Z_N/Z_{n-r+1}< \gamma^2_Pt^2),
+$
+where $Z_k \sim \Bdist(1,k-1)$. Applying Lemma~\ref{l:TailBound} with 
+$k=2$, $a = c = 1$, $b=N-1$, $d=n-r$ gives
+\[
+ \mathbb{P}(\sigma_E<t) \leq 1-\frac{1}{\gamma^2_Pt^2} \frac{\Bfun(2,N+n-r-2)}{\Bfun(1,N-1)\Bfun(1,n-r)} = 1-\frac{1}{\gamma^2_Pt^2} \frac{(N-1)(n-r)}{(N+n-r-2)(N+n-r-1)}
+\]
+if $\gamma_Pt \ge 1$. Setting $t = t_0:= {\sqrt{\frac{(N-1)(n-r)}{(N+n-r-2)(N+n-r-1)\delta}}}\frac{1}{\gamma_P}$ thus gives $\mathbb{P}(\sigma_E<t_0) \le 1-\delta$, which shows $\kappa_w(\delta)\geq t_0$ and proves the first inequality in~\eqref{eq:deltaWeakCondLowerBound}. The second inequality is shown by noticing that $t_0$ increases monotonically with $r$
+and $t_0 = \frac{1}{\sqrt{N\delta}} \frac{1}{\gamma_P}$ for $r = n-1$.
+\end{proof}
+
+\subsection{Bounds for $\delta$--weak condition number ratio}
+
+We now have all the ingredients to state and prove one of the main results of this paper, which bounds the impact of the first companion form linearization on $\delta$--weak condition numbers. To obtain a simple bound, we assume that $\|M\|_2 = \|K\|_2 = 1$, which can always be achieved by appropriate scaling~\cite{Fan2004,zeng2014backward}.
+\begin{theorem}\label{t:FCFratio}
+    Let $\lambda_0$ be a simple eigenvalue of an $n \times n$ quadratic eigenvalue problem $Q(\lambda) = \lambda^2 M + \lambda C + K$ with normal rank $r<n$ and $\|M\|_2 = \|K\|_2 = 1$. Let $C_1$ be the first companion form linearization of $Q$. Then, for $\delta \leq \frac{n-r}{8n^2}$ there exist constants $c_1 \approx 1.46, c_2 \approx 1.08$ such that
+\[
+        \frac{\kappa^{(C_1)}_w(\delta)}{\kappa^{(Q)}_w(\delta)} \leq \begin{cases}
+        c_1 & \text{if } |\lambda_0|\leq 1, \|C\|_2 \leq 1,\\
+        c_2 & \text{if } |\lambda_0|\geq 1.
+        \end{cases}
+\]
+\end{theorem}
+\begin{proof}
+Let $\begin{bmatrix}
+    X_L & x_L
+\end{bmatrix}$ and $\begin{bmatrix}
+    Y_L & y_L
+\end{bmatrix}$ be the orthonormal bases of $\ker_{\lambda_0}(C_1)$ and $\ker_{\lambda_0}(C_1^*)$
+defined in~\eqref{eq:rightC1norm1} and~\eqref{eq:LeftC1orth}, respectively. 
+For the first companion form, it follows, as in~\cite{higham2006conditioning}, from differentiating the relation \begin{equation} \label{eq:linrelation}
+C_1(\lambda) \begin{bmatrix}
+\lambda I \\
+I
+\end{bmatrix} = 
+\begin{bmatrix}
+Q(\lambda) \\
+0
+\end{bmatrix}
+\end{equation}
+ and inserting the expressions~\eqref{eq:rightC1norm1},~\eqref{eq:LeftC1orth} for $x_L,y_L$  that
+\begin{equation} \label{eq:expressionlincondnumber}
+y_L^*C'_1(\lambda_0)x_L = 
+\frac{1}{\beta\sqrt{1+|\lambda_0|^2}} (\Pi_\perp y)^* Q'(\lambda_0)x = \frac{1}{\beta\sqrt{1+|\lambda_0|^2}} y^*Q'(\lambda_0)x.
+\end{equation}
+Concerning the second equality, we note that $\Pi_\perp^* Q'(\lambda_0)x = Q'(\lambda_0)x$ is a consequence of the following observation. For every column $y_i$ of $Y$ there exists an element $y(\lambda)$ in the left null space such that 
+$y_i = y(\lambda_0)$. Setting $z(\lambda) = y(\lambda)^* \in C(\lambda)^{1\times n}$
+and differentiating $z(\lambda) Q(\lambda) = 0$ gives \[
+0 = z^\prime(\lambda_0) Q(\lambda_0)x  + z(\lambda_0) Q^\prime(\lambda_0) x = y_i^* Q^\prime(\lambda_0) x.
+\]
+In turn, we have $Y^* Q'(\lambda_0)x = 0$, which implies the claimed relation because $\Pi_\perp = I-Y_LY_L^*$.
+
+Using~\eqref{eq:gammaP} and~\eqref{eq:expressionlincondnumber}, we obtain
+    \begin{equation} \label{eq:fracgamma}
+        \frac{\gamma_Q}{\gamma_{C_1}} =
+        \frac{|y^*Q'(\lambda_0)x|}{|y_L^*C'_1(\lambda_0)x_L|}\cdot \frac{\sqrt{1+|\lambda_0|^2}}{\sqrt{1+|\lambda_0|^2+|\lambda_0|^4}} =\frac{\beta (1+|\lambda_0|^2)}{\sqrt{1+|\lambda_0|^2+|\lambda_0|^4}}.
+    \end{equation}
+    Because of $\|y\|_2 = 1$, the normalizing scalar $\beta$ satisfies
+\begin{eqnarray} 
+\beta &=& \left\| \Pi_{\perp} \begin{bmatrix}
+        y\\
+        (\lambda_0M+C)^*y
+\end{bmatrix}\right\|_2 \le  \left\| \begin{bmatrix}
+        y\\
+        (\lambda_0M+C)^*y
+\end{bmatrix}\right\|_2  = 
+\left\| \begin{bmatrix}
+        y\\
+        - \bar \lambda_0^{-1} K^* y
+\end{bmatrix}\right\|_2 \nonumber \\
+&\le& \min \left\{ \sqrt{1+(|\lambda_0|+\|C\|_2)^2}, \sqrt{1+|\lambda_0|^{-2}} \right\}, \label{eq:minimum}
+\end{eqnarray}
+where we assume, for the moment, that $\lambda_0\not=0$.
+    
+To bound $\gamma_Q/\gamma_{C_1}$, we first note that the factor $\frac{1+|\lambda_0|^2}{\sqrt{1+|\lambda_0|^2+|\lambda_0|^4}}$ in~\eqref{eq:fracgamma} is bounded by $2/\sqrt{3}$ because its maximum is attained at $|\lambda_0| = 1$. When assuming $|\lambda_0|\geq 1$,~\eqref{eq:fracgamma}  yields
+    \[
+        \frac{\gamma_Q}{\gamma_{C_1}} 
+        \leq \frac{2}{\sqrt{3}} \sqrt{1+|\lambda_0|^{-2}} \leq \frac{2\sqrt{2}}{\sqrt{3}} \approx 1.63.
+    \]
+Assume now that $|\lambda_0|\leq 1$ and $\|C\|_2 \leq 1$. As the first term in the minimum~\eqref{eq:minimum} is increasing and the other is decreasing with respect to $|\lambda_0|$, the maximum of~\eqref{eq:minimum} is attained when both terms are equal, that is, when 
+$|\lambda_0| = \frac12(-\|C\|_2+\sqrt{\|C\|_2^2+4})$. In turn,
+$\beta \le \sqrt{ (5+\sqrt{5})/2}$, which also holds when $\lambda_0 = 0$. Inserted into~\eqref{eq:fracgamma} this gives
+\[
+    \frac{\gamma_Q}{\gamma_{C_1}} = \frac{\sqrt{5+\sqrt{5}} \sqrt{2} }{\sqrt{3}} \approx 2.2. 
+\]
+
+    Using the upper bound \eqref{eq:deltaWeakCondUpperBound} for the numerator together with
+    $\delta \leq \frac{n-r}{8n^2}$
+    and the lower bound \eqref{eq:deltaWeakCondLowerBound} for the denominator we get
+    \begin{eqnarray*}
+    \frac{\kappa^{(C_1)}_w(\delta)}{\kappa^{(Q)}_w(\delta)}
+         &\leq& \frac{\sqrt{\frac{n-r}{8n^2 \delta}}}{{\sqrt{\frac{(3n^2-1)(n-r)}{(3n^2+n-r-2)(3n^2+n-r-1)\delta}}}}\cdot \frac{\gamma_Q}{\gamma_{C_1}} \\
+         &=& \sqrt{\frac{3n^2+n-r-2}{8n^2}}\cdot \sqrt{\frac{3n^2+n-r-1}{3n^2-1}} \cdot \frac{\gamma_Q}{\gamma_{C_1}}\le \frac{ \sqrt{3 \cdot 13} }{2\cdot\sqrt{2\cdot 11}} \cdot \frac{\gamma_Q}{\gamma_{C_1}},
+    \end{eqnarray*}
+    where the last inequality follows from observing that the bound is maximized for $r = 0$ and $n = 2$. Together with the derived bounds for $\gamma_Q/\gamma_{C_1}$, this concludes the proof.
+\end{proof}
+% \begin{remark}
+% Notice that we had following assumptions on the norm of the coefficient matrices $M$ and $K$, $\|M\|=\|K\|=1$. This is justified by the fact, pointed out in \cite{zeng2014backward}, that using the following scaling parameters
+% \begin{equation}\label{eq:scalingParameters}
+%     \gamma = \sqrt{\frac{\|K\|}{\|M\|}},\;\; \omega = \frac{1}{\|K\|},
+% \end{equation}
+% and defining equivalent scaled quadratic problem
+% \begin{equation}\label{eq:scaledQEP}
+%     Q(\lambda)\omega = \mu^2 (\omega\gamma^2M) + \mu(\omega\gamma C) + \omega K = \mu^2\breve{M} + \mu\breve{C} + \breve{K},
+% \end{equation}
+% we can always achieve $\|\breve{M}\| = \|\breve{K}\|=1$. Therefore, the bound in \eqref{eq:RationBoundDeltaSmall} depends only on $\|C\|$.
+% \end{remark}
+
+The bounds of Theorem~\ref{t:FCFratio} do not cover the case $|\lambda_0|\leq 1$ when $\|C\|_2 \geq 1$ and it may, in fact, not be recommended to use the linearization $C_1$ in this situation.  To also cover this case, we consider
+\begin{equation}\label{alternateLin}
+    \hat{C}_1(\lambda) = \lambda \begin{bmatrix}
+        M & C\\
+        0 & I_n
+    \end{bmatrix} + \begin{bmatrix}
+        0 & K\\
+        -I_n & 0
+    \end{bmatrix},
+\end{equation}
+which is a strong linearization in $\mathbb L_1$ of $Q$ according to~\cite[Theorem 4.1]{de2009linearizations}. %The following result is analogue of Theorem~\ref{t:FCFratio}
+\begin{theorem}\label{t:ACFratio}
+Under the assumptions stated in Theorem~\ref{t:FCFratio}, the linearization $\hat C_1$ defined in~\eqref{alternateLin} satisfies
+%    \begin{equation}\label{eq:RationBoundDeltaSmallalt}
+\[
+        \frac{\kappa^{(\hat C_1)}_w(\delta)}{\kappa^{(Q)}_w(\delta)} \leq \begin{cases}
+        c_1 & \text{if } |\lambda_0|\geq 1, \; \|C\|_2 \leq 1, \\
+        c_2 & \text{if } |\lambda_0|\leq 1.
+        \end{cases}
+%\end{equation}
+\]
+\end{theorem}
+\begin{proof}
+The proof is nearly identical with the proof of Theorem~\ref{t:FCFratio}; in particular the relation~\eqref{eq:linrelation} is satisfied by $\hat C_1$ as well. The only significant difference is that, instead of~\eqref{eq:LeftC1}, the corresponding basis of $\ker(C_1(\lambda_0)^*)$ now takes the form
+\[
+ \begin{bmatrix}
+   \tilde Y_L & \tilde y_L
+   \end{bmatrix} = 
+ \begin{bmatrix} Y & y \\
+    \bar \lambda_0 M^* Y  & \bar \lambda_0 M ^* y
+\end{bmatrix}.
+\]
+In turn, the upper bound~\eqref{eq:minimum} on $\beta$ is replaced by
+\[
+\beta \le \min \left\{ \sqrt{1+(|\lambda_0|^{-1}+\|C\|_2)^2}, \sqrt{1+|\lambda_0|^{2}} \right\}.
+\]
+Then the arguments in the rest of the proof of Theorem~\ref{t:FCFratio} apply with $|\lambda_0|$ replaced by $|\lambda_0|^{-1}$. \end{proof}
+
+To summarize, after ensuring $\|M\|_2 = \|K\|_2 = 1$ with appropriate scaling, the use of linearization $C_1$ for eigenvalues of large magnitude and 
+linearization $\hat C_1$ for eigenvalues of small magnitude ensures that the eigenvalue sensitivity remains essentially unchanged.
+
+
+
+\section{Computation of simple finite eigenvalues}
+
+
+%Theorems \ref{t:FCFratio} and \ref{t:ACFratio} indicate that we can always choose a linearization of singular quadratic eigenvalue problem in such a way that there is no risk that $\delta$--weak condition number will increase. This justifies the use of the QZ algorithm on the linearization in order to compute the eigenvalues of a singular quadratic problem. 
+
+%However, on the computational side, the QZ algorithm has the disadvantage that one cannot control the perturbations that are introduced by roundoff errors since they do not follow common random matrix model. Hence, it makes sense to apply sampled random perturbation for which we can interpret the obtained results correctly.
+
+%One such approach is due to Hochstenbach, Mehl and Plestenjak in \cite{hochstenbach2019solving}. They use rank completing perturbations of the following form 
+%\begin{equation}\label{rankkper}
+%    A-\lambda B + \tau U(D_A-\lambda D_B)V^*
+%\end{equation}
+%in order to make the singular pencil regular. More precisely, if the pencil $A-\lambda B$ has normal rank $r$, then the rank of the perturbation will be $n-r$.
+%For the indication of the nature of the computed eigenvalues they use the right and left eigenvectors of the perturbed regular pencil and its relationship with matrices $V$ and $U$ from \eqref{rankkper}, respectively. Still, this model of perturbation does not fit into the theory of Lotz and Noferini and its supplement provided in Section \ref{s:DeltaCNLin}. Therefore, at this point, we do not know much about the nature of the perturbations of this form and we cannot quantify the results obtained by this method.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Random perturbations turn, with probability one, a singular polynomial eigenvalue problem $P(\lambda)$ into a regular one and, at the same time, we have seen that their impact on the simple eigenvalues of $P$ is controlled, with high probability, by the weak condition numbers. These considerations suggest to use controlled random perturbations that dominate roundoff error in order and facilitate standard eigenvalue solvers.
+However, attention needs to be paid to the fact that the perturbation of the singular part of $P$ will cause additional spurious eigenvalues. In summary, we suggest the following algorithm template for computing all finite simple eigenvalues of $P$:
+\begin{itemize}
+    \item[1.] Choose uniformly distributed random perturbation $E(\lambda)$ and define perturbed polynomial $\tilde{P}(\lambda):=P(\lambda) + \varepsilon E(\lambda)$.
+    \item[2.] Solve eigenvalue problem for $\tilde{P}$ by a standard method (e.g., linearization and QZ algorithm).
+    \item[3.] Decide which computed eigenvalues correspond to true eigenvalues of the original matrix polynomial $P$ and which are spurious.
+\end{itemize}
+In the next section, we will develop a strategy for implementing Step 3.
+
+% If $\lambda_0$ is finite eigenvalue of the original singular pencil, by the first order perturbation theory from \cite{de2008first}, we know that there exist eigenvalue $\lambda_0(\varepsilon)$ of the perturbed problem \eqref{eq:pertPEP} such that \eqref{eq:Expansion} holds.
+% 
+% More precisely, the difference between the true eigenvalue $\lambda_0$ and its approximation $\lambda_0(\varepsilon)$ obtained as a solution of perturbed problem \eqref{eq:pertPEP} is
+% 
+% \begin{equation}
+%     |\lambda_0(\varepsilon) - \lambda_0| = \left| \frac{\det (\begin{bmatrix} Y & y \end{bmatrix}^*E(\lambda_0)\begin{bmatrix} X & x \end{bmatrix})}{y^*P'(\lambda_0)x\cdot \det(Y^*E(\lambda_0)X)}\varepsilon + O(\varepsilon^2)\right|.
+% \end{equation}
+% 
+% This means that the eigenvalue of the perturbed pencil $\lambda_0(\varepsilon)$ will be the good approximation for the eigenvalue $\lambda_0$ of the singular pencil if 
+% \begin{equation}\label{cond}
+%     \left|{\frac{\det (\begin{bmatrix} Y & y \end{bmatrix}^*E(\lambda_0)\begin{bmatrix} X & x \end{bmatrix})}{y^*P'(\lambda_0)x\cdot \det(Y^*E(\lambda_0)X)}}\right| = \sigma_E\|E\| 
+% \end{equation}
+% is not too large (so that ${\frac{\det (\begin{bmatrix} Y & y \end{bmatrix}^*E(\lambda_0)\begin{bmatrix} X & x \end{bmatrix})}{y^*P'(\lambda_0)x\cdot \det(Y^*E(\lambda_0)X)}}\varepsilon$ in \eqref{eq:Expansion} remains small). Therefore, directional sensitivity $\sigma_E$ plays the key role in distinguishing the nature of the eigenvalues of the perturbed pencil.
+% 
+% In first subsection, we analyse how to compute $\sigma_E$ in practice so that we can use it as a criteria for determining the true eigenvalues of the original problem. Next, we will propose algorithms for singular generalized eigenvalue problems and singular quadratic eigenvalue problems based on this criteria and fact that in both cases we use QZ algorithm for solving the regular problem. In case of quadratic eigenvalue problem, we use theory developed in Section \ref{s:DeltaCNLin} to choose the proper linearization for the solution of perturbed regular problem.
+%\subsection{Algorithm for singular GEP}
+%Let $A-\lambda B$ be the input singular generalized eigenvalue problem. Let $E(\lambda) = E_1 - \lambda E_2$, $E_1,E_2 \in \mathbb{C}^{n\times n}$ be a random perturbation and $\varepsilon >0$. We consider the perturbed pencil
+%\begin{equation}\label{perGEP}
+%    \widetilde{A} - \lambda \widetilde{B} = A-\lambda B + \varepsilon\left( E_1-\lambda E_2\right).
+%\end{equation}
+%This pencil is generically regular and therefore we can use QZ algorithm to compute its eigenvalues. Denote with $(\lambda(\varepsilon),x(\varepsilon),y(\varepsilon))$ the thus obtained eigentriplets. The next step is to determine the criteria using which we can differentiate the eigenvalues of the original pencil and the spurious ones introduced by singularity.
+
+%If $\lambda_0$ is finite eigenvalue of the original singular pencil, by the first order perturbation theory from \cite{de2008first}, we know that there exist eigenvalue $\lambda_0(\varepsilon)$ of the perturbed problem \eqref{perGEP} such that the following equality holds
+
+%\begin{equation}\label{eq:ExpansionGEP}
+ %   \lambda_0(\varepsilon) = \lambda_0 - \frac{\det (\begin{bmatrix} Y & y \end{bmatrix}^*E(\lambda_0)\begin{bmatrix} X & x \end{bmatrix})}{y^*Bx\cdot \det(Y^*E(\lambda_0)X)}\varepsilon + O(\varepsilon^2).
+%\end{equation}
+
+%This means that, the difference between the true eigenvalue $\lambda_0$ and its approximation $\lambda_0(\varepsilon)$ obtained as a solution of perturbed problem \eqref{perGEP} is
+
+%\begin{equation}
+%    |\lambda_0(\varepsilon) - \lambda_0| = \left| \frac{\det (\begin{bmatrix} Y & y \end{bmatrix}^*E(\lambda_0)\begin{bmatrix} X & x \end{bmatrix})}{y^*Bx\cdot \det(Y^*E(\lambda_0)X)}\varepsilon + O(\varepsilon^2)\right|.
+%\end{equation}
+
+%More precisely, the eigenvalue of the perturbed pencil $\lambda_0(\varepsilon)$ will be the good approximation for the eigenvalue $\lambda_0$ of the singular pencil if 
+%\begin{equation}\label{cond}
+%    \left|{\frac{\det (\begin{bmatrix} Y & y \end{bmatrix}^*E(\lambda_0)\begin{bmatrix} X & x \end{bmatrix})}{y^*B(\lambda_0)x\cdot \det(Y^*E(\lambda_0)X)}}\right| = \sigma_E\|E\| 
+%\end{equation}
+%is not too large (so that ${\frac{\det (\begin{bmatrix} Y & y \end{bmatrix}^*E(\lambda_0)\begin{bmatrix} X & x \end{bmatrix})}{y^*Bx\cdot \det(Y^*E(\lambda_0)X)}}\varepsilon$ in \eqref{eq:ExpansionGEP} is small). Therefore, directional sensitivity $\sigma_E$ plays the key role in distinguishing the nature of the eigenvalues of the perturbed pencil.
+
+%The next question is, how to compute $\sigma_E$? 
+
+
+
+%By the definition of $\delta$--weak condition number we know that $\sigma_E$ is bounded with $\kappa_w(\delta)$ with the probability at least $1-\delta$. In \cite{lotz2020wilkinson}, Lotz and Noferini derived the bound for $\kappa_w(\delta)$ which can be computed in practice and thus represent an approximation for the $\sigma_E$ with the probability $1-\delta$. More precisely, $\kappa_w(\delta)$ is approximated by the condition number of the regular pencil obtained by the perturbation \eqref{perGEP}. This reasoning suggests that the criteria for detecting true eigenvalue $\lambda_0$ is small eigenvalue condition number 
+
+%In order to be sure that this approximation is good enough, we need to know that this condition number does not deviate much from the original. One direction is proven by Lotz and Noferini, i.e. they proved that the probability that the condition number for the perturbed pencil is much smaller is small. To make this complete and reliable, we prove opposite direction, i.e. that the condition number of the perturbed pencil cannot be much greater, with high probability, as well. 
+
+\subsection{Criteria for eigenvalue classification} \label{sec:boundcond}
+
+To distinguish true eigenvalues from spurious eigenvalues, we will make use of the quantity 
+$
+    \gamma_P 
+$
+featuring prominently in bounds for the weak eigenvalue condition number. For this purpose, it is necessary to not only compute the (perturbed) eigenvalue $\lambda(\varepsilon)$ in Step 2 above, but also the corresponding eigenvectors $x(\varepsilon)$, $y(\varepsilon)$.
+
+
+In this section, we will show that the quantity $\gamma_P$ defined in~\eqref{eq:gammaP}, which features prominently in bounds for the weak eigenvalue condition number, provides a well suited criterion for making the decision in Step 3. 
+
+%In this subsection we derive how to approximate $\sigma_E$ in practice.
+
+%First, by the definition of $\delta$--weak condition number we know that $\sigma_E$ is bounded with $\kappa_w(\delta)$ with the probability at least $1-\delta$. On the other hand, the upper bound \eqref{eq:deltaWeakCondUpperBound} holds, which leads to
+%\begin{equation}\label{eq:SigmaBound1}
+%    \sigma_E \leq \kappa_w(\delta)\leq \frac{1}{\gamma_P}\max\left\{ 1, \sqrt{\frac{n-r}{\delta N}} \right\}, \text{ with probability at least } 1-\delta.
+%\end{equation}
+%Now, the question of approximating $\sigma_E$ comes down to approximation of $\gamma_P$. 
+
+Let $y(\varepsilon)$ and $x(\varepsilon)$ be the eigenvectors corresponding to the eigenvalue $\lambda(\varepsilon)$ \eqref{eq:Expansion} of \eqref{eq:pertPEP}. It is proven in \cite{de2010first} that generically, the limits $\lim_{\varepsilon\to 0}x(\varepsilon) = \overline{x}$ and $\lim_{\varepsilon\to 0}y(\varepsilon) = \overline{y}$ belong to $\ker P(\lambda_0)$ and $\ker P(\lambda_0)^*$, respectively. More precisely, the following theorem holds.
+\begin{theorem} [\cite{de2010first}]
+    Let $P(\lambda)\in\mathbb{C}^{n\times n}_m[\lambda]$ be a matrix polynomial of rank $r$ with simple eigenvalue $\lambda_0$ and let the columns of matrices $\begin{bmatrix}
+    X & x
+    \end{bmatrix}$ and $\begin{bmatrix}
+    Y & y
+    \end{bmatrix}$ be the basis for the $\ker P(\lambda_0)$ and $\ker P(\lambda_0)^*$, respectively. Let $E(\lambda)\in\mathbb{C}^{n\times n}_m[\lambda]$ be such that $\begin{bmatrix}
+    Y & y
+    \end{bmatrix}^*E(\lambda_0)\begin{bmatrix}
+    X & x
+    \end{bmatrix}$ is non--singular. Let $\zeta$ be the eigenvalue of the non--singular pencil
+    \begin{equation}\label{pencilEvec}
+        \begin{bmatrix}
+    Y & y
+    \end{bmatrix}^*E(\lambda_0)\begin{bmatrix}
+    X & x
+    \end{bmatrix} + \zeta \times \begin{bmatrix}
+    Y & y
+    \end{bmatrix}^*P'(\lambda_0)\begin{bmatrix}
+    X & x
+    \end{bmatrix},
+    \end{equation}
+    and let $a$ and $b$ be the corresponding left and right eigenvectors. Then for small enough $\varepsilon>0$, the perturbed matrix polynomial $P(\lambda)+\varepsilon E(\lambda)$ has exactly one eigenvalue $\lambda(\varepsilon)$ as in \eqref{eq:Expansion}, and the corresponding left and right eigenvectors satisfy
+\[
+        y(\varepsilon) = \begin{bmatrix}
+    Y & y
+    \end{bmatrix}a + O(\varepsilon),\;\; x(\varepsilon) = \begin{bmatrix}
+    X & x
+    \end{bmatrix}b + O(\varepsilon).
+\]
+\end{theorem}
+
+Therefore, for sufficiently small $\varepsilon$, we can assume that the eigenvectors of the perturbed pencil approximate $\overline{x} = \begin{bmatrix}
+    X & x
+    \end{bmatrix}b$ and $\overline{y} = \begin{bmatrix}
+    Y & y
+    \end{bmatrix}a$, where $a$ and $b$ are eigenvectors of \eqref{pencilEvec}. This allows us to compute the following quantities
+\begin{equation}\label{overlineGK}
+    \overline{\gamma_P} = |\overline{y}^*P'(\lambda_0)\overline{x} | \Big( \sum^m_{j=0}|\lambda_0|^{2j} \Big)^{-1/2}, \;\; \overline{\kappa} = \overline{\gamma}_P^{-1}.
+\end{equation}
+If $\overline{x}=x$, and $\overline{y} = y$ we have $\overline{\gamma}_P = \gamma_P$. Otherwise,
+\begin{align}\label{LambdaPCon}
+\begin{split}
+    \overline{y}^*P'(\lambda_0)\overline{x} &= a^*\begin{bmatrix}
+        Y & y
+    \end{bmatrix}^*P'(\lambda_0)\begin{bmatrix}
+        X & x
+    \end{bmatrix}b\\
+    &= a^*(y^*P'(\lambda_0)x)\cdot e_{n-r+1}e^*_{n-r+1}b\\
+    &= (y^*P'(\lambda_0)x)\operatorname{conj}( a(n-r+1))\cdot b(n-r+1).
+\end{split}
+\end{align}
+The fact that $a$ and $b$ are eigenvectors for~\eqref{pencilEvec} implies
+\[
+    a = \frac{G^{-*}e_{n-r+1}}{\|G^{-*}e_{n-r+1}\|},\;\; b=\frac{G^{-1}e_{n-r+1}}{\|G^{-1}e_{n-r+1}\|}, \;\; G :=\begin{bmatrix}
+    Y & y
+    \end{bmatrix}^*E(\lambda_0)\begin{bmatrix}
+    X & x
+    \end{bmatrix}.
+\]
+This shows that each of $a$ and $b$ is uniformly (but not independently) distributed on the sphere. This property is used in~\cite[Proposition 6.5]{lotz2020wilkinson} to show the following result.
+\begin{proposition} \label{p:gammaP}
+    Let $P(\lambda)\in\mathbb{C}^{n\times n}_m[\lambda]$ be a a matrix polynomial of normal rank $r<n$ with simple eigenvalue $\lambda_0\in\mathbb{C}$, and let $E \sim \mathcal{U}(2N)$ be a random perturbation. Let $a,b$ be left and right eigenvectors of the linear pencil \eqref{pencilEvec}, let $\overline{x} = \begin{bmatrix}
+    X & x
+    \end{bmatrix}b$ and $\overline{y} = \begin{bmatrix}
+    Y & y
+    \end{bmatrix}a$, and define $\overline{\gamma}_P$ as in \eqref{overlineGK}. Then
+\[
+        \mathbb{E}[\overline{\gamma}_P]\leq (n-r)^{-1/2}\gamma_P, \;\; \mathbb{P}(\overline{\gamma}_P\geq \gamma_P\cdot t)\leq e^{-(n-r)t^2}.
+\]
+\end{proposition}
+Proposition \ref{p:gammaP} implies that $\overline{\gamma}_P$ tends to underestimate $\gamma_P$ by a factor $1/\sqrt{n-r}$, reflecting that worst-case perturbation directions represent a rather specific set of rank-one matrices~\cite[Theorem 5]{tisseur2000backward}. From~\eqref{LambdaPCon} it also follows that $\overline{\gamma}_P \le \gamma_P$ and hence an ill-conditioned eigenvalue (very small $\gamma_P$) never turns into a well-conditioned eigenvalue by a sufficiently small perturbation. For practical purposes, the opposite direction is somewhat more important, that is, any well-conditioned eigenvalue $\lambda_0$ of the original problem will show up as a well-conditioned eigenvalue of the perturbed problem as well. 
+In view of the relation~\eqref{LambdaPCon} between $\gamma_P$ and $\overline{\gamma}_P$, this is equivalent to proving that $|a(n-r+1)|\cdot |b(n-r+1)|$ cannot become too small.  %This proposition states that the probability that $\overline{\gamma}_P$ is greater than $\gamma_P$ is small. On the other hand, \eqref{LambdaPCon} also implies that $\overline{\gamma}_P\leq {\gamma}_P$ which, together with \eqref{eq:deltaWeakCondUpperBound} leads to 
+%    \begin{equation}\label{eq:deltaBoundOverline}
+%        \kappa_w(\delta) \leq \overline{\kappa}\cdot \max \left\{ \sqrt{\frac{n-r}{N\delta}},1 \right\}.
+%    \end{equation}
+%This bound is part of the Theorem 6.3 in \cite{lotz2020wilkinson}.
+%According to \eqref{eq:deltaBoundOverline} and \eqref{eq:SigmaBound1}, we can use $\overline{\kappa}$ in order to decide if the eigenvalue of perturbed problem \eqref{eq:pertPEP} is actually an eigenvalue of the original pencil. If $\overline{\kappa}$ is small, then $\sigma_E$ is small as well and eigenvalue can be declared as true eigenvalue. On the other hand, if $\overline{\kappa}$ is large, this does not mean that $\sigma_E$ has to be large as well, and we cannot just declare this eigenvalue spurious. More precisely, by doing so we could falsely declare true eigenvalue spurious.
+%Looking at \eqref{LambdaPCon}, we see that this phenomena could happen if $|a(n-r+1)|\cdot |b(n-r+1)|$ is very small, i.e. if the direction of vectors $x$ and $y$ in vectors $\overline{x}$ and $\overline{y}$ are small, respectively.
+%Fortunately, we prove in the following proposition that the probability of this happening is small. More precisely, 
+Using that $|a(n-r+1)|^2,|b(n-r+1)|^2\sim \Bdist(1,n-r)$ we obtain the following result.
+\begin{proposition}\label{p:gammaPopposite}
+    Let $P(\lambda)\in\mathbb{C}^{n\times n}_m[\lambda]$ be a a matrix polynomial of normal rank $r<n$ with simple eigenvalue $\lambda_0\in\mathbb{C}$, and let $E(\lambda)\sim \mathcal{U}(2N)$ be a random perturbation. Let $a,b$ be left and right eigenvectors of the linear pencil \eqref{pencilEvec}, let $\overline{x} = \begin{bmatrix}
+    X & x
+    \end{bmatrix}b$ and $\overline{y} = \begin{bmatrix}
+    Y & y
+    \end{bmatrix}a$. Then
+\[
+        \mathbb{P}(|a(n-r+1)| \cdot |b(n-r+1)| <t)\leq2 t (n-r)
+\]
+    holds for every $0 \le t \le 1$.
+\end{proposition}
+\begin{proof}
+    Using
+\begin{equation*}
+    \min \left( |a(n-r+1)|^2, |b(n-r+1)|^2 \right)^2 \leq |a(n-r+1)|^2\cdot |b(n-r+1)|^2,
+\end{equation*}
+we obtain
+\begin{align*}
+    & \mathbb{P}(|a(n-r+1)|^2\cdot |b(n-r+1)|^2<t^2)\\
+    &\leq \mathbb{P}(\min \left( |a(n-r+1)|^2, |b(n-r+1)|^2 \right)^2 < t^2) \\
+    &\leq \mathbb{P}( |a(n-r+1)|^2< {t}) + \mathbb{P}( |b(n-r+1)|^2< {t})\\
+    &= \frac{2}{\Bfun(1,n-r)}\int^{{t}}_{0} (1-x)^{n-r-1}dx \le 2 t (n-r).
+\end{align*}
+\end{proof}
+Propositions~\ref{p:gammaP} and~\ref{p:gammaPopposite} do not exclude the possibility that the perturbed problem has spurious \emph{well-conditioned} eigenvalues originating from the singular part of $P(\lambda)$. In the following, we will argue why this cannot happen for small $\varepsilon$.
+
+A complex number $\hat{\lambda}$ is an eigenvalue of $P(\lambda)$ if and only if $\rank P(\hat{\lambda}) < \nrank P(\lambda) = r$ or, equivalently, $\sigma_r(P(\hat{\lambda})) = 0$, where $\sigma_j(\cdot)$ denotes the $j$th largest singular value of a matrix. Therefore it seems reasonable to classify $\hat{\lambda}$ as a spurious eigenvalue (that is, $\hat{\lambda}$ is \emph{not close} to an eigenvalue of $P$) when $\tau := \sigma_r(P(\hat{\lambda}))$ is not very small. 
+
+Now, let $\hat{\lambda}$ be an eigenvalue of $P(\lambda)+\varepsilon E(\lambda)$ with right/left eigenvectors $\overline{x}, \overline{y}$. 
+We assume that $\hat \lambda$ is spurious, more specifically \begin{equation} \label{eq:condspurious}
+\tau \ge 5 c\varepsilon, \quad c := \|E(\hat \lambda)\| = \Big( \sum^m_{j=0}|\hat \lambda|^{2j} \Big)^{1/2}.
+\end{equation}
+Let $X(\varepsilon), Y(\varepsilon)$ contain the right/left singular vectors belonging to the smallest $n-r$ singular values of $P(\hat{\lambda})+\varepsilon E(\hat{\lambda})$. Note that $\mathrm{range}(X(\varepsilon))$ contains $\overline{x}$ and that $X = X(0)$ is an orthonormal basis of $\ker(P(\hat \lambda)) = \ker_{\hat \lambda}(P)$. An analogous statement holds for $Y(\varepsilon)$. Existing perturbation theory for singular vectors~\cite{Stewart1973,wedin1927perturbation} allows us to link $X(\varepsilon),Y(\varepsilon)$ with $X,Y$. In particular, Theorem 8.6.5 in~\cite{Golub2013} yields the existence of matrices $Q_X,Q_Y$ such that
+\[
+ \mathrm{range}(X(\varepsilon)) = \mathrm{range}(X+Q_X),\quad 
+ \mathrm{range}(Y(\varepsilon)) = \mathrm{range}(Y+Q_Y),\quad 
+ \|[Q_X,Q_Y]\|_F \le 4 c\varepsilon / \tau.
+\]
+In particular, there exist $\overline{a},\overline{b}\in \mathbb{C}^{n-r}$ and $q_x,q_y\in \mathbb{C}^n$ such that
+\[
+    \overline{x} = X\overline{b} + q_x, \quad \overline{y} = Y\overline{a} + q_y,\quad  \max\{\|q_x\|_2,\|q_y\|_2\}\leq 4 c \varepsilon / \tau.
+\]
+This shows
+\begin{align*}
+    \overline{\gamma}_P &= |\overline{y}^*P'(\hat{\lambda})\overline{x}|\Big( \sum^m_{j=0} |\hat{\lambda}|^{2j} \Big)^{-1/2} = |q_y^*P'(\hat{\lambda})q_x|\Big( \sum^m_{j=0} |\hat{\lambda}|^{2j} \Big)^{-1/2} \\\
+    &\le 
+    16 \varepsilon^2 \tau^{-2} \Big( \sum\limits^m_{j=0}|\hat \lambda|^{2j} \Big)^{1/2} \|E\|^2 \|P^\prime(\hat{\lambda})\|_2
+    ,
+\end{align*}
+which implies the following lemma.
+\begin{lemma}\label{l:PgammaSpourious}
+Let $\hat{\lambda}$ be an eigenvalue of the perturbed problem $P(\lambda)+\varepsilon E(\lambda)$ such that~\eqref{eq:condspurious} holds. Then the following inequality holds for the condition number $\overline{\kappa}$ of $\hat \lambda$:
+\[
+    \overline{\kappa}_P \geq \varepsilon^{-2} \frac{\tau^2}{16 \Big( \sum\limits^m_{j=0}|\hat \lambda|^{2j} \Big)^{1/2} \|E\|^2 \|P^\prime(\hat{\lambda})\|_2}.
+\]
+\end{lemma}
+Propositions~\ref{p:gammaP},~\ref{p:gammaPopposite} and Lemma~\ref{l:PgammaSpourious} justify the use of the condition number $\overline{\kappa}$ for detecting all (well-conditioned) eigenvalues of the original problem. If $\overline{\kappa}$ is modest then it is likely that a (well-conditioned) eigenvalue of the original problem has been detected, while high $\overline{\kappa}$ indicates an ill-conditioned or spurious eigenvalue.
+%Overall, we can conclude that the good way of approximating $\sigma_E$ is $\overline{\kappa}$, i.e.
+%\begin{equation}\label{CapitalK}
+%    \sigma_E \leq \mathcal{K} := \overline{\kappa}\cdot \max \left\{ \sqrt{\frac{n-r}{N\delta}},1 \right\},
+%\end{equation}
+%with probability larger than $1-\delta$. More precisely,
+%\begin{equation}
+%    |\lambda_0(\varepsilon)-\lambda_0|\leq \sigma_E\|E\|\varepsilon + O(\varepsilon^2) \leq \mathcal{K}\|E\|\varepsilon + O(\varepsilon^2),
+%\end{equation}
+%and it is safe to use $\overline{\kappa}$ in detecting both true and spurious eigenvalues.
+
+\subsection{Algorithm for singular generalized eigenvalue problems}
+
+The results from Section~\ref{sec:boundcond} lead to Algorithm~\ref{a:mainAlg} for computing finite well-conditioned eigenvalues of a singular matrix pencil $A-\lambda B$ by perturbing it with a random pencil $E(\lambda) = E_1-\lambda E_2$. 
+%The constant $\mathcal{K}_j$ used as a criteria for eigenvalue classification is
+%\begin{equation}\label{eq:CriteriaGEP}
+%    \mathcal{K}_j = \frac{\sqrt{1+|\lambda_j|^2}}{|y_j^*Bx_j|}\cdot \max\left\{1, \sqrt{\frac{n-r}{2n^2\delta}} \right\},
+%\end{equation}
+%where $(\lambda_j,x_j,y_j)$ are eigentriplets of pencil \eqref{eq:pertGEP}.
+The algorithm for solving the singular generalized eigenvalue problem by using the condition number of computed eigenvalues as the criteria for the detection of true eigenvalues is the following:
+\begin{algorithm}[H]
+\caption{Algorithm for solving singular generalized eigenvalue problem}
+\begin{algorithmic}[1]
+\label{a:mainAlg}
+\REQUIRE Singular pencil $A-\lambda B$ of order $n$, $\varepsilon$, $\delta$, $\mathsf{tol}$
+\STATE $E_{1} = \texttt{randn}(n,n)+i\cdot\texttt{randn}(n,n)$, $E_{2} = \texttt{randn}(n,n)+i\cdot\texttt{randn}(n,n)$
+\STATE $E_1 = E_1/\|E_1\|$, $E_2 = E_2/\|E_2\|$
+\STATE $A_1-\lambda B_1 = A-\lambda B + \varepsilon(E_{1}-\lambda E_{2})$
+\STATE Compute eigenvalues $\lambda_{j}$ and corresponding eigenvectors $x_{j}$ and $y_{j}$ of pencil $A_1-\lambda B_1$
+%\FOR{j=1:n}
+\STATE For each eigentriple $(\lambda_{j},x_{j},y_{j})$ compute $\overline{\kappa}_j=\frac{\sqrt{1+|\lambda_j|^2}}{|y_j^*Bx_j|}$
+%\ENDFOR
+\STATE $\Lambda = \left\{ \lambda_{j}: \; \overline{\kappa}\leq \mathsf{tol} \right\}$
+\RETURN $\Lambda$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Algorithm for singular quadratic eigenvalue problems}
+
+In this section we propose a new procedure to compute finite well-conditioned eigenvalues of a singular $n\times n$ quadratic eigenvalue problem $Q(\lambda) = \lambda^2M+\lambda C +K$.
+
+The first step is to obtain a normalized problem $\breve{Q}(\lambda) = \lambda^2\breve{M} + \lambda\breve{C} + \breve{K}$ with $\|\breve{M}\|_2 = \|\breve{K}\|_2=1$ by using the scaling parameters 
+ $\gamma = \sqrt{\|K\|_2 / \|M\|_2}$, $\omega = 1/\|K\|_2$
+ and setting
+ \[
+     \breve{M} = \omega\gamma^2M, \;\; \breve{C} = \omega\gamma C, \;\; \breve{K} = \omega K.
+ \]
+  Then small random perturbations of the coefficient matrices are used to obtain a regular quadratic eigenvalue problem $\tilde{Q}(\lambda) = \lambda^2\tilde{M}+\lambda \tilde{C} + \tilde{K}$. We apply the QZ algorithm to the linearizations $C_1(\lambda)$ and $\hat{C}_1(\lambda)$ of the perturbed problem  in order to compute eigenvalues of $\tilde Q$ and extract the corresponding right and left eigenvectors. Again, as in Algorithm \ref{a:mainAlg}, we use the condition number to classify the computed eigenvalues.
+%The parameter $\mathcal{K}$ used for detecting the true eigenvalues of the original problem $Q(\lambda)$ is then
+%\begin{equation}\label{eq:KQEP}
+%    \mathcal{K} = \frac{\sqrt{1+|\lambda_0|^2+|\lambda_0|^4}}{|y_0^*(1:n)(2\lambda_0 M +C)x_0(1:n)|}\max\left\{ \sqrt{\frac{n-r}{3n^2\delta}},1 \right\}.
+%\end{equation}
+Since Theorems \ref{t:FCFratio} and \ref{t:ACFratio} hold, we will look for eigenvalues of magnitude larger than one among those computed using $C_1(\lambda)$, and those with magnitude smaller than one among those computed using $\hat{C}_1(\lambda)$. After we detect all eigenvalue of $\tilde Q$, we need to rescale them. This procedure is summarized in Algorithm~\ref{a:mainAlgQEP}.
+\begin{remark}[Eigenvector recovery]
+    After computing eigenvalues and corresponding left and right eigenvectors of linearizations $C_1(\lambda)$ and $\hat{C}_2(\lambda)$ in lines 6 and 7 of Algorithm \ref{a:mainAlgQEP}, we recover eigenvectors for the regular perturbed quadratic eigenvalue problem as in \cite{zeng2014backward}. More precisely, if linearization $C_1(\lambda)$ is used to compute eigentriple $(\lambda_j,x_j,y_j)$ left and right eigenvector for the quadratic problem is recovered as $y_j(1:n)$ and $x_j(1:n)$, respectively.
+    
+    In the case of linearization $\hat{C}_1(\lambda)$ and computed eigentriple $(\hat{\lambda}_j,\hat{x}_j,\hat{y}_j)$, left and right eigenvectors are recovered as $\hat{y}_j(1:n)$ and $\hat{x}_j(n+1:2n)$, respectively. 
+    
+    This recovery insures backward stability.
+\end{remark}
+\begin{algorithm}[H]
+\caption{Algorithm for solving singular quadratic eigenvalue problem} 
+\begin{algorithmic}[1]
+\label{a:mainAlgQEP}
+\REQUIRE Singular quadratic matrix polynomial $\lambda^2M+\lambda C + K$ of order $n$, $\varepsilon$, $\delta$, $\mathsf{tol}$
+\STATE $\gamma = \sqrt{\|K\|/\|M\|}$, $\omega = 1/\|K\|$
+\STATE $\breve{M} = \omega\gamma^2M$, $\breve{C} = \omega\gamma C$, $\breve{K} = \omega K$
+\STATE $E_{i} = \texttt{randn}(n,n)+i\cdot\texttt{randn}(n,n)$, $E_i = E_i/\|E_i\|$, $i=1,2,3$
+\STATE $\tilde{M} = \breve{M}+\varepsilon E_1$, $\tilde{C} = \breve{C}+\varepsilon E_2$, $\tilde{K} = \breve{K}+\varepsilon E_3$
+\STATE $ C_1(\lambda) = \begin{bmatrix} \tilde{C} & \tilde{K}\\ -I_n & 0 \end{bmatrix} - \lambda \begin{bmatrix} -\tilde{M} & 0\\ 0 & -I_n \end{bmatrix} $, $\hat{C}_1(\lambda) =\begin{bmatrix}
+        0 & \tilde{K}\\
+        -I_n & 0
+    \end{bmatrix} - \lambda \begin{bmatrix}
+        -\tilde{M} & -\tilde{C}\\
+        0 & -I_n
+    \end{bmatrix} $
+\STATE Compute eigenvalues $\lambda_{j}$ and corresponding eigenvectors $x_{j}$ and $y_{j}$ of pencil $C_1(\lambda)$
+\STATE Compute eigenvalues $\hat{\lambda}_{j}$ and corresponding eigenvectors $\hat{x}_{j}$ and $\hat{y}_{j}$ of pencil $\hat{C}_1(\lambda)$
+\FOR{$j=1,\ldots,2n$}
+\STATE For each $(\lambda_{j},x_{j}(1:n),y_{j}(1:n))$, $|\lambda_j|\geq 1$ compute $\overline{\kappa}_{j} = \frac{\sqrt{1+|\lambda_j|^2+|\lambda_j|^4}}{|y_j^*(1:n)(2\lambda_j M +C)x_j(1:n)|}$
+\STATE For each $\small{(\hat{\lambda}_{j},\hat{x}_{j}(n+1:2n),\hat{y}_{j}(1:n))}$, $|\hat{\lambda}_j|< 1$ compute $\hat{\overline{\kappa}}_{j}= \frac{\sqrt{1+|\hat{\lambda}_j|^2+|\hat{\lambda}_j|^4}}{|\hat{y}_j^*(1:n)(2\hat{\lambda}_j M +C)\hat{x}_j(n+1:2n)|}$
+\ENDFOR
+\STATE $\Lambda = \left\{ \gamma\cdot \lambda_{j}: \; \overline{\kappa}_{j}\leq tol \right\} \cup \left\{ \gamma\cdot\hat{\lambda_{j}}: \; \hat{\overline{\kappa}}_{j}\leq \mathsf{tol} \right\}$
+\RETURN $\Lambda$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Numerical examples}
+In this section we present the performance of the proposed Algorithms \ref{a:mainAlg} and \ref{a:mainAlgQEP}. For singular quadratic eigenvalue problems we use several examples from the literature and other examples constructed by ourselves. In the case of matrix pencils, we use three examples from \cite{hochstenbach2019solving}.
+
+Let $n$ be the dimension of the problem considered, generalized or quadratic eigenvalue problem. If not stated otherwise, the following default values are used in the numerical experiments
+\begin{align}\label{defaultpar}
+\begin{split}
+    \varepsilon = 10^{-8},\quad \mathsf{tol} = 10^4.
+\end{split}
+\end{align}
+%\delta = \begin{cases}
+%    \frac{n-r}{3n^2}, & \text{for QEP},\\
+%    \frac{n-r}{2n^2}, & \text{for GEP}.
+%    \end{cases}.
+Since we know the number of finite simple eigenvalue and their values for all examples, we will present the empirical probability that Algorithm~\ref{a:mainAlg} or~\ref{a:mainAlgQEP} detects all of them. That is, we will perform $n_t = 1000$ runs of the algorithm with different perturbation matrices and count how many times $n_s$ it was successful. Then, the empirical probability that the algorithm finds all simple finite eigenvalues of a given singular problem is computed as $p = n_s/n_t$.
+\paragraph{Example 1.}
+This is the singular quadratic eigenvalue problem from Example 1 in \cite{van1983eigenstructure}:
+\begin{equation*}
+    \lambda^2 \begin{bmatrix}
+        1 & 4 & 2\\
+        0 & 0 & 0\\
+        1 & 4 & 2
+    \end{bmatrix} + \lambda \begin{bmatrix}
+        1 & 3 & 0\\
+        1 & 4 & 2\\
+        0 & -1 & -2
+    \end{bmatrix} + \begin{bmatrix}
+        1 & 2 & -2\\
+        0 & -1 & -2\\
+        0 & 0 & 0
+    \end{bmatrix}.
+\end{equation*}
+It is known that $\nrank Q(\lambda) = 2$, and that there is only one finite eigenvalue $\lambda_0 =1$. The empirical probability that Algorithm \ref{a:mainAlgQEP} finds this eigenvalue is $p=0.999$.
+\paragraph{Example 2.}
+This is Example 1.8 from \cite{byers2008trimmed}:
+\begin{equation*}
+    \lambda^2 \begin{bmatrix}
+        1 & 0\\
+        0 & 0
+    \end{bmatrix} + \lambda \begin{bmatrix}
+        1 & 0\\
+        0 & 0
+    \end{bmatrix} + \begin{bmatrix}
+        0 & 0\\
+        1 & 0
+    \end{bmatrix}.
+\end{equation*}
+It is known that there is no finite eigenvalue. The empirical probability that Algorithm \ref{a:mainAlgQEP} correctly detects no finite eigenvalue is one.
+\paragraph{Example 3.}
+This is Example 2.5 from \cite{byers2008trimmed}:
+\begin{equation*}
+    \lambda^2\begin{bmatrix}
+        1 & 0 & 0 & 0\\
+        0 & 1 & 0 & 0\\
+        0 & 0 & 0 & 0\\
+        0 & 0 & 0 & 0
+    \end{bmatrix} + \lambda \begin{bmatrix}
+        0 & 1 & 1 & 0\\
+        1 & 0 & 0 & 1\\
+        1 & 0 & 0 & 0\\
+        0 & 0 & 0 & 0
+    \end{bmatrix} + \begin{bmatrix}
+        0 & 0 & 0 & 0\\
+        0 & 0 & 1 & 0\\
+        0 & 1 & 0 & 1\\
+        0 & 0 & 0 & 0
+    \end{bmatrix}.
+\end{equation*}
+It is known that there is one finite eigenvalue zero, and two infinite eigenvalues. The empirical probability that Algorithm \ref{a:mainAlgQEP} detects the zero eigenvalue is $p = 1$.
+\paragraph{Example 4.}
+The following example was constructed so that $1$ and $2$ are only finite eigenvalues
+\begin{equation*}
+    \lambda^2 \begin{bmatrix}
+        0 & 1 & 0\\0 & 0 & 1\\0 & 1 & 1
+    \end{bmatrix} + \lambda \begin{bmatrix}
+        1 & -1 & 0\\0 & 1 & -2\\1 & 0 & -2
+    \end{bmatrix} + \begin{bmatrix}
+        -1 & 0 & 0\\0 & -2 & 0\\-1 & -2 & 0
+    \end{bmatrix}.
+\end{equation*}
+The empirical probability of Algorithm \ref{a:mainAlgQEP} detecting these eigenvalues is $p = 0.999$.
+\paragraph{Example 5.}
+This example was constructed so that it has 5 finite eigenvalues $\lambda_i = 1+1e-5\cdot i$, $i=1,\ldots,5$. The coefficient matrices are of size $8\times 8$ and defined as
+\begin{align*}
+    M(i,j) &= \begin{cases}
+    1 & \text{if } i=1,\ldots 5,\;\; j=i+1,\\
+    0 & \text{otherwise}
+    \end{cases},\;\; M = U^*MV,\\
+    C(i,j) & = \begin{cases}
+    1 & \text{if }i=1,\ldots 5, \;\;j=i,\\
+    -\lambda_i & \text{if }i=1,\ldots 5, \;\;j=i+1\\
+    0 & \text{otherwise}
+    \end{cases},\;\; C = U^*CV,\\
+    K &= \diag(-\lambda_i,0_3),\;\;K = U^*KV,
+\end{align*}
+with $U = \texttt{orth(rand(8,8))}$ and $V = \texttt{orth(rand(8,8))}$. The empirical probability that Algorithm \ref{a:mainAlgQEP} correctly detects $5$ eigenvalues is $p = 0.999$.
+\paragraph{Example 6.}
+This example was constructed so that it has 8 finite eigenvalues $\lambda_1 = 0$, $\lambda_i = 1/i$, $i=2,\ldots,8$. The coefficient matrices are of order $11\times 11$ and defined as
+\begin{align*}
+    M(i,j) &= \begin{cases}
+    1 & \text{if } i=1,\ldots 8,\;\; j=i+1,\\
+    0 & \text{otherwise}
+    \end{cases},\;\;M = U^*MV,\\
+    C(i,j) & = \begin{cases}
+    1 & \text{if }i=1,\ldots 8, \;\;j=i,\\
+    -\lambda_i & \text{if }i=1,\ldots 8, \;\;j=i+1\\
+    0 & \text{otherwise}
+    \end{cases},\;\; C = U^*CV,\\
+    K &= \diag(-\lambda_i,0_3),\;\;K = U^*KV,
+\end{align*}
+with $U = \texttt{orth(rand(11,11))}$ and $V = \texttt{orth(rand(11,11))}$. The empirical probability that Algorithm \ref{a:mainAlgQEP} correctly detects $8$ eigenvalues is $p = 0.999$.
+\paragraph{Example 7.}
+In this example we consider reversed quadratic eigenvalue problem from Example 6. Therefore, there are now 7 finite eigenvalues $\lambda_i = i+1$, $i=1,\ldots,7$ and one infinite eigenvalue. The empirical probability that Algorithm \ref{a:mainAlgQEP} correctly detects $7$ eigenvalues is $p = 0.991$.
+
+\paragraph{Example 8.}
+In this example, we define the diagonal matrix
+\begin{equation*}
+    D = \diag(1,a^2,a,1,a^3,1,a^4,a^5,a^6, 1,1),\;\; a=2.
+\end{equation*}
+We use the coefficient matrices from Example 7 and change them to $M \gets UDMDV$, $C \gets UDCDV$ and $K \gets UDKDV$. Diagonal scaling makes the eigenvalues more ill conditioned. In turn, the default tolerance $10^4$ does not yield satisfactory results. More precisely, the empirical probability of Algorithm \ref{a:mainAlgQEP} to detect $8$ eigenvalues with the default input parameters $\eqref{defaultpar}$ is $p = 0.527$. On the other hand, if we increase the tolerance to $\mathsf{tol} = 10^5$, the probability $p$ increases to $0.952$.\\
+%Maybe add a figure with condition numbers of all eigenvalues of the perturbed problem to see that there is a gap between true and spurious eigenvalues
+
+Next, we present the performance of Algorithm \ref{a:mainAlg} for three examples of generalized eigenvalue problems from \cite{hochstenbach2019solving}.
+
+\paragraph{Example 9.}
+This is the $7\times 7$ matrix pencil from Example 6.1. in \cite{hochstenbach2019solving}, which has normal rank $\nrank(A-\lambda B) = 6$ and two finite eigenvalues, $1/2$ and $1/3$.
+The empirical probability that Algorithm \ref{a:mainAlg} correctly both of these eigenvalues is $p = 1$.
+\paragraph{Example 10.}
+This is Example C3 from \cite{demmel1988accurate}:
+\begin{equation*}
+    \begin{bmatrix}
+        1 & -2 & 100 & 0 & 0\\
+        1 & 0 & -1 & 0 & 0  \\
+        0 & 0 & 0 & 1 & -75 \\
+        0 & 0 & 0 & 0 & 2
+    \end{bmatrix} - \lambda \begin{bmatrix}
+        0 & 1 & 0 & 0 & 0\\
+        0 & 0 & 1 & 0 & 0\\
+        0 & 0 & 0 & 1 & 0\\
+        0 & 0 & 0 & 0 & 1
+    \end{bmatrix}.
+\end{equation*}
+This pencil is rectangular of size $4\times 5$. Therefore, before using Algorithm \ref{a:mainAlg}, we add an additional row of zeros to make it square of order $5$. It is known that this pencil has two finite eigenvalues $1$ and $2$. The empirical probability of Algorithm \ref{a:mainAlg} detecting both of these eigenvalues is $p = 0.982$.
+\paragraph{Example 11.}
+This is the matrix pencil constructed in Example 6.4 from \cite{hochstenbach2019solving}. It has size $300$ and a total number of $90$ finite eigenvalues. Algorithm \ref{a:mainAlg} with default input arguments \eqref{defaultpar} never detects all eigenvalues. However, if we change these parameters to $\varepsilon = 10^{-10}$ and $\mathsf{tol} = 10^7$ the empirical probability of success increases to $p=0.941$.
+\begin{remark}
+We compared Algorithm~\ref{a:mainAlg} with the rank--completing perturbation algorithm from \cite{hochstenbach2019solving} for matrix pencils. The latter algorithm detects all true eigenvalues in every example in this section. We can conclude that both algorithms detected all true eigenvalues for all examples with the exception for Example 11 with default parameters. By tuning these parameters we can detect the eigenvalues with high probability. One advantage of our algorithm over the rank--completing algorithm is that we do not have to explicitly compute the normal rank of the problem.
+\end{remark}
+
+\section{Conclusion}
+
+We analyzed the influence of two linearizations on the $\delta$--weak condition number of singular quadratic matrix polynomials. Our results nicely match existing results for the regular case. In addition, we supplemented the theory from \cite{lotz2020wilkinson} in order to derive a reliable criterion for computing and detecting finite well-conditioned eigenvalues of singular matrix polynomials. The resulting algorithms perform well for the examples considered.
+
+\begin{paragraph}{Acknowledgements.}
+ The authors thank Bor Plestenjak for helpful discussions on the numerical solution of singular eigenvalue problems, and Petra Lazić for discussions regarding the theory of $\delta$--weak condition numbers.
+\end{paragraph}
+
+
+\bibliography{References}
+\bibliographystyle{plain} 
+\end{document}
+
+
+\begin{thebibliography}{10}
+
+\bibitem{adhikari2011structured}
+Bibhas Adhikari, Rafikul Alam, and Daniel Kressner.
+\newblock Structured eigenvalue condition numbers and linearizations for matrix
+  polynomials.
+\newblock {\em Linear Algebra Appl.}, 435(9):2193--2221, 2011.
+
+\bibitem{Byers2004a}
+Ralph Byers and Daniel Kressner.
+\newblock On the condition of a complex eigenvalue under real perturbations.
+\newblock {\em BIT}, 44(2):209--214, 2004.
+
+\bibitem{byers2008trimmed}
+Ralph Byers, Volker Mehrmann, and Hongguo Xu.
+\newblock Trimmed linearizations for structured matrix polynomials.
+\newblock {\em Linear Algebra Appl.}, 429(10):2373--2400, 2008.
+
+\bibitem{de2010first}
+Fernando De~Ter\'{a}n and Froil\'{a}n~M. Dopico.
+\newblock First order spectral perturbation theory of square singular matrix
+  polynomials.
+\newblock {\em Linear Algebra Appl.}, 432(4):892--910, 2010.
+
+\bibitem{de2009linearizations}
+Fernando de~Ter\'{a}n, Froil\'{a}n~M. Dopico, and D.~Steven Mackey.
+\newblock Linearizations of singular matrix polynomials and the recovery of
+  minimal indices.
+\newblock {\em Electron. J. Linear Algebra}, 18:371--402, 2009.
+
+\bibitem{de2008first}
+Fernando De~Ter\'{a}n, Froil\'{a}n~M. Dopico, and Julio Moro.
+\newblock First order spectral perturbation theory of square singular matrix
+  pencils.
+\newblock {\em Linear Algebra Appl.}, 429(2-3):548--576, 2008.
+
+\bibitem{demmel1988accurate}
+James Demmel and Bo~K\aa~gstr\"{o}m.
+\newblock Accurate solutions of ill-posed problems in control theory.
+\newblock volume~9, pages 126--145. 1988.
+\newblock SIAM Conference on Linear Algebra in Signals, Systems, and Control
+  (Boston, Mass., 1986).
+
+\bibitem{Demmel1993}
+James Demmel and Bo~K\r{a}gstr\"{o}m.
+\newblock The generalized {S}chur decomposition of an arbitrary pencil
+  {$A-\lambda B$}: robust software with error bounds and applications. {I}.
+  {T}heory and algorithms.
+\newblock {\em ACM Trans. Math. Software}, 19(2):160--174, 1993.
+
+\bibitem{Demmel1993a}
+James Demmel and Bo~K\r{a}gstr\"{o}m.
+\newblock The generalized {S}chur decomposition of an arbitrary pencil
+  {$A-\lambda B$}: robust software with error bounds and applications. {II}.
+  {S}oftware and applications.
+\newblock {\em ACM Trans. Math. Software}, 19(2):175--201, 1993.
+
+\bibitem{Dopico2020}
+Froil\'{a}n~M. Dopico and Vanni Noferini.
+\newblock Root polynomials and their role in the theory of matrix polynomials.
+\newblock {\em Linear Algebra Appl.}, 584:37--78, 2020.
+
+\bibitem{Fan2004}
+Hung-Yuan Fan, Wen-Wei Lin, and Paul Van~Dooren.
+\newblock Normwise scaling of second order polynomial matrices.
+\newblock {\em SIAM J. Matrix Anal. Appl.}, 26(1):252--256, 2004.
+
+\bibitem{gohberg1988general}
+I.~Gohberg, M.~A. Kaashoek, and P.~Lancaster.
+\newblock General theory of regular matrix polynomials and band {T}oeplitz
+  operators.
+\newblock {\em Integral Equations Operator Theory}, 11(6):776--882, 1988.
+
+\bibitem{Golub2013}
+Gene~H. Golub and Charles~F. Van~Loan.
+\newblock {\em Matrix computations}.
+\newblock Johns Hopkins Studies in the Mathematical Sciences. Johns Hopkins
+  University Press, Baltimore, MD, fourth edition, 2013.
+
+\bibitem{Higham2002}
+Nicholas~J. Higham.
+\newblock {\em Accuracy and stability of numerical algorithms}.
+\newblock Society for Industrial and Applied Mathematics (SIAM), Philadelphia,
+  PA, second edition, 2002.
+
+\bibitem{higham2006conditioning}
+Nicholas~J. Higham, D.~Steven Mackey, and Fran\c{c}oise Tisseur.
+\newblock The conditioning of linearizations of matrix polynomials.
+\newblock {\em SIAM J. Matrix Anal. Appl.}, 28(4):1005--1028, 2006.
+
+\bibitem{hochstenbach2019solving}
+Michiel~E. Hochstenbach, Christian Mehl, and Bor Plestenjak.
+\newblock Solving singular generalized eigenvalue problems by a rank-completing
+  perturbation.
+\newblock {\em SIAM J. Matrix Anal. Appl.}, 40(3):1022--1046, 2019.
+
+\bibitem{kaagstrom20008}
+B~K{\aa}gstr{\"o}m.
+\newblock 8.7 singular matrix pencils.
+\newblock {\em Templates for the solution of algebraic eigenvalue problems: A
+  practical guide}, 11(668):260, 2000.
+
+\bibitem{lotz2020wilkinson}
+Martin Lotz and Vanni Noferini.
+\newblock Wilkinson's bus: weak condition numbers, with an application to
+  singular polynomial eigenproblems.
+\newblock {\em Found. Comput. Math.}, 20(6):1439--1473, 2020.
+
+\bibitem{mackey2006vector}
+D.~Steven Mackey, Niloufer Mackey, Christian Mehl, and Volker Mehrmann.
+\newblock Vector spaces of linearizations for matrix polynomials.
+\newblock {\em SIAM J. Matrix Anal. Appl.}, 28(4):971--1004, 2006.
+
+\bibitem{Shi2004}
+Chunchao Shi.
+\newblock {\em Linear Differential-Algebraic Equations of Higher-Order and the
+  Regularity or Singularity of Matrix Polynomials}.
+\newblock Doctoral thesis, Technische Universität Berlin, Fakultät II -
+  Mathematik und Naturwissenschaften, 2004.
+
+\bibitem{Stewart1973}
+G.~W. Stewart.
+\newblock Error and perturbation bounds for subspaces associated with certain
+  eigenvalue problems.
+\newblock {\em SIAM Rev.}, 15:727--764, 1973.
+
+\bibitem{tisseur2000backward}
+Fran\c{c}oise Tisseur.
+\newblock Backward error and condition of polynomial eigenvalue problems.
+\newblock {\em Linear Algebra Appl.}, 309(1-3):339--361, 2000.
+
+\bibitem{Tisseur2001}
+Fran\c{c}oise Tisseur and Karl Meerbergen.
+\newblock The quadratic eigenvalue problem.
+\newblock {\em SIAM Rev.}, 43(2):235--286, 2001.
+
+\bibitem{VanDooren1979}
+P.~Van~Dooren.
+\newblock The computation of {K}ronecker's canonical form of a singular pencil.
+\newblock {\em Linear Algebra Appl.}, 27:103--140, 1979.
+
+\bibitem{van1983eigenstructure}
+Paul Van~Dooren and Patrick Dewilde.
+\newblock The eigenstructure of an arbitrary polynomial matrix: computational
+  aspects.
+\newblock {\em Linear Algebra Appl.}, 50:545--579, 1983.
+
+\bibitem{VanDooren1981}
+Paul~M. Van~Dooren.
+\newblock The generalized eigenstructure problem in linear system theory.
+\newblock {\em IEEE Trans. Automat. Control}, 26(1):111--129, 1981.
+
+\bibitem{wedin1927perturbation}
+Per-\r{A}ke Wedin.
+\newblock Perturbation bounds in connection with singular value decomposition.
+\newblock {\em Nordisk Tidskr. Informationsbehandling (BIT)}, 12:99--111, 1972.
+
+\bibitem{wilkinson1979kronecker}
+J.~H. Wilkinson.
+\newblock Kronecker's canonical form and the {$QZ$} algorithm.
+\newblock {\em Linear Algebra Appl.}, 28:285--303, 1979.
+
+\bibitem{zeng2014backward}
+Linghui Zeng and Yangfeng Su.
+\newblock A backward stable algorithm for quadratic eigenvalue problems.
+\newblock {\em SIAM J. Matrix Anal. Appl.}, 35(2):499--516, 2014.
+
+\end{thebibliography}

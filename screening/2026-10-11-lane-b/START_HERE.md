@@ -1,6 +1,6 @@
 # 严格论文粗筛：B线540篇交接
 
-用户于2026年10月11日要求停止本机B线筛选，将内容和要求放入有协作权的 `cat5779/i05public`，由用户另行叫其他电脑的智能体接手。这个仓库是公开仓库；本包只包含任务说明和论文来源索引，不包含论文全文、私有研究笔记或数学错误指控。
+用户于2026年10月11日要求停止本机B线筛选，将内容和要求放入有协作权的 `cat5779/i05public`，由用户另行叫其他电脑的智能体接手；随后明确要求上传论文正文。本包包含540篇合并LaTeX正文、任务说明和来源索引，不包含私有研究笔记或数学错误指控。筛选仍处于用户停止状态。
 
 ## 先读这几份文件
 
@@ -9,6 +9,7 @@
 3. `RUBRIC.txt`：逐篇阅读标准、字段、证据门槛。
 4. `QUEUE.json` 和 `BATCHES.json`：540篇固定清单及18批分区。
 5. `HANDOFF_STATUS.json`：本机停止状态。准备过90篇，但完成/收集数为0，全部540篇仍需完整筛选。
+6. `PAPERS_MANIFEST.json`：540份正文路径、原始哈希与大小；正文在 `papers/B001/001.tex` 等路径。
 
 本包仅交接B线：全局待筛队列第1681—2220篇，严格池编号1746—2304（已审条目原本已跳过）。编号不是连续数学问题编号。其他主实例的分区、历史100篇、归档、全局心跳不在本包范围；没有获得相应授权前不得接手它们。
 
@@ -28,14 +29,16 @@ Git只由协调主实例用于领取、授权交接及提交任务材料。子�
 
 ## 输入取得与版本边界
 
-`QUEUE.json` 每条有arXiv ID、官方链接、源分片/行号、文本SHA-256和命中字符位置；不是错误清单。为了避免第三方全文被置于公开仓库，本包不含原始TeX或dossier，也不提供私有磁盘下载地址。
+`QUEUE.json` 每条有arXiv ID、官方链接、源分片/行号、文本SHA-256和命中字符位置；不是错误清单。本包已按用户明确要求提供 `papers/` 中的全部540份合并TeX正文，不需要访问原电脑磁盘或重下上游数据。它们对应原清单哈希，不是完整源码压缩包或全部历史版本；dossier由准备工具本地生成。
 
-其他电脑已有相同 `train-*.body.jsonl.gz` 缓存时，用 `prepare_inputs.py` 按批提取，严格验证文本哈希并生成本地输入。工具依赖Python与psutil；没有缓存时，先取得合法授权的同源缓存，或有界获取相应官方原文。不得把最新arXiv正文假装成旧固定版本。若来源/版本与清单哈希不一致，记录 `INPUT_VERSION_MISMATCH`，旧命中位置不能直接沿用；不得悄悄修改SHA-256来通过验证。仅有arXiv ID并不能确定原缓存版本。
+用 `prepare_inputs.py` 按批从仓库正文生成本地输入，严格验证哈希。需要Python与psutil，依赖见 `requirements.txt`。工具默认使用仓库自带正文；仅当主动指定 `--body-root` 时才使用外部缓存。不得把最新arXiv正文假装成旧固定版本。若来源/版本与清单哈希不一致，记录 `INPUT_VERSION_MISMATCH`，旧命中位置不能直接沿用；不得悄悄修改SHA-256来通过验证。仅有arXiv ID并不能确定原缓存版本。
 
 准备工具示例（路径由接手机器按本地实际填写）：
 
 ```text
-python -X utf8 prepare_inputs.py --batch B001 --body-root /data/corpus/runner --storage-root /data/corpus --out /data/corpus/jobs/B001
+python -m pip install -r requirements.txt
+python -X utf8 verify_papers.py
+python -X utf8 prepare_inputs.py --batch B001 --storage-root /data/corpus --out /data/corpus/jobs/B001
 python -X utf8 validate_job.py /data/corpus/jobs/B001
 ```
 
@@ -57,4 +60,4 @@ python -X utf8 validate_job.py /data/corpus/jobs/B001
 
 报告必须区分 `FOLLOW_UP`、`HISTORICAL_ONLY`、`UNCERTAIN`、`EXCLUDE`。没有固定旧/新版不能认证静默改正；没有完整原条件下的独立反例不能认证金。不得把作者自述或文献转述当成G5独立核验。未搜到修复不等于仍未修复。SOURCE顺序不是随机样本，不能估计总体错误率。
 
-各领取批次完成后在领取记录中标 `COLLECTED` 或 `COLLECTED_WITH_ISSUES` 并给产物路径。全部540篇经协调收齐才写本线中文 `REPORT.txt`、`COUNTS.json`、`LANE_COMPLETE.json`。存在欠账必须明确列出，不得标全线完成。未经用户进一步指定，不把逐篇涉嫌错误报告或全文推到这个公开仓库；本机存完整结果，公开仓库可提交完成状态与不含结论的计数。用户授权的私有结果存放位置另行使用。
+各领取批次完成后在领取记录中标 `COLLECTED` 或 `COLLECTED_WITH_ISSUES` 并给产物路径。全部540篇经协调收齐才写本线中文 `REPORT.txt`、`COUNTS.json`、`LANE_COMPLETE.json`。存在欠账必须明确列出，不得标全线完成。本次授权上传的是正文和交接内容；未经用户进一步指定，不把逐篇涉嫌错误报告推到这个公开仓库。本机存完整结果，公开仓库可提交完成状态与不含结论的计数。用户授权的私有结果存放位置另行使用。

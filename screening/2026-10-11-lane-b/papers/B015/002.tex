@@ -1,0 +1,1290 @@
+\begin{abstract}
+There are only limited classes of multi-player stochastic games in which independent learning is guaranteed to converge to a Nash equilibrium.
+Markov potential games are a key example of such classes.
+Prior work has outlined sets of sufficient conditions for a stochastic game to qualify as a Markov potential game.
+However, these conditions often impose strict limitations on the game's structure and tend to be challenging to verify.
+To address these limitations, Mguni et al.~\cite{mguni2021learning} introduce a relaxed notion of Markov potential games and offer an alternative set of necessary conditions for categorizing stochastic games as potential games.
+Under these conditions, the authors claim that a deterministic Nash equilibrium can be computed efficiently by solving a dual Markov decision process.
+In this paper, we offer evidence refuting this claim by presenting a counterexample.
+\end{abstract}
+
+
+\section{Introduction}
+\label{sec:introduction}
+In recent years, there has been a growing interest in applying multi-agent reinforcement learning to find strategies that converge to a Nash equilibrium in multi-player stochastic games~\cite{leonardos2021global,foerster2017learning,macua2018learning,hu2003nash,borkar2002reinforcement,guo2021decentralized,perolat2017learning}.
+In single-agent environments, many learning algorithms are guaranteed to converge to optimal policies under some mild conditions~\cite{sutton2018reinforcement,watkins1989learning,watkins1992q}.
+However, deploying independent single-agent learning algorithms in a multi-agent environment does not guarantee finding Nash equilibrium policies~\cite{foerster2017stabilising}.
+The main reason for this is that, from the perspective of a learning agent, the environment undergoes constant changes as other agents concurrently learn, and these environmental changes partly depend on the actions of the learning agent.
+
+Another challenge in deploying multi-agent learning is efficiency.
+The computation of a stationary Nash equilibrium for general stochastic games is known to be computationally intractable~\cite{daskalakis2023complexity}.
+Consequently, there are no efficient multi-agent learning algorithms for learning stationary Nash equilibrium strategies in general stochastic games.
+However, there are specific classes of stochastic games where Nash equilibrium strategies could be computed efficiently.
+One notable class is Markov potential games (MPGs), within which multi-agent learning, and specifically independent learning, exhibits promising convergence properties~\cite{leonardos2021global,macua2018learning,fox2022independent}.
+
+An MPG is characterized by the existence of a global function, known as the \emph{potential function}, where a change in an agent's long-term payoff due to a unilateral change in the agent's strategy equates to the change in the potential function.
+This unique property facilitates the use of efficient multi-agent learning methods, such as the independent policy gradient, ensuring convergence to a stationary Nash equilibrium strategy~\cite{leonardos2021global}.
+However, determining whether a stochastic game qualifies as an MPG by searching for such a potential function is not always straightforward.
+Consequently, given the highly desirable properties of MPGs, it becomes essential to identify sufficient conditions for categorizing games as MPGs.
+
+Existing research has established sets of sufficient conditions for identifying a stochastic game as an MPG~\cite{macua2018learning,leonardos2021global}.
+However, these conditions often impose stringent restrictions on the game's structure and may not be easy to verify.
+To address these limitations, in a recent work~\cite{mguni2021learning}, the authors introduce a relaxed notion of MPGs and offer an alternative set of necessary conditions for categorizing stochastic games as potential games.
+The authors claim that meeting these conditions ensures the existence of a deterministic stationary Nash equilibrium in the game, which corresponds to the optimal solution of a single-agent Markov decision process (MDP) constructed based on the original stochastic game.
+Essentially, the deterministic stationary Nash equilibrium of the original stochastic game can be efficiently computed by solving its (dual) MDP\@.
+This, in turn, guarantees the convergence of multi-agent learning methods to Nash equilibrium strategies.
+In this paper, we scrutinize this key claim and present a counterexample to Theorem 1 in~\cite{mguni2021learning}, establishing a case where the theorem does not hold.
+\section{Background and Related Work}
+\label{sec:background}
+
+In this section, we first briefly introduce stochastic games.
+We then provide some background on Markov potential games.
+We then discuss sufficient conditions for a stochastic game to be a Markov potential game.
+
+
+\subsection{Stochastic Games}
+\label{subsec:sgs}
+We start by defining \emph{Markov decision processes (MDP)} as a tool to study decision making in single-agent environments:
+\begin{definition}[\textbf{MDP}]
+\label{def:mdp}
+ A Markov decision process is a tuple $( S, A, r, p )$.
+ $S$ is the state space.
+ $A$ is the action space.
+ $r: S \times A \mapsto \RR$ is the payoff function.
+ And $ p: S \times A \times S \mapsto [0, 1]$ is the transition probability function.
+\end{definition}
+\noindent
+Please note that in this definition, the action space is assumed to be the same across all states.
+Relaxing this assumption introduces additional notation, but apart from that, it does not pose any significant difficulty or insight.
+
+For any MDP, a stationary strategy $\pi: S \times A \mapsto [0, 1]$ maps each state-action pair to a probability.
+We write $\pi(a \given s)$ to denote the probability of taking action $a$ in state $s$ under strategy $\pi$.
+A strategy $\pi$ is called deterministic if for all states $s \in S$, there exists an action $a \in A$ for which $\pi(a \given s) = 1$.
+
+\emph{Stochastic games} (a.k.a. \emph{Markov games}) extend MDPs to multi-agent environments:
+\begin{definition}[\textbf{Stochastic game}]
+ An $n$-agent stochastic game is a tuple $( N, S, \bm{A}, \bm{r}, p )$%
+ \footnote{We use bold font to represent vectors.}.
+ $N$ is the set of agents.
+ $S$ is the state space.
+ $\bm{A} = A_1 \times \dots \times A_n$, where $A_i$ is the action space of agent $i \in N$.
+ $\bm{r} = r_1 \times \dots \times r_n$, where $r_i: S \times \bm{A} \mapsto \RR$ is the payoff function for agent $i \in N$.
+ And $p: S \times \bm{A} \times S \mapsto [0, 1]$ is the transition probability function.
+\end{definition}
+\noindent
+Note again that the action space of each agent is assumed to be the same across all states.
+Similar to \refdef{def:mdp}, this assumption can be easily removed.
+
+We use $\pi_i$ to denote the strategy of agent $i$.
+The joint strategy profile of all agents is denoted by $\bm{\pi} = \pi_1 \times \dots \times \pi_n$.
+And the joint strategy profile of all agents except agent $i$ is denoted by $\bm{\pi}_{-i} = \pi_1 \times \dots \times \pi_{i-1} \times \pi_{i+1} \times \dots \times \pi_n$%
+\footnote{We use the notation $-i$ to indicate all agents except agent $i$.}.
+
+In infinite-horizon stochastic games, the long-term value of state $s$ to agent $i$ for strategy $\bm{\pi}$ is the expected sum of agent $i$'s discounted payoffs:
+\begin{equation}
+\label{eq:value}
+ V_i^{\bm{\pi}}(s) \triangleq \EE_{\bm{\pi}} \left[ \sum_{t=0}^{\infty} \gamma^t r_i(s_t,\bm{a_t}) \given[\Big] s_0 = s \right],
+\end{equation}
+where $\EE_{\bm{\pi}}[\cdot]$ denotes the expected value of a random variable given that agents follow joint strategy profile $\bm{\pi}$, and $\gamma$ is the discount factor%
+\footnote{$\gamma$ determines how much agents discount future payoffs.}.
+Agents are considered to be self-interested. 
+Each agent's objective is to maximize its own long-term value. 
+A \emph{best-response strategy} is a strategy that achieves the highest value for an agent given other agents' strategies~\cite{blume1995statistical}.
+\emph{Nash equilibrium} is a joint strategy where each agent's strategy is a best response to others':
+\begin{definition}[\textbf{$\bm{\epsilon}$-Nash equilibrium}]
+\label{epsNash}
+ Let $\epsilon \ge 0$.
+ Then in an $n$-agent stochastic game, an $\epsilon$-Nash equilibrium is a strategy profile $\bm{\pi^*} = \pi^*_1, \dots \pi^*_n$ such that:
+ \[
+  V_i^{\bm{\pi}^*}(s) \geq V_i^{(\pi_i,\bm{\pi}_{-i}^*)}(s) - \epsilon 
+ \]
+ for all states $s \in S$, all agents $i \in N$, and all strategies $\pi_i \in \Pi_i$, where $\Pi_i$ is the set of all strategies for agent $i$.
+\end{definition}
+\noindent
+When $\epsilon = 0$, we simply call this a Nash equilibrium.
+A Nash equilibrium strategy $\bm{\pi^*}$ is stationary if $\pi^*_i$ is stationary for all agents $i \in N$.
+All stochastic games have at least one stationary Nash equilibrium~\cite{fink1964equilibrium}.
+
+Computing a stationary $\epsilon$-Nash equilibrium for general stochastic games is computationally intractable~\cite{daskalakis2023complexity}%
+\footnote{In fact, the authors show that computing a stationary coarse-correlated equilibrium, which is a more relaxed notion compared to Nash equilibrium, in general stochastic games is computationally intractable.}.
+This implies that there are no efficient multi-agent reinforcement learning algorithms for learning stationary Nash equilibrium strategies in general stochastic games.
+However, there are specific classes of stochastic games for which Nash equilibrium strategies could be computed efficiently.
+A key example is \emph{Markov potential games (MPG)}.
+
+\subsection{Markov Potential Games}\label{subsec:markov-potential-games}
+Monderer and Shapley introduce the concept of potential games in the normal form~\cite{monderer1996potential}.
+Potential games represent multi-agent coordination, as all agents' payoffs are perfectly aligned with each other via a potential function.
+MPGs extend the concept of potential games from normal-form games to stochastic games.
+A stochastic game qualifies as an MPG if there exists a global function, called the \emph{potential function}, such that if any agent unilaterally changes their strategy, the change in their long-term value for each state mirrors precisely the change observed in the potential function at that particular state:
+\begin{definition}[\textbf{MPG}]
+\label{def:mpg}
+ A stochastic game is an MPG if there exists a strategy-dependent function $\phi^{\bm{\pi}}: S \mapsto \RR$ for strategies $\bm{\pi} \in \bm{\Pi}$ such that:
+ \[
+  V_i^{\bm{\pi}}(s) - V_i^{(\pi^\prime_i, \bm{\pi}_{-i})}(s) = \phi^{\bm{\pi}}(s) - \phi^{(\pi^\prime_i, \bm{\pi}_{-i})}(s)
+ \]
+ for all agents $i \in N$, all states $s \in S$, all strategies $\bm{\pi} = (\pi_i, \bm{\pi}_{-i}) \in \bm{\Pi}$, and all strategies $\pi_i^\prime \in \Pi_i$.
+\end{definition}
+\noindent
+Any MPG has at least one stationary Nash equilibrium strategy profile that is deterministic~\cite{leonardos2021global}.
+Furthermore, independent learning converges to an $\epsilon$-Nash equilibrium strategy in MPGs:
+\begin{theorem}[\textbf{\cite[Theorem 1.1]{leonardos2021global}}]
+ In an $n$-agent MPG, if all agents run independent policy gradient, then for any $\epsilon > 0$, the learning dynamics reaches an $\epsilon$-Nash equilibrium strategy after $O(1/\epsilon^2)$ iterations.
+\end{theorem}
+\noindent
+The main idea behind the aforementioned theorem is that in MPGs, applying \emph{projected gradient ascent (PGA)} on the potential function $\phi$ leads to the emergence of an $\epsilon$-Nash equilibrium.
+And the key element in the proof of this theorem is the equality of the derivatives between value functions and the potential function in MPGs.
+More recently, in~\cite{fox2022independent}, the authors show that in an MPG, independent \emph{natural policy gradient} also converges to an equilibrium.
+
+\subsection{From Stochastic Games to MPG}\label{subsec:from-sg-to-mpg}
+In \refdef{def:mpg}, the condition is fairly strong and difficult to verify in practice for general stochastic games.
+Given the MPGs' desiderata, it becomes imperative to delineate the specific types of stochastic games that align with the criteria outlined in \refdef{def:mpg}.
+To this end, prior work has provided sets of sufficient conditions~\cite{macua2018learning,leonardos2021global}.
+To discuss these conditions, we first need to define the class of \emph{one-shot potential stochastic games (OPSGs)}.
+We define a stochastic game as an OPSG if immediate payoffs at any state are captured by a potential game at that state:
+\begin{definition}[\textbf{OPSG}]
+\label{def:one-shot}
+ An $n$-aagent stochastic game is OPSG if there exists a one-shot potential function $\Phi: S \times \bm{A} \mapsto \RR$ such that:
+ \[
+  r_i(s,\bm{a}) - r_i(s, a^\prime_i, \bm{a}_{-i}) = \Phi(s, \bm{a}) - \Phi(s, a^\prime_i, \bm{a}_{-i})
+ \]
+ for all $i \in N$, all states $s \in S$, all action profiles $\bm{a} = (a_i, \bm{a}_{-i}) \in \bm{A}$, and all actions $a^\prime_i \in A_i$.
+\end{definition}
+
+In~\cite{leonardos2021global}, the authors show that an OPSG is MPG if either of the two following conditions hold: (i) \emph{agent-independent transitions} and (ii) \emph{equality of individual dummy terms}.
+(i) holds if the game's transition probability function does not depend on agents' joint action:
+\begin{condition}[\textbf{Agent-independent transitions}]
+\label{con:indep-tran}
+ An OPSG has agent-independent transitions if for all states $s, s^\prime \in S$ and action profiles $\bm{a} \in \bm{A}$:
+ \[
+  p(s^\prime \given s, \bm{a}) = p(s^\prime \given s).
+ \]
+\end{condition}
+\noindent
+And (ii) holds if the dummy terms of each agent's immediate payoffs are equal across all states:
+\begin{condition}[\textbf{Equality of individual dummy terms}]
+\label{con:equal-dummy}
+ An OPSG with one-shot potential function $\Phi$ satisfies the equality of individual dummy terms if for each agent $i \in N$, there exists a function $v_i: S \times \bm{A}_{-i} \mapsto \RR$ such that:
+ \[
+  r_i(s, a_i,\bm{a}_{-i}) = \Phi(s, a_i,\bm{a}_{-i}) + v^i(s, \bm{a}_{-i}),
+ \]
+ and
+ \[
+  \nabla_{\pi_i(s)}\EE\left[\sum_{t=0}^{\infty} \gamma^t v_{i}(s_t, \bm{a}_{-i}^t) \given[\Big] s_0 = s\right] = c_s \bm{1}
+ \]
+ for all states $s, s^\prime \in S$, $c_s \in \RR$, and $\bm{1} \in \RR^{\vert A_i \vert}$, where $\pi_i(s)$ is the strategy of agent $i$ at state $s$.
+\end{condition}  
+
+In~\cite{mguni2021learning}, the authors argue that \refcon{con:indep-tran} and \refcon{con:equal-dummy} impose strong limitations on the structure of one-shot potential stochastic games.
+To avoid these limitations, the authors propose an alternative condition:
+\begin{condition}[\textbf{State transitivity}]
+\label{con:state-trans}
+ An OPSG with one-shot potential function $\Phi$ satisfies state transitivity if we have:
+ \[
+  r_i(s, \bm{a}) - r_i(s^\prime, \bm{a}) = \Phi(s, \bm{a}) - \Phi(s^\prime, \bm{a})
+ \]
+ for all agents $i \in N$, all states $s, s^\prime \in S$, and all action profiles $\bm{a} \in A$.
+\end{condition}
+\noindent
+State transitivity ensure that the difference in immediate payoffs for changing state is the same for each agent.
+The authors then present a theorem that claims the following.
+\begin{claim}[\textbf{\cite[Theorem 1]{mguni2021learning}}]
+\label{clm:opsp-mpg}
+ Let $G \coloneqq (N,S,\bm{A},\bm{r},p)$ be an OPSG with one-shot potential function $\Phi$.
+ Suppose that $G$ satisfies \refcon{con:state-trans}.
+ Then $G$ has a deterministic stationary Nash equilibrium that corresponds to the optimal solution of the dual MDP defined as $G^\prime \coloneqq (S, \bm{A}, \Phi, p)$.
+ That is, the deterministic stationary Nash equilibrium of $G$ can be efficiently computed by solving $G^\prime$.
+\end{claim}
+
+\section{Analysis}
+\label{sec:counter}
+In this section, we provide a counterexample for which \refclm{clm:opsp-mpg} fails to hold.
+
+\subsection{Counterexample}
+\label{subsec:counterexample}
+Since action space and state space are assumed to be continuous in~\cite{mguni2021learning}, our counterexample includes continuous action and state spaces.
+Similarly, since~\cite{mguni2021learning} focuses on infinite-horizon games, our counterexample considers an infinite-horizon game.
+% TODO: check with Fatemeh!
+%Using definition \refdef{def:one-shot}, we ensure that for any state $s$, if agents unilaterally change their actions, they incur the same penalty in both the original and the dual versions of the game.
+%To align the optimal strategies for both games, it is important that moving to a less favorable state has a similar expected penalty in each game.
+%For instance, if a state in the original game has a high expected reward but has a low expected potential value in the MDP, the best strategy in the original game would be to move to this state.
+%However, in the dual game, avoiding this state is preferable.
+%So if we want the optimal strategies to be the same for both games, we have to consistently penalize state transitions in both the original and dual versions of the game.
+
+Consider game $G$, an infinite-horizon, two-agent stochastic game defined as:
+\begin{itemize}[leftmargin=*,noitemsep=*,topsep=1pt]
+ \item The set of agents is $N = \{1, 2\}$.
+ \item The continuous state space is $S = [0, 1]$. 
+ \item The action spaces are $A_1 = A_2 = [0, 1]$.
+ \item The payoff functions for any state $s \in S$ and any action profile $a = (a_1, a_2)$ are:
+  \[
+   r_1(s, a_1, a_2) = s - (s - a_2)^2 - 4/(2 - a_2), 
+  \]
+  and
+  \[
+   r_2(s, a_1, a_2) = s - (s - a_2)^2.
+  \]
+ \item The state transition function only depends on the action of agent $1$ and can be written as: 
+  \[
+   p(s^\prime \given s, a_1, a_2) = \begin{cases}
+    1 &\text{if } s^\prime = a_1, \text{ and} \\
+    0 &\text{otherwise}.
+   \end{cases}
+  \]
+\end{itemize}
+
+It can be easily verified the aforementioned game $G$ satisfies all the assumptions in~\cite{mguni2021learning}.
+In particular, the payoff functions are bounded, measurable functions in the actions, Lipschitz, and continuously differentiable in the state and actions.
+
+Next, we show that $G$ is an OPSG\@.
+We do this by showing that immediate payoffs at any state are captured by a potential game at that state.
+Consider the following potential function:
+\[
+ \Phi(s, a_1, a_2) = s - (s - a_2)^2.
+\]
+It is easy to see that $G$ is a potential game at each state $s \in S$ with the potential function $\Phi(s, \cdot)$:
+\begin{align*}
+ \ifthenelse{\boolean{arxiv}}{
+  r_1(s, a_1, a_2) &- r_1(s, a_1^\prime, a_2)  = \Phi(s, a_1, a_2) - \Phi(s, a_1^\prime, a_2) = 0,
+ }{
+  r_1(s, a_1, a_2) &- r_1(s, a_1^\prime, a_2)  = \Phi(s, a_1, a_2) - \Phi(s, a_1^\prime, a_2)
+  \\&= 0,
+ }
+\end{align*}
+and
+\begin{align*}
+ \ifthenelse{\boolean{arxiv}}{
+  r_2(s, a_1, a_2) &- r_2(s, a_1, a_2^\prime)  = \Phi(s, a_1, a_2) - \Phi(s, a_1, a_2^\prime) = (s - a_2^\prime)^2 - (s - a_2)^2.
+ }{
+  r_2(s, a_1, a_2) &- r_2(s, a_1, a_2^\prime)  = \Phi(s, a_1, a_2) - \Phi(s, a_1, a_2^\prime) \\
+  &=(s - a_2^\prime)^2 - (s - a_2)^2.
+ }
+\end{align*}
+It is also easy to see that $G$ satisfies \refcon{con:state-trans} for all states $s, s^\prime \in S$ and action profiles $a=(a_1, a_2)$:
+\begin{align*}
+ \ifthenelse{\boolean{arxiv}}{
+  r_1(s, a_1, a_2) &- r_1(s^\prime, a_1, a_2) = \Phi(s, a_1, a_2) - \Phi(s^\prime, a_1, a_2) = (s - s^\prime) - (s - a_2)^2 + (s^\prime - a_2)^2,
+ }{
+  r_1(s, a_1, a_2) &- r_1(s^\prime, a_1, a_2) = \Phi(s, a_1, a_2) - \Phi(s^\prime, a_1, a_2) \\
+  &=(s - s^\prime) - (s - a_2)^2 + (s^\prime - a_2)^2,
+ }
+\end{align*}
+and
+\begin{align*}
+ \ifthenelse{\boolean{arxiv}}{
+  r_2(s, a_1, a_2) &- r_2(s^\prime, a_1, a_2) = \Phi(s, a_1, a_2) - \Phi(s^\prime, a_1, a_2) = (s - s^\prime) - (s - a_2)^2 + (s^\prime - a_2)^2.
+ }{
+  r_2(s, a_1, a_2) &- r_2(s^\prime, a_1, a_2) = \Phi(s, a_1, a_2) - \Phi(s^\prime, a_1, a_2) \\
+  &=(s - s^\prime) - (s - a_2)^2 + (s^\prime - a_2)^2.
+ }
+\end{align*}
+
+For contradiction, let us assume that \refclm{clm:opsp-mpg} holds for $G$.
+Then we can construct $G$'s dual MDP, $G^\prime$, as follows.
+The action space is $\bm{A} = A_1\times A_2$.
+The action at each state is $\bm{a} = (a_1, a_2) \in \bm{A}$.
+And the payoff function is:
+\[
+ r(s, (a_1, a_2)) = \Phi(s, a_1, a_2) = s - (s - a_2)^2.
+\]
+Finally, $G^\prime$ has the same transition probability function as $G$.
+It can be easily shown that this MDP has the following unique (deterministic) optimal strategy:
+\begin{equation}
+\label{eq:pi-star}
+ \bm{\pi}^*((a_1, a_2) \given s) = \begin{cases}
+  1 &\text{if } (a_1, a_2) = (1, s), \text{ and}\\
+  0 &\text{otherwise}.
+ \end{cases}
+\end{equation}
+This optimal joint strategy prescribes taking $a_1 = 1$ and $a_2 = s$ in any state $s \in S$.
+
+Next, we show that this joint strategy profile is not a Nash equilibrium of $G$.
+To see this, suppose that agent $2$'s strategy is to take $a_2 = s$ in every state $s$.
+By fixing agent $2$'s stationary strategy, we can find agent $1$'s best response by constructing an MDP with the immediate payoff function of:
+\begin{equation}
+\label{eq:r1}
+ r_1(s, a_1) = s - 4/(2 - s).
+\end{equation}
+In this MDP, agent $1$'s action does not directly affect the immediate payoff at each state.
+However, agent $1$'s actions affect the long-term payoff by determining the next states through the transition probability function.
+Given \refequ{eq:r1}, agent $1$'s long-term payoff is maximized when $s = 0$.
+Hence, the unique optimal strategy of agent $1$ is to take $a_1 = 0$ at every state $s$.
+This means that $\bm{\pi}^*$ in \refequ{eq:pi-star} does not correspond to $G$'s stationary Nash equilibrium, a contradiction!
+
+We note that a stationary Nash equilibrium of $G$ is for agent $1$ and $2$ to respectively take $a_1 = 0$ and $a_2 = s$ in all states $s \in S$.
+Starting from $s = 0$, the average payoff of agent $1$ under this Nash equilibrium is -2, and the average payoff of agent $2$ is 0.
+
+\subsection{Independent-learning Dynamics}
+For MPGs, independently policy gradient in the form of projected stochastic gradient ascent (PSGA) converges to an $\epsilon$-Nash equilibrium at a rate of $O(1/\epsilon^2)$~\cite{leonardos2021global}. PSGA is a variant of projected gradient ascent (PGA) in which the actual gradient is replaced by an estimate that is calculated from a randomly selected sample of trajectories.
+With batch size $T$, the estimate of the gradient of agent $i$'s value function at iteration $t$ is modeled as:
+\[
+ \hat{\nabla}_{\pi_i}^{(t)}=R_i^{(T,t)}\sum_{k=0}^{T} \nabla \log(\pi_i(a_{i,k}^{(t)}|s_k^{(t)})),
+\]
+where $R_i^{(T,t)}=\sum_{k=0}^{T} r_{i,t}^k$. 
+Therefore, with learning rate $\eta$, the policy update for each agent $i$ is modeled as:
+\[
+ \pi_i^{(t+1)} \coloneqq P_{\Delta(A_i)^S}(\pi_i^{(t)} + \eta \hat{\nabla}_{\pi_i}^{(t)}),
+\]
+where $P_{\Delta(A_i)^S}$ is the Euclidean projection onto $\Delta(A_i)^S$.
+In this section, we present experimental results for deploying deep deterministic policy gradient (DDPG)~\cite{lillicrap2015continuous}. We parametrize each agent's strategy and use deep learning to update parameters. Because DDPG uses neural networks to estimate strategy and value function, it is suitable for our setting in which both action and state spaces are continuous.
+% Since action spaces and the state space are continuous, we use a Gaussian distribution to represent each agent's strategy~\cite{sutton2018reinforcement, van2007reinforcement}:
+% \[
+%  \pi_i(a_i \given s, \theta_i) = \frac{1}{\sigma(s, \theta_i^{\sigma})\sqrt{2\pi}} \exp(-\frac{(a_i-\mu(s, \theta_i^{\mu}))^2}{2\sigma(s, \theta_i^{\sigma})^2}),
+% \]
+% where $\theta_i = (\theta_i^\sigma, \theta_i^\mu)$ represents agent $i$'s strategy parameters.
+% We use linear function approximation to model $\sigma(s, \theta_i^{\sigma})$ and $\mu(s, \theta_i^\mu)$.
+% In our experiments, for stochastic gradient updates, we use mini batches of size 100.
+
+\reffig{fig:combined} show our experimental results for deploying DDPG to our counterexample.
+As expected, the learning dynamics do not converge to any Nash equilibrium.
+This is expected as the game in our counterexample is not an MPG, and independent learning in a general stochastic games is not guaranteed to converge.
+
+% \begin{figure}
+%  \centering
+%  \begin{tikzpicture}
+%   \begin{axis}[
+%    width=0.85\linewidth,
+%    height=0.65\linewidth,
+%    xlabel={Iteration},
+%    ylabel={Payoff},
+%    xtick={0, 750, 1500, 2250,3000},
+%    xticklabels={0, 5k, 10k, 15k, 20k},
+%    xmin=0, 
+%    xmax=3000,
+%    grid=both,
+%    legend style={at={(0.64,0.55)},anchor=west,draw=black,fill=white}, nodes={scale=0.75, transform shape}
+%   ]
+%    \addplot[blue, smooth] table {reward1.txt};
+%    \addlegendentry{Agent 1}
+%    \addplot[red, smooth] table {reward2.txt};
+%    \addlegendentry{Agent 2}
+%   \end{axis}
+%  \end{tikzpicture}
+%  \caption{\textbf{MARL in the counterexample.} Players' payoffs do not converge.}
+%  \label{fig:reward}
+% \end{figure}
+
+% \begin{figure}
+%  \centering
+%  \begin{tikzpicture}
+%   \begin{axis}[
+%    width=0.85\linewidth,
+%    height=0.65\linewidth,
+%    xlabel={Iteration},
+%    ylabel={Action},
+%    xtick={0, 750, 1500, 2250,3000},
+%    xticklabels={0, 5k, 10k, 15k, 20k},
+%    xmin=0, 
+%    xmax=3000,
+%    grid=both,
+%    legend style={at={(0.64,0.55)},anchor=west,draw=black,fill=white},nodes={scale=0.75, transform shape}
+%   ]
+%    \addplot[blue, smooth] table {action1.txt};
+%    \addlegendentry{Agent 1}
+%    \addplot[red, smooth] table {action2.txt};
+%    \addlegendentry{Agent 2}
+%   \end{axis}
+%  \end{tikzpicture}
+%  \caption{\textbf{MARL in the counterexample.} Players' actions do not converge.}
+%  \label{fig:action}
+% \end{figure}
+
+
+% \usepackage{pgfplots}
+\definecolor{customcolor1}{HTML}{491F40} %dark purple
+% \definecolor{customcolor1}{HTML}{457373}
+% \definecolor{customcolor2}{HTML}{003049} % dark blue
+\definecolor{customcolor2}{HTML}{D6866B}
+% \definecolor{customcolor1}{HTML}{DBA79C}
+
+
+% \definecolor{customcolor2}{HTML}{CD7E59}
+
+
+
+\begin{figure}
+ \centering
+ \begin{minipage}{0.48\textwidth}
+ \begin{tikzpicture}
+  \begin{axis}[
+   width=0.9\linewidth,
+   height=0.65\linewidth,
+   xlabel={Iteration},
+   ylabel={Payoff},
+   xtick={0, 750, 1500, 2250,3000},
+   xticklabels={0, 5k, 10k, 15k, 20k},
+   xmin=0, 
+   xmax=3000,
+   grid=both,
+   legend style={at={(0.64,0.55)},anchor=west,draw=black,fill=white}, nodes={scale=0.75, transform shape}
+  ]
+   \addplot[customcolor2, smooth] table {reward1.txt};
+   \addlegendentry{Agent 1}
+   \addplot[customcolor1, smooth] table {reward2.txt};
+   \addlegendentry{Agent 2}
+  \end{axis}
+ \end{tikzpicture}
+ \end{minipage}
+ \hfill
+ \begin{minipage}{0.48\textwidth}
+ \begin{tikzpicture}
+  \begin{axis}[
+   width=0.9\linewidth,
+   height=0.65\linewidth,
+   xlabel={Iteration},
+   ylabel={Action},
+   xtick={0, 750, 1500, 2250,3000},
+   xticklabels={0, 5k, 10k, 15k, 20k},
+   xmin=0, 
+   xmax=3000,
+   grid=both,
+   legend style={at={(0.64,0.55)},anchor=west,draw=black,fill=white}, nodes={scale=0.75, transform shape}
+  ]
+   \addplot[customcolor2, smooth] table {action1.txt};
+   \addlegendentry{Agent 1}
+   \addplot[customcolor1, smooth] table {action2.txt};
+   \addlegendentry{Agent 2}
+  \end{axis}
+ \end{tikzpicture}
+ \end{minipage}
+ \small\caption{\textbf{MARL in the counterexample.} Top: Players' payoffs and actions do not converge to any equilibrium.}
+ \label{fig:combined}
+\end{figure}
+
+
+\section{Alternative Condition}
+\label{sec:cst}
+In this section, we provide a new condition and prove that it ensures that \refclm{clm:opsp-mpg} always holds under some standard assumptions.
+In the rest of this section, we first state our assumptions.
+We then formally provide our new condition.
+Finally, we prove that our new condition ensure that \refclm{clm:opsp-mpg} always holds.
+
+\subsection{Assumptions}\label{subsec:assumptions}
+Our results in this section are built under the following assumptions:
+\begin{itemize}[leftmargin=*,noitemsep=*,topsep=1pt]
+    \item \textbf{Asm.\ 1.} The payoff functions are bounded and measurable in action inputs.
+    \item \textbf{Asm.\ 2.} The payoff functions are Lipschitz continuous.
+    \item \textbf{Asm.\ 3.} The payoff functions are continuously differentiable in the state and action inputs. % we need this to show that phi is bounded.
+%    \item \textbf{Assumption 4.} Strategies are differentiable with respect to the strategy parameters. 
+\end{itemize}
+We are now ready to formally introduce our new condition.
+
+\subsection{Complete State Transitivity}
+We now introduce our new condition called the \emph{complete state transitivity}:
+\begin{condition}[\textbf{Complete state transitivity}]
+\label{con:cst}
+ An OPSG with potential function $\Phi$ satisfies complete state transitivity if for all agents $i \in N$, we have:
+ \begin{align*}
+  \int_{\bm{a} \in \bm{A}} r_i(s,\bm{a}) \bm{\pi}(\bm{a} \given s) d\bm{a} - \int_{\bm{a} \in \bm{A}} r_i(s^\prime,\bm{a}) \bm{\pi}(\bm{a} \given s^\prime) d\bm{a} =\\
+  \int_{\bm{a} \in \bm{A}} \Phi(s,\bm{a}) \bm{\pi}(\bm{a} \given s) d\bm{a} - \int_{\bm{a} \in \bm{A}} \Phi(s^\prime,\bm{a}) \bm{\pi}(\bm{a} \given s^\prime) d\bm{a},
+ \end{align*}
+ for all states $s, s^\prime \in S$, and all joint strategy profiles $\bm{\pi} \in \bm{\Pi}$.
+\end{condition}
+\noindent
+Compared to state transitivity which concerns immediate payoffs, complete state transitivity puts restrictions on expected immediate payoffs.
+Complete state transitivity requires that the difference in expected immediate payoffs for changing state is the same for each agent.
+
+\subsection{From omplete state transitivity to MPG}\label{subsec:from-omplete-state-transitivity-to-mpg}
+We are now ready to provide our main technical result showing that $G$ has a deterministic stationary Nash equilibrium that can be efficiently computed by solving $G$'s dual MDP\@.
+
+\begin{prop}
+\label{prop:v-phi-diff}
+ Let $G$ be an $n$-agent OPSG with one-shot potential function $\Phi$ that satisfies complete state transitivity.
+ For all agents $i \in N$ and strategies $\bm{\pi} \in \bm{\Pi}$, let $V_i^{\bm{\pi}}(\cdot)$ be defined according to \refequ{eq:value}.
+ Define $B^{\bm{\pi}}$ for any strategy $\bm{\pi} \in \bm{\Pi}$ as:
+ \begin{equation}
+ \label{eq:B}
+  B^{\bm{\pi}}(s) \triangleq \EE_{\bm{\pi}} \left[ \sum_{t=0}^{\infty} \gamma^t \Phi(s_t, \bm{a_t}) \given[\Big] s_0 = s \right].
+ \end{equation}
+ Then we have:
+ \begin{equation}
+ \label{eq:v-phi-diff}
+  V_i^{\bm{\pi}}(s) - V_i^{(\pi^\prime, \bm{\pi_{-i}})}(s) = B^{\bm{\pi}}(s) - B^{(\pi^\prime, \bm{\pi_{-i}})}(s)
+ \end{equation}
+ for all agents $i \in N$, all states $s \in S$, all joint strategies $\bm{\pi} = (\pi_i, \bm{\pi}_{-i}) \in \bm{\Pi}$, and all strategies $\pi_i^\prime \in \Pi_i$.
+\end{prop}
+\noindent
+We prove the proposition in two steps.
+We first start with the finite-horizon case, and then we extend the proof to the infinite-horizon case.
+
+\subsection{Finite-horizon Case}\label{subsec:finite-horizon-case}
+
+Suppose that $G$ is a finite-horizon game of length $T \in \NN$.
+For all agents $i$, any joint strategy $\bm{\pi} \in \bm{\Phi}$, and any $0< k \le T$, let us define $V_{k, i}^{T,\bm{\pi}}(s)$ as:
+\begin{equation*}
+ V_{k, i}^{T,\bm{\pi}}(s) \triangleq \EE_{\bm{\pi}} \left[ \sum_{t=0}^{T-k} \gamma^t r_i(s_t, \bm{a_t}) \given  s_0 = s \right].
+\end{equation*}
+We further define $B_k^{T,\bm{\pi}}(s)$ for any joint strategy $\bm{\pi} \in \bm{\Phi}$:
+\begin{equation*}
+ B_k^{T,\bm{\pi}}(s) \triangleq \EE_{\bm{\pi}} \left[ \sum_{t=0}^{T-k} \gamma^t \Phi(s_t, \bm{a_t}) \given[\Big] s_0 = s \right].
+\end{equation*}
+We seek to show the following:
+\[
+ V_{1,i}^{T,\bm{\pi}}(s) - V_{1,i}^{T, (\pi^\prime, \bm{\pi_{-i}})}(s) = B_1^{T, \bm{\pi}}(s) - B_1^{T, (\pi^\prime, \bm{\pi_{-i}})}(s)
+\]
+for all agents $i \in N$, all states $s \in S$, all joint strategies $\bm{\pi} = (\pi_i, \bm{\pi}_{-i}) \in \bm{\Pi}$, and all strategies $\pi_i^\prime \in \Pi_i$.
+Our proof is by induction on $k$.
+We prove the following two inductive expressions for $1 \le k \le T$:
+\[
+ V_{k, i}^{T,\bm{\pi}}(s) - V_{k, i}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s) = B_{k}^{T,\bm{\pi}}(s) - B_{k}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s),
+\]
+and
+\[
+ V_{k, i}^{T,\bm{\pi}}(s) - V_{k, i}^{T,\bm{\pi}}(s^\prime) = B_{k}^{T,\bm{\pi}}(s) - B_{k}^{T,\bm{\pi}}(s^\prime).
+\]
+ 
+\begin{proof}
+ Consider the base case of $k = T$.
+ We start with the first inductive expression.
+ For all agents $i \in N$, all states $s \in S$, any joint strategy $\bm{\pi} = (\pi_i, \bm{\pi_{-i}}) \in \bm{\Pi}$, any strategy $\pi_i^\prime \in \Pi_i$, and any $a_i^\prime \in A_i$, we have:
+ \begin{align}
+  \label{eq:ind-T-1}
+  \ifthenelse{\boolean{arxiv}}{
+   V_{T, i}^{T,\bm{\pi}}(s) - B_{T}^{T,\bm{\pi}}(s) &= \int_{a_i}\pi_i(a_i \given s) \EE_{\bm{\pi_{-i}}(s)} [r_i(s,a_i,\bm{a_{-i}}) - \Phi(s,a_i,\bm{a_{-i}}) ] da_i \nonumber \\
+   &=\int_{a_i}\pi_i(a_i \given s) \EE_{\bm{\pi_{-i}}(s)} [r_i(s,a_i^\prime,\bm{a_{-i}})- \Phi(s,a_i^\prime,\bm{a_{-i}}) ] da_i \nonumber \\
+   &=\int_{a_i}\pi_i(a_i \given s)da_i \EE_{\bm{\pi_{-i}}(s)} [r_i(s,a_i^\prime,\bm{a_{-i}}) - \Phi(s,a_i^\prime,\bm{a_{-i}}) ] \nonumber \\
+   &=\int_{a_i}\pi_i^\prime(a_i \given s)da_i \EE_{\bm{\pi_{-i}}(s)} [r_i(s,a_i^\prime,\bm{a_{-i}}) - \Phi(s,a_i^\prime,\bm{a_{-i}}) ] \nonumber \\
+   &=\int_{a_i}\pi_i^\prime(a_i \given s) \EE_{\bm{\pi_{-i}}(s)} [r_i(s,a_i,\bm{a_{-i}}) - \Phi(s,a_i,\bm{a_{-i}}) ] da_i \nonumber \\[0.65em]
+   &=V_{T, i}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s) - B_{T}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s),
+  }{
+   &V_{T, i}^{T,\bm{\pi}}(s) - B_{T}^{T,\bm{\pi}}(s) = \nonumber \\
+   &\int_{a_i}\pi_i(a_i \given s) \EE_{\bm{\pi_{-i}}(s)} [r_i(s,a_i,\bm{a_{-i}}) - \Phi(s,a_i,\bm{a_{-i}}) ] da_i = \nonumber \\
+   &\int_{a_i}\pi_i(a_i \given s) \EE_{\bm{\pi_{-i}}(s)} [r_i(s,a_i^\prime,\bm{a_{-i}})- \Phi(s,a_i^\prime,\bm{a_{-i}}) ] da_i = \nonumber \\
+   &\int_{a_i}\pi_i(a_i \given s)da_i \EE_{\bm{\pi_{-i}}(s)} [r_i(s,a_i^\prime,\bm{a_{-i}}) - \Phi(s,a_i^\prime,\bm{a_{-i}}) ] = \nonumber \\
+   &\int_{a_i}\pi_i^\prime(a_i \given s)da_i \EE_{\bm{\pi_{-i}}(s)} [r_i(s,a_i^\prime,\bm{a_{-i}}) - \Phi(s,a_i^\prime,\bm{a_{-i}}) ] = \nonumber \\
+   &\int_{a_i}\pi_i^\prime(a_i \given s) \EE_{\bm{\pi_{-i}}(s)} [r_i(s,a_i,\bm{a_{-i}}) - \Phi(s,a_i,\bm{a_{-i}}) ] da_i = \nonumber \\[0.65em]
+   &V_{T, i}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s) - B_{T}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s),
+  }
+ \end{align}
+ where the second equality follows from \refdef{def:one-shot}, the third one follows from the fact that the inner expectation does not depend on $a_i$, and the fifth one follows from \refdef{def:one-shot}.
+ 
+ Next, we focus on the second inductive expression.
+ For all agents $i \in N$, all states $s, s^\prime \in S$, and any joint strategy $\bm{\pi} \in \bm{\Pi}$, we have:
+ \begin{align}
+ \label{eq:ind-T-2}
+  \ifthenelse{\boolean{arxiv}}{
+   V_{T, i}^{T,\bm{\pi}}(s) - B_{T}^{T,\bm{\pi}}(s) &= \int_{\bm{a}} \bm{\pi}(\bm{a} \given s) ( r_i(s, \bm{a}) - \Phi(s, \bm{a}) ) d\bm{a} \nonumber \\
+   &= \int_{\bm{a}} \bm{\pi}(\bm{a} \given s^\prime) ( r_i(s^\prime, \bm{a}) - \Phi(s^\prime, \bm{a}) ) d\bm{a} \nonumber \\[0.65em]
+   &= V_{T, i}^{T,\bm{\pi}}(s^\prime) - B_{T}^{T,\bm{\pi}}(s^\prime),
+  }{
+   V_{T, i}^{T,\bm{\pi}}(s) &- B_{T}^{T,\bm{\pi}}(s) = \int_{\bm{a}} \bm{\pi}(\bm{a} \given s) ( r_i(s, \bm{a}) - \Phi(s, \bm{a}) ) d\bm{a} \nonumber \\
+   &= \int_{\bm{a}} \bm{\pi}(\bm{a} \given s^\prime) ( r_i(s^\prime, \bm{a}) - \Phi(s^\prime, \bm{a}) ) d\bm{a} \nonumber \\[0.65em]
+   &= V_{T, i}^{T,\bm{\pi}}(s^\prime) - B_{T}^{T,\bm{\pi}}(s^\prime),
+  }
+ \end{align}
+ where the second equality holds because of \refcon{con:cst}.
+ 
+ Next, we show that the inductive expressions hold for any $1 \le k < T$ if it holds for $k+1$.
+ First, note that for any $1 \le k < T$, any state $s$, and any joint strategy $\bm{\pi}\in \bm{\Pi}$, we have:
+ \begin{equation*}
+  B_k^{T,\bm{\pi}}(s) = \EE_{\bm{\pi}(s)} \left[ \Phi(s, \bm{a}) + \gamma \int_{s^\prime} p(s^\prime,s,\bm{a}) B_{k+1}^{T,\bm{\pi}}(s^\prime) ds^\prime \right],
+ \end{equation*}
+ and, for all agents $i$, we have:
+ \begin{equation*}
+  V_{k,i}^{T,\bm{\pi}}(s) = \EE_{\bm{\pi}(s)} \left[ r(s, \bm{a}) + \gamma \int_{s^\prime} p(s^\prime,s,\bm{a}) V_{k+1,i}^{T,\bm{\pi}}(s^\prime) ds^\prime \right].
+ \end{equation*}
+ Therefore, for all agents $i \in N$, all states $s \in S$, any joint strategy $\bm{\pi} = (\pi_i, \bm{\pi_{-i}}) \in \bm{\Pi}$, any strategy $\pi_i^\prime \in \Pi_i$, and any action $a_i^\prime \in A_i$, we have the following equality:
+ \begin{align}
+ \label{eq:induction}
+  \ifthenelse{\boolean{arxiv}}{
+   V_{k, i}^{T,\bm{\pi}}(s) - B_{k}^{T,\bm{\pi}}(s) = &\EE_{\bm{\pi}(s)} [ r_i(s, \bm{a_{k}}) - \Phi(s, \bm{a_{k}}) ] \\
+   &\quad +\gamma \EE_{\bm{\pi}(s)} \left[ \int_{s^\prime} p(s^\prime,s,\bm{a_k}) (V_{k+1,i}^{T,\bm{\pi}}(s^\prime) - B_{k+1}^{T,\bm{\pi}}(s^\prime)) ds^\prime \right]. \nonumber
+  }{
+   &V_{k, i}^{T,\bm{\pi}}(s) - B_{k}^{T,\bm{\pi}}(s) = \EE_{\bm{\pi}(s)} [ r_i(s, \bm{a_{k}}) - \Phi(s, \bm{a_{k}}) ] \\
+   &\quad +\gamma \EE_{\bm{\pi}(s)} \left[ \int_{s^\prime} p(s^\prime,s,\bm{a_k}) (V_{k+1,i}^{T,\bm{\pi}}(s^\prime) - B_{k+1}^{T,\bm{\pi}}(s^\prime)) ds^\prime \right]. \nonumber
+  }
+ \end{align} 
+ 
+ We now start with the first inductive expression.
+ Using the same algebra as in \refequ{eq:ind-T-1}, for all agents $i \in N$, all states $s \in S$, any joint strategy $\bm{\pi} = (\pi_i, \bm{\pi_{-i}}) \in \bm{\Pi}$, and any strategy $\pi_i^\prime \in \Pi_i$, we have:
+ \begin{align}
+  \label{eq:ind-first}
+  \ifthenelse{\boolean{arxiv}}{
+   \EE_{\bm{\pi}(s)} [r_i(s,\bm{a_{k}}) - \Phi(s,\bm{a_{k}}) ]  = \EE_{(\pi_i^\prime,\bm{\pi_{-i}})(s)} [r_i(s,\bm{a_{k}}) - \Phi(s,\bm{a_{k}}) ].
+  }{
+   &\EE_{\bm{\pi}(s)} [r_i(s,\bm{a_{k}}) - \Phi(s,\bm{a_{k}}) ]  = \nonumber \\
+   &\EE_{(\pi_i^\prime,\bm{\pi_{-i}})(s)} [r_i(s,\bm{a_{k}}) - \Phi(s,\bm{a_{k}}) ].
+  }
+ \end{align}
+ On the other hand, we have:
+ \begin{align}
+ \label{eq:ind-second}
+  \ifthenelse{\boolean{arxiv}}{
+   \EE_{\bm{\pi}(s)} \left[ \int_{s^\prime} p(s^\prime,s,\bm{a_k}) (V_{k+1,i}^{T,\bm{\pi}}(s^\prime) - B_{k+1}^{T,\bm{\pi}}(s^\prime)) ds^\prime \right] &= \EE_{\bm{\pi}(s)} \left[ \int_{s^\prime} p(s^\prime,s,\bm{a_k}) (V_{k+1,i}^{T,\bm{\pi}}(s) - B_{k+1}^{T,\bm{\pi}}(s)) ds^\prime \right] \nonumber \\
+   &=\EE_{\bm{\pi}(s)} \left[ (V_{k+1,i}^{T,\bm{\pi}}(s) - B_{k+1}^{T,\bm{\pi}}(s)) \int_{s^\prime} p(s^\prime,s,\bm{a_k}) ds^\prime \right] \nonumber \\
+   &=\EE_{\bm{\pi}(s)} \left[ V_{k+1,i}^{T,\bm{\pi}}(s) - B_{k+1}^{T,\bm{\pi}}(s) \right] \nonumber \\
+   &=V_{k+1,i}^{T,\bm{\pi}}(s) - B_{k+1}^{T,\bm{\pi}}(s),
+  }{
+   &\EE_{\bm{\pi}(s)} \left[ \int_{s^\prime} p(s^\prime,s,\bm{a_k}) (V_{k+1,i}^{T,\bm{\pi}}(s^\prime) - B_{k+1}^{T,\bm{\pi}}(s^\prime)) ds^\prime \right] = \nonumber \\
+   &\EE_{\bm{\pi}(s)} \left[ \int_{s^\prime} p(s^\prime,s,\bm{a_k}) (V_{k+1,i}^{T,\bm{\pi}}(s) - B_{k+1}^{T,\bm{\pi}}(s)) ds^\prime \right] = \nonumber \\
+   &\EE_{\bm{\pi}(s)} \left[ (V_{k+1,i}^{T,\bm{\pi}}(s) - B_{k+1}^{T,\bm{\pi}}(s)) \int_{s^\prime} p(s^\prime,s,\bm{a_k}) ds^\prime \right] = \nonumber \\
+   &\EE_{\bm{\pi}(s)} \left[ V_{k+1,i}^{T,\bm{\pi}}(s) - B_{k+1}^{T,\bm{\pi}}(s) \right] = \nonumber \\
+   &V_{k+1,i}^{T,\bm{\pi}}(s) - B_{k+1}^{T,\bm{\pi}}(s),
+  }
+ \end{align}
+ where the first equality follows from the inductive assumption (\refequ{eq:ind-T-2} holds for $k+1$), and the forth equality follows from the fact that $V_{k+1,i}$ and $B_{k+1}$ do not depend on the action taken at step $k$.
+ By the inductive assumption (\refequ{eq:ind-T-1} holds for $k+1$), we have:
+ \[
+  V_{k+1,i}^{T,\bm{\pi}}(s) - B_{k+1}^{T,\bm{\pi}}(s) = V_{k+1,i}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s) - B_{k+1}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s).
+ \]
+ Applying \refequ{eq:ind-second} again to $V_{k+1,i}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s) - B_{k+1}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s)$, we have:
+ \begin{align}
+  \label{eq:ind-third}
+  \ifthenelse{\boolean{arxiv}}{
+   V_{k+1,i}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s) &- B_{k+1}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s) = \\
+   &\EE_{(\pi_i^\prime,\bm{\pi_{-i}})(s)} \left[ \int_{s^\prime} p(s^\prime,s,\bm{a_k}) (V_{k+1,i}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s^\prime) - B_{k+1}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s^\prime)) ds^\prime \right].\nonumber
+  }{
+   &V_{k+1,i}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s) - B_{k+1}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s) = \\
+   &\EE_{(\pi_i^\prime,\bm{\pi_{-i}})(s)} \bigg[ \int_{s^\prime} p(s^\prime,s,\bm{a_k}) (V_{k+1,i}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s^\prime) \nonumber \\
+   &\quad \quad \quad \quad \quad \quad \quad \quad \quad \quad \quad \quad - B_{k+1}^{T,(\pi_i^\prime,\bm{\pi_{-i}})}(s^\prime)) ds^\prime \bigg] \nonumber.
+  }
+ \end{align}
+ Substituting \refequ{eq:ind-first} and \refequ{eq:ind-third} in \refequ{eq:induction}, we get:
+ \[
+  V_{k, i}^{T,\bm{\pi}}(s) - B_{k}^{T,\bm{\pi}}(s) = V_{k, i}^{T,\bm{\pi^\prime}}(s) - B_{k}^{T,\bm{\pi^\prime}}(s).
+ \]
+ 
+ We now focus on the second inductive expression.
+ For all agents $i \in N$, all states $s, s^\prime \in S$, any joint strategy $\bm{\pi} \in \bm{\Pi}$, \refcon{con:cst} implies the following:
+ \begin{align}
+  \label{eq:second-ind-1}
+  \ifthenelse{\boolean{arxiv}}{
+   \EE_{\bm{\pi}(\cdot,s)} [ r_i(s, \bm{a_{k}}) - \Phi(s, \bm{a_{k}}) ] = \EE_{\bm{\pi}(\cdot,s^\prime)} [ r_i(s^\prime, \bm{a_{k}}) - \Phi(s^\prime, \bm{a_{k}}) ].
+  }{
+   &\EE_{\bm{\pi}(\cdot,s)} [ r_i(s, \bm{a_{k}}) - \Phi(s, \bm{a_{k}}) ] = \\
+   &\EE_{\bm{\pi}(\cdot,s^\prime)} [ r_i(s^\prime, \bm{a_{k}}) - \Phi(s^\prime, \bm{a_{k}}) ]. \nonumber
+  }
+ \end{align}
+ Moreover, for all agents $i \in N$, all states $s, s^\prime \in S$, and any joint strategy $\bm{\pi} \in \bm{\Pi}$, we have:
+ \begin{align}
+  \label{eq:second-ind-2}
+  \ifthenelse{\boolean{arxiv}}{
+   V_{k+1, i}^{T,\bm{\pi}}(s) - B_{k+1}^{T,\bm{\pi}}(s) &= V_{k+1, i}^{T,\bm{\pi}}(s^\prime) - B_{k+1}^{T,\bm{\pi}}(s^\prime) \\
+   &=\EE_{\bm{\pi}(\cdot,s^\prime)} \bigg[ \int_{s^{\prime\prime}} p(s^{\prime\prime},s^\prime,\bm{a_k}) (V_{k+1,i}^{T,\bm{\pi}}(s^{\prime\prime}) - B_{k+1}^{T,\bm{\pi}}(s^{\prime\prime})) ds^{\prime\prime} \bigg]. \nonumber
+  }{
+   &V_{k+1, i}^{T,\bm{\pi}}(s) - B_{k+1}^{T,\bm{\pi}}(s) = V_{k+1, i}^{T,\bm{\pi}}(s^\prime) - B_{k+1}^{T,\bm{\pi}}(s^\prime) = \\
+   &\EE_{\bm{\pi}(\cdot,s^\prime)} \bigg[ \int_{s^{\prime\prime}} p(s^{\prime\prime},s^\prime,\bm{a_k}) (V_{k+1,i}^{T,\bm{\pi}}(s^{\prime\prime}) - B_{k+1}^{T,\bm{\pi}}(s^{\prime\prime})) ds^{\prime\prime} \bigg]. \nonumber
+  }
+ \end{align}
+ where the first equality follows from the inductive assumption (i.e., \refequ{eq:ind-T-2} holds for $k+1$), and the second equality follows from applying \refequ{eq:ind-second}.
+ Substituting \refequ{eq:second-ind-1} and \refequ{eq:second-ind-2} in \refequ{eq:induction}, we get:
+ \[
+  V_{k, i}^{T,\bm{\pi}}(s) - B_{k}^{T,\bm{\pi}}(s) = V_{k, i}^{T,\bm{\pi}}(s^\prime) - B_{k}^{T,\bm{\pi}}(s^\prime).
+ \]
+\end{proof}
+
+\subsection{Infinite-horizon Case}\label{subsec:infinite-horizon-case}
+So far, we have shown that, under certain assumptions, \refpro{prop:v-phi-diff} holds for the finite-horizon case. 
+In this section, we extend our proof to the infinite-horizon case.
+To this end, we first need to show that $\Phi(s, \bm{a})$ is bounded. 
+Given \refdef{def:one-shot}, since $r_i$ is continuously differentiable (Assumption 3), $\Phi$ is also differentiable with respect to $\bm{a}$~\cite{monderer1996potential}.
+Similarly, given \refcon{con:cst}, $\Phi$ is differentiable with respect to $s$, and therefore, it is continuous. 
+Since the space $S \times \bm{A}$ is compact and $\Phi$ is continuous, $\Phi$ has a global maximum, and it is bounded.
+
+Next, we present the following lemma (the proof of this lemma is deferred to the \refapp{sec:proof-lemma-1}):
+\begin{lemma}
+\label{lemm:lemma1}
+ Let $h: S \times \bm{A} \mapsto \RR$ be a bounded function, and let $\gamma$ be a real number in $(0, 1)$.
+ For any state $s$, any $0 < T < \infty$, and any strategy $\bm{\pi} \in \bm{\Pi}$, let $H^{T,\bm{\pi}}(s)$ be defined as:
+ \[
+  H^{T,\bm{\pi}}(s) \triangleq \EE_{\bm{\pi}} \left[ \sum_{t=0}^{T-1} \gamma^t h(s_t, \bm{a_t}) \given[\Big] s_0 = s \right].
+ \]
+ Then there exists a function $H:  S \times \bm{\Pi} \mapsto \RR$ such that for all states $s \in S$ and for any strategy $\bm{\pi} \in \bm{\Pi}$, we have:
+ \[
+  \lim_{T \to \infty} H^{T,\bm{\pi}}(s) = H^{\bm{\pi}}(s), 
+ \]
+ where $H^{\bm{\pi}}$ is given by:
+ \[
+  H^{\bm{\pi}}(s) \triangleq \EE_{\bm{\pi}} \left[ \sum_{t=0}^{\infty} \gamma^t h(s_t, \bm{a_t})  \given[\Big]  s_0 = s \right].
+ \]
+\end{lemma}
+
+Given \reflmm{lemm:lemma1}, for $B^{\bm{\pi}}(s)$ and $V_i^{\bm{\pi}}(s)$ defined according to \refequ{eq:B} and \refequ{eq:value}, we have the following:
+\[
+ \lim_{T \to \infty} B_1^{T,\bm{\pi}}(s) = B^{\bm{\pi}}(s), \quad \text{and} \quad \lim_{T \to \infty} V_{1, i}^{T,\bm{\pi}}(s) = V_i^{\bm{\pi}}(s).
+\]
+Therefore, since $B^{\bm{\pi}}(s)$ and $V_i^{\bm{\pi}}(s)$ are well defined, we define $B^{\max}$ and $V_i^{\max}$ as:
+\[
+ B^{\max} = \max_{s,\bm{\pi}} \vert B^{\bm{\pi}}(s) \vert, \quad \text{and} \quad V_i^{\max} = \max_{s,\bm{\pi}} \vert V_i^{\bm{\pi}}(s) \vert.
+\]
+We are now ready to extend our proof of \refpro{prop:v-phi-diff} to the infinite-horizon case:
+\begin{proof}
+ We use proof by contradiction.  
+ Suppose that there exists an agent $i$ and a constant $c \neq 0$ such that:
+ \begin{equation}
+ \label{eq:c}
+  B^{\bm{\pi}}(s) - B^{\bm{\pi^\prime}}(s) = V_i^{\bm{\pi}}(s) - V_i^{\bm{\pi^\prime}}(s) + c.
+ \end{equation}
+ For any $0 < T^\prime < \infty$, we can write $B^{\bm{\pi}}(s)$ and $ V_i^{\bm{\pi}}(s)$ as:
+ \[
+  B^{\bm{\pi}}(s) = B_1^{T^\prime,\bm{\pi}}(s) + \gamma^{T^\prime} \int_{s^\prime}  B^{\bm{\pi}}(s^\prime)  \PP_{s,s^\prime}^{T^\prime,\bm{\pi}} ds^\prime,
+ \]
+ and 
+ \[
+  V_i^{\bm{\pi}}(s) = V_{1,i}^{T^\prime,\bm{\pi}}(s) + \gamma^{T^\prime} \int_{s^\prime} V_i^{\bm{\pi}}(s^\prime) \PP_{s,s^\prime}^{T^\prime,\bm{\pi}} ds^\prime,
+ \]
+ where $\PP_{s,s^\prime}^{k,\bm{\pi}}$ is the probability of going from state $s$ to state $s^\prime$ in $k$ steps while following joint strategy $\bm{\pi}$.
+ This probability can be recursively defined for $k > 0$ as:
+ \[
+  \PP_{s,s^\prime}^{k,\bm{\pi}} = \int_{\bm{a}} \bm{\pi}(\bm{a} \given s) \int_{s^{\prime\prime}} p(s^{\prime\prime}, s, a) \PP_{s^{\prime\prime}, s^\prime}^{k-1, \bm{\pi}} ds^{\prime\prime} d\bm{a}.
+ \]
+ Here, $\PP_{s, s^\prime}^{0, \bm{\pi}}$ is 1 if $s = s^\prime$ and is 0 otherwise.
+ Given the definition of $\PP_{s,s^\prime}^{k,\bm{\pi}}$, for any state $s$, strategy $\bm{\pi} \in \bm{\Pi}$, and $k \ge 0$, we have: 
+ \begin{equation}
+ \label{eq:sumPP}
+  \int_{s^\prime} \PP_{s,s^\prime}^{k,\bm{\pi}} ds^\prime = 1.
+ \end{equation}
+ 
+ We can now write $c$ in \refequ{eq:c} as:
+ \begin{align}
+ \label{eq:c2}
+  c &= (B^{\bm{\pi}}(s) - B^{\bm{\pi^\prime}}(s)) - (V_i^{\bm{\pi}}(s) - V_i^{\bm{\pi^\prime}}(s)) \nonumber \\
+  &=(B_1^{T^\prime,\bm{\pi}}(s) - B_1^{T^\prime,\bm{\pi^{\prime}}}(s)) - (V_{1,i}^{T^\prime,\bm{\pi}}(s) - V_{1,i}{T^\prime,\bm{\pi^{\prime}}}(s)) \nonumber \\ 
+  &\quad + \gamma^{T^\prime} \int_{s^\prime} (B^{\bm{\pi}}(s^\prime) - V_i^{\bm{\pi}}(s^\prime)) \PP_{s,s^\prime}^{T^\prime,\bm{\pi}}  ds^\prime \nonumber \\
+  &\quad - \gamma^{T^\prime} \int_{s^\prime} (B^{\bm{\pi^\prime}}(s^\prime) - V_i^{\bm{\pi^\prime}}(s^\prime)) \PP_{s,s^\prime}^{T^\prime,\bm{\pi}} ds^\prime.
+ \end{align}
+ Denoting the last two terms in \refequ{eq:c2} by $C$, we have:
+ \[
+  c = (B_1^{T^\prime,\bm{\pi}}(s) - B_1^{T^\prime,\bm{\pi^{\prime}}}(s)) - (V_{1,i}^{T^\prime,\bm{\pi}}(s) - V_{1,i}^{T^\prime,\bm{\pi^{\prime}}}(s)) + C.
+ \]
+ Given \refequ{eq:sumPP}, we observe the following bound:
+ \begin{equation*}
+  \vert C \vert \leq 2\gamma^{T^\prime} (B^{\max} + V_i^{\max}).
+ \end{equation*}
+ We can choose $T^\prime$ to be sufficiently large so that we have:
+ \[ 
+  \gamma^{T^\prime}(B^{\max} + V_i^{\max}) < \frac{1}{4} \vert c \vert.
+ \]
+ This then implies:
+ \[  
+  \vert (B_1^{T^\prime,\bm{\pi}}(s) - B_1^{T^\prime,\bm{\pi^{\prime}}}(s)) - (V_{1,i}^{T^\prime,\bm{\pi}}(s) - V_{1,i}^{T^\prime,\bm{\pi^{\prime}}}(s)) \vert  > \frac{1}{2}c, 
+ \]
+ which is a contradiction because we have proved that:
+ \[ 
+  (B_1^{T^\prime,\bm{\pi}}(s) - B_1^{T^\prime,\bm{\pi^{\prime}}}(s)) - (V_{1,i}^{T^\prime,\bm{\pi}}(s) - V_{1,1}^{T^\prime,\bm{\pi^{\prime}}}(s)) = 0.
+ \]
+\end{proof}
+\section{Related work}\label{sec:related-work}
+Monderer and Shapley introduced potential games and extensively studied their fundamental properties~\cite{monderer1996potential}.
+This class of games stands as one of the most crucial and extensively studied, exemplifying multi-agent coordination, where all agents' utilities align perfectly through a potential function.
+Essentially, cooperation becomes highly favorable within such games.
+Notably, Monderer and Shapley proved the convergence of fictitious play to equilibrium within the class of (weighted) potential games.
+
+Although the concept of potential games was initially defined for single-stage games, it has been extended to Markov potential games (MPGs) within the context of stochastic games.
+In~\cite{leonardos2021global}, the authors established structural properties of MPGs and provided sufficient conditions for MPGs to be potential at each state.
+They also proved convergence to the $\epsilon$-Nash equilibrium in MPGs with finite state space when agents independently run policy gradient on their own strategy.
+Additionally, Fox et al.~\cite{fox2022independent} demonstrated that in an MPG, with all agents using independent natural policy gradient, their policies converge to the equilibrium.
+
+In their work~\cite{macua2018learning}, the authors establish conditions regarding agents' payoff functions for a stochastic game to qualify as an MPG\@.
+Additionally, they introduce two methods for deriving the potential function.
+They emphasize that in a potential game scenario, finding the Nash equilibrium entails solving just one optimal control problem instead of multiple problems, each dedicated to an individual agent.
+Furthermore, the study by Zhang et al.~\cite{zhang2021gradient} delves deeper into MPGs.
+It offers a comprehensive discussion, encompassing examples of one-shot potential games that do not meet the MPG criteria, along with outlining sufficient conditions for a stochastic game to qualify as an MPG.
+The paper also includes practical application examples, enriching the understanding of MPGs.
+\section{Conclusion}\label{sec:conclusion}
+In this paper, we first introduced stochastic games briefly.
+We then provided background information on Markov potential games and discussed the sufficient conditions for a stochastic game to be classified as a Markov potential game.
+Furthermore, we examined the main claim of~\cite{mguni2021learning} and presented a counterexample to its Theorem 1, demonstrating that the theorem does not always hold.
+\section{Proof of \reflmm{lemm:lemma1}}
+\label{sec:proof-lemma-1}
+
+\begin{proof}
+ We prove the result by showing that for any state $s \in S$, the sequence:
+ \[
+  H^{t, \bm{\pi}}(s), H^{t+1, \bm{\pi}}(s), \dots
+ \]
+ is a Cauchy sequence.
+ In other words, we show that for any state $s \in S$ and for any $\epsilon > 0$, there exists $T^\prime > 0$ such that for all $t^\prime, t^{\prime\prime} > T^{\prime}$, and any $\bm{\pi} \in \bm{\Pi}$, we have:
+ \[
+  \left\vert H^{t^\prime, \bm{\pi}}(s) - H^{t^{\prime\prime}, \bm{\pi}}(s) \right\vert < \epsilon.
+ \]
+ To this end, define $h^{\max} \triangleq \max_{s, \bm{a}} \vert h(s, a) \vert$.
+ Suppose $t^\prime \geq t^{\prime\prime}$.
+ Then for any state $s \in S$, we have:
+ \begin{align*}
+  \ifthenelse{\boolean{arxiv}}{
+   H^{t^\prime, \bm{\pi}}(s) - H^{t^{\prime\prime}, \bm{\pi}}(s) &= \EE_{\bm{\pi}} \left[ \sum_{t=0}^{t^\prime - 1} \gamma^t h(s_t, \bm{a_t}) - \sum_{t=0}^{t^{\prime \prime} - 1} \gamma^t h(s_t, \bm{a_t}) \given[\Big] s_0 = s \right] \\
+   &= \EE_{\bm{\pi}} \left[ \sum_{t=t^{\prime \prime}}^{t^\prime - 1} \gamma^t h(s_t, \bm{a_t}) \given[\Big] s_0 = s \right].
+  }{
+   H^{t^\prime, \bm{\pi}}(s) &- H^{t^{\prime\prime}, \bm{\pi}}(s) \\
+   &= \EE_{\bm{\pi}} \left[ \sum_{t=0}^{t^\prime - 1} \gamma^t h(s_t, \bm{a_t}) - \sum_{t=0}^{t^{\prime \prime} - 1} \gamma^t h(s_t, \bm{a_t}) \given[\Big] s_0 = s \right] \\
+   &= \EE_{\bm{\pi}} \left[ \sum_{t=t^{\prime \prime}}^{t^\prime - 1} \gamma^t h(s_t, \bm{a_t}) \given[\Big] s_0 = s \right].
+  }
+ \end{align*}
+ By Cauchy-Schwartz inequality, we have: 
+ \begin{align*}
+  \left\vert H^{t^\prime, \bm{\pi}}(s) - H^{t^{\prime\prime}, \bm{\pi}}(s) \right\vert & = \left\vert \EE_{\bm{\pi}} \left[ \sum_{t=t^{\prime\prime}}^{t^\prime-1} \gamma^t h(s_t, \bm{a_t}) \given[\Big] s_0 = s \right] \right\vert \\
+  & \leq \sum_{t=t^{\prime\prime}}^{t^\prime-1} \gamma^t h^{\max} \\
+  & = \gamma^{t^{\prime\prime}} (1 - \gamma^{t^{\prime} - t^{\prime\prime}}) \left( \frac{h^{\max}}{1 - \gamma} \right) \\
+  & \leq \gamma^{t^{\prime\prime}} \left( \frac{h^{\max}}{1 - \gamma} \right) \\
+  & \leq \gamma^{T^\prime} \left( \frac{h^{\max}}{1 - \gamma} \right) \\
+  & = e^{- T^{\prime} \vert \ln{\gamma} \vert } \left( \frac{h^{\max}}{1 - \gamma}\right).
+ \end{align*}
+ Therefore, to prove the result, we choose $T^\prime$ as follows:
+ \[
+  T^\prime > \left\vert \frac{\ln{(\epsilon \frac{1-\gamma}{h^{\max}})}}{\ln{\gamma}} \right\vert.
+ \]
+\end{proof}
+%%
+%% This is file `sample-acmsmall.tex',
+%% generated with the docstrip utility.
+%%
+%% The original source files were:
+%%
+%% samples.dtx  (with options: `acmsmall')
+%% 
+%% IMPORTANT NOTICE:
+%% 
+%% For the copyright see the source file.
+%% 
+%% Any modified versions of this file must be renamed
+%% with new filenames distinct from sample-acmsmall.tex.
+%% 
+%% For distribution of the original source see the terms
+%% for copying and modification in the file samples.dtx.
+%% 
+%% This generated file may be distributed as long as the
+%% original source files, as listed above, are part of the
+%% same distribution. (The sources need not necessarily be
+%% in the same archive or directory.)
+%%
+%%
+%% Commands for TeXCount
+%TC:macro \cite [option:text,text]
+%TC:macro \citep [option:text,text]
+%TC:macro \citet [option:text,text]
+%TC:envir table 0 1
+%TC:envir table* 0 1
+%TC:envir tabular [ignore] word
+%TC:envir displaymath 0 word
+%TC:envir math 0 word
+%TC:envir comment 0 0
+%%
+%%
+%% The first command in your LaTeX source must be the \documentclass
+%% command.
+%%
+%% For submission and review of your manuscript please change the
+%% command to \documentclass[manuscript, screen, review]{acmart}.
+%%
+%% When submitting camera ready or to TAPS, please change the command
+%% to \documentclass[sigconf]{acmart} or whichever template is required
+%% for your publication.
+%%
+%%
+\documentclass[acmsmall]{acmart}
+%\pdfoutput=1
+%%
+%% \BibTeX command to typeset BibTeX logo in the docs
+%\AtBeginDocument{%
+%  \providecommand\BibTeX{{%
+%    Bib\TeX}}}
+
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{ifthen}
+\let\Bbbk\relax
+\usepackage{amssymb}
+
+%% Rights management information.  This information is sent to you
+%% when you complete the rights form.  These commands have SAMPLE
+%% values in them; it is your responsibility as an author to replace
+%% the commands and values with those provided to you when you
+%% complete the rights form.
+%\setcopyright{acmlicensed}
+%\copyrightyear{2018}
+%\acmYear{2018}
+%\acmDOI{XXXXXXX.XXXXXXX}
+\settopmatter{printacmref=false}
+\setcopyright{none}
+\renewcommand\footnotetextcopyrightpermission[1]{}
+
+%%
+%% These commands are for a JOURNAL article.
+%\acmJournal{JACM}
+%\acmVolume{37}
+%\acmNumber{4}
+%\acmArticle{111}
+%\acmMonth{8}
+
+%%
+%% Submission ID.
+%% Use this when submitting an article to a sponsored event. You'll
+%% receive a unique submission ID from the organizers
+%% of the event, and this ID should be used as the parameter to this command.
+%%\acmSubmissionID{123-A56-BU3}
+
+%%
+%% For managing citations, it is recommended to use bibliography
+%% files in BibTeX format.
+%%
+%% You can then either use BibTeX with the ACM-Reference-Format style,
+%% or BibLaTeX with the acmnumeric or acmauthoryear sytles, that include
+%% support for advanced citation of software artefact from the
+%% biblatex-software package, also separately available on CTAN.
+%%
+%% Look at the sample-*-biblatex.tex files for templates showcasing
+%% the biblatex styles.
+%%
+
+%%
+%% The majority of ACM publications use numbered citations and
+%% references.  The command \citestyle{authoryear} switches to the
+%% "author year" style.
+%%
+%% If you are preparing content for an event
+%% sponsored by ACM SIGGRAPH, you must use the "author year" style of
+%% citations and references.
+%% Uncommenting
+%% the next command will enable that style.
+%%\citestyle{acmauthoryear}
+
+\input{macro}
+\setboolean{arxiv}{true}
+%%
+%% end of the preamble, start of the body of the document source.
+\begin{document}
+
+%%
+%% The "title" command has an optional parameter,
+%% allowing the author to define a "short title" to be used in page headers.
+\title{Beyond Theorems: A Counterexample to Potential Markov Game Criteria}
+
+%%
+%% The "author" command and its associated commands are used to define
+%% the authors and their affiliations.
+%% Of note is the shared affiliation of the first two authors, and the
+%% "authornote" and "authornotemark" commands
+%% used to denote shared contribution to the research.
+%%
+%% By default, the full list of authors will be used in the page
+%% headers. Often, this list is too long, and will overlap
+%% other information printed in the page headers. This command allows
+%% the author to define a more concise list
+%% of authors' names for this purpose.
+%\renewcommand{\shortauthors}{Trovato et al.}
+\author{Fatemeh Fardno}
+\affiliation{
+  \institution{University of Waterloo}
+  \city{Waterloo}
+  \country{Canada}}
+\email{ffardno@uwaterloo.ca}
+
+\author{Seyed Majid Zahedi}
+\affiliation{
+  \institution{University of Waterloo}
+  \city{Waterloo}
+  \country{Canada}}
+\email{smzahedi@uwaterloo.ca}
+
+%%
+%% The abstract is a short summary of the work to be presented in the
+%% article.
+\input{Sections/0-abstract}
+
+%%
+%% The code below is generated by the tool at http://dl.acm.org/ccs.cfm.
+%% Please copy and paste the code instead of the example below.
+%%
+%%
+%% Keywords. The author(s) should pick words that accurately describe
+%% the work being presented. Separate the keywords with commas.
+%\keywords{Do, Not, Us, This, Code, Put, the, Correct, Terms, for,
+%  Your, Paper}
+%
+%\received{20 February 2007}
+%\received[revised]{12 March 2009}
+%\received[accepted]{5 June 2009}
+
+%%
+%% This command processes the author and affiliation and title
+%% information and builds the first part of the formatted document.
+\pagestyle{fancy}
+\fancyhead{}
+\fancyfoot{}
+
+\maketitle
+\thispagestyle{empty}
+
+
+\input{Sections/1-intro}
+\input{Sections/2-background}
+\input{Sections/3-counter}
+%\input{Sections/5-solution}
+%\input{Sections/6-related}
+\input{Sections/7-conclusion}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{arXiv}
+
+
+%%
+%% If your work has an appendix, this is the place to put it.
+%\appendix
+%\input{Sections/8-appendix}
+
+\end{document}
+\endinput
+%%
+%% End of file `sample-acmsmall.tex'.
+
+\newtheorem{definition}{Definition}
+\newtheorem{condition}{Condition}
+\newtheorem{claim}{Claim}
+\newtheorem{prop}{Proposition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+
+\newboolean{arxiv}
+
+\newcommand{\refdef}[1]{Definition \ref{#1}}
+\newcommand{\refcon}[1]{Condition \ref{#1}}
+\newcommand{\refclm}[1]{Claim \ref{#1}}
+\newcommand{\reflmm}[1]{Lemma \ref{#1}}
+\newcommand{\refpro}[1]{Proposition \ref{#1}}
+\newcommand{\reffig}[1]{Figure \ref{#1}}
+\newcommand{\refapp}[1]{Appendix \ref{#1}}
+\newcommand{\refequ}[1]{(\ref{#1})}
+
+\newcommand\given[1][]{\:#1\vert\:}
+\DeclareMathOperator{\argmax}{argmax}
+\DeclareMathOperator{\argmin}{argmin}
+\DeclareMathOperator{\RR}{\mathbb{R}}
+\DeclareMathOperator{\EE}{\mathbb{E}}
+\DeclareMathOperator{\PP}{\mathbb{P}}
+\DeclareMathOperator{\NN}{\mathbb{N}}
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{17}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{}, \showDOI{}, and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showDOI}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showDOI #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showDOI      \undefined \def \showDOI       #1{#1}\fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[Blume(1995)]%
+        {blume1995statistical}
+\bibfield{author}{\bibinfo{person}{Lawrence~E Blume}.}
+  \bibinfo{year}{1995}\natexlab{}.
+\newblock \showarticletitle{The statistical mechanics of best-response strategy
+  revision}.
+\newblock \bibinfo{journal}{\emph{Games and Economic Behavior}}
+  \bibinfo{volume}{11}, \bibinfo{number}{2} (\bibinfo{year}{1995}),
+  \bibinfo{pages}{111--145}.
+\newblock
+
+
+\bibitem[Borkar(2002)]%
+        {borkar2002reinforcement}
+\bibfield{author}{\bibinfo{person}{Vivek~S Borkar}.}
+  \bibinfo{year}{2002}\natexlab{}.
+\newblock \showarticletitle{Reinforcement learning in {M}arkovian evolutionary
+  games}.
+\newblock \bibinfo{journal}{\emph{Advances in Complex Systems}}
+  \bibinfo{volume}{5}, \bibinfo{number}{01} (\bibinfo{year}{2002}),
+  \bibinfo{pages}{55--72}.
+\newblock
+
+
+\bibitem[Daskalakis et~al\mbox{.}(2023)]%
+        {daskalakis2023complexity}
+\bibfield{author}{\bibinfo{person}{Constantinos Daskalakis},
+  \bibinfo{person}{Noah Golowich}, {and} \bibinfo{person}{Kaiqing Zhang}.}
+  \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{The complexity of {M}arkov equilibrium in
+  stochastic games}. In \bibinfo{booktitle}{\emph{The 36th Annual Conference on
+  Learning Theory}}. \bibinfo{pages}{4180--4234}.
+\newblock
+
+
+\bibitem[Fink(1964)]%
+        {fink1964equilibrium}
+\bibfield{author}{\bibinfo{person}{Arlington~M Fink}.}
+  \bibinfo{year}{1964}\natexlab{}.
+\newblock \showarticletitle{Equilibrium in a stochastic n-person game}.
+\newblock \bibinfo{journal}{\emph{Journal of Science of the Hiroshima
+  University, series ai (mathematics)}} \bibinfo{volume}{28},
+  \bibinfo{number}{1} (\bibinfo{year}{1964}), \bibinfo{pages}{89--93}.
+\newblock
+
+
+\bibitem[Foerster et~al\mbox{.}(2018)]%
+        {foerster2017learning}
+\bibfield{author}{\bibinfo{person}{Jakob Foerster}, \bibinfo{person}{Richard~Y
+  Chen}, \bibinfo{person}{Maruan Al-Shedivat}, \bibinfo{person}{Shimon
+  Whiteson}, \bibinfo{person}{Pieter Abbeel}, {and} \bibinfo{person}{Igor
+  Mordatch}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{Learning with Opponent-Learning Awareness}.
+\newblock  (\bibinfo{year}{2018}), \bibinfo{pages}{122--130}.
+\newblock
+
+
+\bibitem[Foerster et~al\mbox{.}(2017)]%
+        {foerster2017stabilising}
+\bibfield{author}{\bibinfo{person}{Jakob Foerster}, \bibinfo{person}{Nantas
+  Nardelli}, \bibinfo{person}{Gregory Farquhar}, \bibinfo{person}{Triantafyllos
+  Afouras}, \bibinfo{person}{Philip~HS Torr}, \bibinfo{person}{Pushmeet Kohli},
+  {and} \bibinfo{person}{Shimon Whiteson}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{Stabilising experience replay for deep multi-agent
+  reinforcement learning}. In \bibinfo{booktitle}{\emph{Proceedings of the 34th
+  International Conference on Machine Learning (ICML)}}.
+  \bibinfo{pages}{1146--1155}.
+\newblock
+
+
+\bibitem[Fox et~al\mbox{.}(2022)]%
+        {fox2022independent}
+\bibfield{author}{\bibinfo{person}{Roy Fox}, \bibinfo{person}{Stephen~M
+  Mcaleer}, \bibinfo{person}{Will Overman}, {and} \bibinfo{person}{Ioannis
+  Panageas}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Independent natural policy gradient always
+  converges in {M}arkov potential games}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the International Conference on
+  Artificial Intelligence and Statistics}}. \bibinfo{pages}{4414--4425}.
+\newblock
+
+
+\bibitem[Guo et~al\mbox{.}(2021)]%
+        {guo2021decentralized}
+\bibfield{author}{\bibinfo{person}{Hongyi Guo}, \bibinfo{person}{Zuyue Fu},
+  \bibinfo{person}{Zhuoran Yang}, {and} \bibinfo{person}{Zhaoran Wang}.}
+  \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Decentralized single-timescale actor-critic on
+  zero-sum two-player stochastic games}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the International Conference on
+  Machine Learning (ICML)}}. \bibinfo{pages}{3899--3909}.
+\newblock
+
+
+\bibitem[Hu and Wellman(2003)]%
+        {hu2003nash}
+\bibfield{author}{\bibinfo{person}{Junling Hu} {and} \bibinfo{person}{Michael~P
+  Wellman}.} \bibinfo{year}{2003}\natexlab{}.
+\newblock \showarticletitle{{N}ash {Q}-learning for general-sum stochastic
+  games}.
+\newblock \bibinfo{journal}{\emph{Journal of Machine Learning Research}}
+  \bibinfo{volume}{4} (\bibinfo{year}{2003}), \bibinfo{pages}{1039--1069}.
+\newblock
+
+
+\bibitem[Leonardos et~al\mbox{.}(2021)]%
+        {leonardos2021global}
+\bibfield{author}{\bibinfo{person}{Stefanos Leonardos}, \bibinfo{person}{Will
+  Overman}, \bibinfo{person}{Ioannis Panageas}, {and} \bibinfo{person}{Georgios
+  Piliouras}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Global convergence of multi-agent policy gradient
+  in {M}arkov potential games}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2106.01969}}
+  (\bibinfo{year}{2021}).
+\newblock
+
+
+\bibitem[Macua et~al\mbox{.}(2018)]%
+        {macua2018learning}
+\bibfield{author}{\bibinfo{person}{Sergio~Valcarcel Macua},
+  \bibinfo{person}{Javier Zazo}, {and} \bibinfo{person}{Santiago Zazo}.}
+  \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{Learning parametric closed-loop policies for
+  {M}arkov potential games}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:1802.00899}}
+  (\bibinfo{year}{2018}).
+\newblock
+
+
+\bibitem[Mguni et~al\mbox{.}(2021)]%
+        {mguni2021learning}
+\bibfield{author}{\bibinfo{person}{David~H Mguni}, \bibinfo{person}{Yutong Wu},
+  \bibinfo{person}{Yali Du}, \bibinfo{person}{Yaodong Yang},
+  \bibinfo{person}{Ziyi Wang}, \bibinfo{person}{Minne Li},
+  \bibinfo{person}{Ying Wen}, \bibinfo{person}{Joel Jennings}, {and}
+  \bibinfo{person}{Jun Wang}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Learning in nonzero-sum stochastic games with
+  potentials}. In \bibinfo{booktitle}{\emph{Proceedings of the International
+  Conference on Machine Learning (ICML)}}. \bibinfo{pages}{7688--7699}.
+\newblock
+
+
+\bibitem[Monderer and Shapley(1996)]%
+        {monderer1996potential}
+\bibfield{author}{\bibinfo{person}{Dov Monderer} {and} \bibinfo{person}{Lloyd~S
+  Shapley}.} \bibinfo{year}{1996}\natexlab{}.
+\newblock \showarticletitle{Potential games}.
+\newblock \bibinfo{journal}{\emph{Games and Economic Behavior}}
+  \bibinfo{volume}{14}, \bibinfo{number}{1} (\bibinfo{year}{1996}),
+  \bibinfo{pages}{124--143}.
+\newblock
+
+
+\bibitem[P{\'e}rolat et~al\mbox{.}(2017)]%
+        {perolat2017learning}
+\bibfield{author}{\bibinfo{person}{Julien P{\'e}rolat},
+  \bibinfo{person}{Florian Strub}, \bibinfo{person}{Bilal Piot}, {and}
+  \bibinfo{person}{Olivier Pietquin}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{Learning {N}ash equilibrium for general-sum
+  {M}arkov games from batch data}. In \bibinfo{booktitle}{\emph{Proceedings of
+  the 20th International Conference on Artificial Intelligence and
+  Statistics}}. \bibinfo{pages}{232--241}.
+\newblock
+
+
+\bibitem[Sutton and Barto(2018)]%
+        {sutton2018reinforcement}
+\bibfield{author}{\bibinfo{person}{Richard~S Sutton} {and}
+  \bibinfo{person}{Andrew~G Barto}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \bibinfo{booktitle}{\emph{Reinforcement learning: {A}n
+  introduction}}.
+\newblock \bibinfo{publisher}{MIT press}.
+\newblock
+
+
+\bibitem[Watkins and Dayan(1992)]%
+        {watkins1992q}
+\bibfield{author}{\bibinfo{person}{Christopher~JCH Watkins} {and}
+  \bibinfo{person}{Peter Dayan}.} \bibinfo{year}{1992}\natexlab{}.
+\newblock \showarticletitle{Q-learning}.
+\newblock \bibinfo{journal}{\emph{Machine Learning}}  \bibinfo{volume}{8}
+  (\bibinfo{year}{1992}), \bibinfo{pages}{279--292}.
+\newblock
+
+
+\bibitem[Watkins(1989)]%
+        {watkins1989learning}
+\bibfield{author}{\bibinfo{person}{Christopher John Cornish~Hellaby Watkins}.}
+  \bibinfo{year}{1989}\natexlab{}.
+\newblock \showarticletitle{Learning from delayed rewards}.
+\newblock  (\bibinfo{year}{1989}).
+\newblock
+
+
+\end{thebibliography}

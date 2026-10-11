@@ -1,0 +1,1484 @@
+\documentclass[11pt]{article}
+
+\pdfoutput=1
+\usepackage{fullpage}           % layout
+\usepackage{amsfonts}           % \mathbb
+\usepackage{amsthm, amssymb}             % proof
+\usepackage{xspace}             % \xspace
+\usepackage{graphicx}
+\usepackage{adjustbox}          % \adjustbox 
+\usepackage{multicol}            
+\usepackage{url}
+\usepackage{enumerate, enumitem}  %enumerate environment with optional argument
+\usepackage{subcaption}
+\usepackage[usenames]{xcolor} % for coordinating edits
+\newcommand{\sout}[1]{\st{#1}}
+%% \usepackage{hyperref}
+\usepackage{amsmath, hyperref, nicefrac}
+\usepackage[capitalize]{cleveref}
+\usepackage{thm-restate}
+\usepackage{parskip}
+\usepackage{mathtools}
+\usepackage{multirow}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{array}
+
+\colorlet{darkgreen}{green!45!black}
+
+
+
+\newcommand{\set}[1]{\{#1\}}
+\newcommand{\etal}{et al.\xspace}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\opt}{\text{OPT}}
+\newcommand{\cost}{\text{cost}}
+\newcommand{\calS}{\mathcal{S}}
+\newcommand{\calP}{\mathcal{P}}
+\newcommand{\calL}{\mathcal{L}}
+\newcommand{\calR}{\mathcal{R}}
+\newcommand{\calT}{\mathcal{T}}
+\newcommand{\calE}{\mathcal{E}}
+
+\newcommand{\by}{\mathbf{p}}
+
+\newcommand{\rank}{\textbf{rank}}
+\newcommand{\dist}{\text{dist}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\pr}{\mathbb{P}}
+%\newcommand{\calE}{\mathcal{E}}
+\newcommand{\calF}{\mathcal{F}}
+\newcommand{\calX}{\mathcal{X}}
+\newcommand{\bI}{\bar{I}_i}
+\newcommand{\cand}{\mathbb{C}}
+\newcommand{\greedy}{\mathcal{A}}
+\newcommand{\A}{\mathcal{A}}
+\newcommand{\poly}{\text{poly}}
+\newcommand{\alg}{\greedy}
+\newcommand{\centers}{\mathcal{C}}
+\newcommand{\coreset}{\Omega}
+\newcommand{\offset}{F}
+\newcommand{\weight}{f}
+\newcommand{\inner}{R_I}
+\newcommand{\out}{R_O}
+\newcommand{\main}{R_M}
+\newcommand{\size}{\Gamma}
+\newcommand{\polylog}{\text{polylog}}
+
+
+\DeclareMathOperator{\sign}{sign}
+\DeclareMathOperator{\argmax}{argmax}
+\DeclareMathOperator{\argmin}{argmin}
+
+\newcommand{\valuedelta}{\frac{\log^2 1/\eps}{2^{O(z\log z)}\min(\eps^2, \eps^z)}\left(k \log |\cand| + \log \log (1/\eps) + \log(1/\pi)\right)}
+
+\newtheorem{lemma}{Lemma}
+\newtheorem{observation}{Observation}
+\newtheorem{theorem}{Theorem}
+%% \newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{definition}{Definition}
+%% \newtheorem{axiom}[theorem]{Axiom}
+\newtheorem{fact}{Fact}
+%% \newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{remark}{Remark}
+\newtheorem{question}{Question}
+
+\usepackage{wrapfig}
+\newcommand{\erclogowrapped}[1]{%
+\setlength\intextsep{0pt}%
+\begin{wrapfigure}[3]{r}{#1*\real{1.1}}%
+\includegraphics[width=#1]{LOGO_ERC-FLAG_EU_crop.jpg}%
+\end{wrapfigure}%
+}
+
+\newcounter{sideremark}
+\newcommand{\marrow}{\stepcounter{sideremark}\marginpar{$
+\longleftarrow\scriptstyle\arabic{sideremark}$}}
+\newcommand{\blue}[1]{{\color{blue}\bf #1}}
+ \newcommand{\david}[1]{
+ %  \ifdraft{
+    \textsf{\blue{*** (David) \marrow #1 ***}}
+ %  }
+ %  \fi
+ }
+
+\newcommand{\red}[1]{{\color{red}\bf #1}}
+ \newcommand{\vincent}[1]{
+ %  \ifdraft{
+    \textsf{\red{*** (Vincent) \marrow #1 ***}}
+ %  }
+ %  \fi
+ }
+ 
+ 
+ \newcommand{\green}[1]{{\color{green}\bf #1}}
+ \newcommand{\chris}[1]{
+ %  \ifdraft{
+    \textsf{\green{*** (Chris) \marrow #1 ***}}
+ %  }
+ %  \fi
+ }
+
+
+\usepackage{amsmath}
+\title{Improved Coresets for Euclidean $k$-Means\footnote{An extended abstract appeared at NeurIPS 2022.}}
+\author{Vincent Cohen-Addad \and Kasper Green Larsen \and 
+  David Saulpic
+  \and
+  Chris Schwiegelshohn \and Omar Ali Sheikh-Omar
+}
+\date{}
+
+
+\begin{document}
+
+
+\maketitle
+
+
+\begin{abstract}
+Given a set of $n$ points in $d$ dimensions, the Euclidean $k$-means problem (resp. the Euclidean $k$-median problem) consists of finding $k$ centers such that the sum of squared distances (resp. sum of distances) from every point to its closest center is minimized. The arguably most popular way of dealing with this problem in the big data setting is to first compress the data by computing a weighted subset known as a coreset and then run any algorithm on this subset. The guarantee of the coreset is that for any candidate solution, the ratio between coreset cost and the cost of the original instance is less than a $(1\pm \varepsilon)$ factor. The current state of the art  coreset size is $\tilde O(\min(k^{2} \cdot \varepsilon^{-2},k\cdot \varepsilon^{-4}))$ for Euclidean $k$-means and $\tilde O(\min(k^{2} \cdot \varepsilon^{-2},k\cdot \varepsilon^{-3}))$ for Euclidean $k$-median. The best known lower bound for both problems is $\Omega(k \varepsilon^{-2})$. In this paper, we improve the upper bounds $\tilde O(\min(k^{3/2} \cdot \varepsilon^{-2},k\cdot \varepsilon^{-4}))$ for $k$-means and $\tilde O(\min(k^{4/3} \cdot \varepsilon^{-2},k\cdot \varepsilon^{-3}))$ for $k$-median. In particular, ours is the first provable bound that breaks through the $k^2$ barrier while retaining an optimal dependency on $\varepsilon$. 
+\end{abstract}
+
+
+\input{intro}
+%\input{coreset}
+\input{chaining}
+%\input{DP}
+
+\section{Disclosure of Funding Acknowledgements}
+Kapser Green Larsen was partially supported by the Independent Research Fund Denmark (DFF) under a Sapere Aude Research Leader grant No 9064-00068B. 
+
+\erclogowrapped{5\baselineskip}David Saulpic has received funding from
+the European Research Council (ERC) under the European Union's Horizon 2020
+research and innovation programme (Grant agreement No.\ 101019564
+``The Design of Modern Fully Dynamic Data Structures (MoDynStruct)''.
+
+Chris Schwiegelshohn was partially supported by the Independent Research Fund Denmark (DFF) under a Sapere Aude Research Leader grant No 1051-00106B and the Innovation Fund Denmark under grant agreement No 0153-00233A. 
+
+Omar Ali Sheikh-Omar was partially supported by the Innovation Fund Denmark under grant agreement No 0153-00233A.
+
+
+\bibliographystyle{plain}
+\bibliography{reference}
+\newpage
+
+
+%\appendix
+%%
+%%
+%%\section{Analysis Details}
+%
+%
+%\input{app_chaining}
+%\input{supplementary/experiments}
+%
+%
+%Optionally include extra information (complete proofs, additional experiments and plots) in the appendix.
+%This section will often be part of the supplemental material.
+
+
+\end{document}
+\section{Introduction}
+
+Coresets have become a staple in the design of algorithms for large data sets. In the most general setting, a coreset compresses the data set in such a way that for any set of previously specified candidate queries, the cost of evaluating the query and the cost of the coreset are similar, up to an arbitrary small distortion.
+
+A popular subject in coreset literature is the Euclidean $k$-means problem. Here, we are given $n$ points $P$ in $d$ dimensions and our task is to find a set of $k$ points $C$ called centers minimizing
+$\cost(P,C):=\sum_{p\in P} \min_{c\in C}\|p-c\|^2,$
+where $\|p-c\| = \sqrt{\sum_{i=1}^d (p_i-c_i)^2}$ denotes the Euclidean distance.
+In this case, a coreset is a weighted subset of the input such that difference between the cost for any set of $k$ centers $C$ on the coreset and the cost on the original point set $P$ is at most $\varepsilon\cdot \cost(P,C)$.
+Since its initial study by \cite{HaM04}, the Euclidean $k$-means problem has received arguably the most attention out of any coreset problem. The current state of the art by \cite{CGSS22} yields coresets of size $\tilde{O}(k\varepsilon^{-2} \min(k,\varepsilon^{-2}))$, where $\tilde{O}(x)$ hides multiplicative factors that are polylogarithmic in $x$. Similarly, for Euclidean $k$-median where we aim to minimize the sum of Euclidean distances, rather than the sum of squared Euclidean distances, the best known upper bounds are $\tilde{O}(k\varepsilon^{-2} \min(k,\varepsilon^{-1}))$. Unfortunately, there is still a gap towards the best known lower bound of $\Omega(k\varepsilon^{-2})$ by \cite{CGSS22}.
+
+We thus have the option of obtaining either an optimal dependency on $k$, at the cost of a suboptimal dependency on $\varepsilon^{-1}$, or an optimal dependency on $\varepsilon^{-1}$, at the cost of a suboptimal dependency on $k$. While these bounds suggest that the lower bound is the correct answer, things are not as clear on closer inspection. Quadratic dependencies on $k$ become necessary for many forms of analysis and so far, it is unknown how to avoid this loss while retaining an optimal dependency on the remaining parameters\footnote{Coresets of size $\tilde{O}(kd / \varepsilon^{2})$ are also known (\cite{CSS21}). This offers improvements in low dimensions, but generally a dependency on $d$ is considered worse than a dependency on $k$ or $\varepsilon^{-2}$.}. 
+ 
+In this paper we break through this barrier. Specifically, we show that coresets of size $\tilde{O}(k^{3/2} \varepsilon^{-2})$ for Euclidean $k$-means and $\tilde{O}(k^{4/3} \varepsilon^{-2})$ for Euclidean $k$-median exist. 
+In our view, this is further and arguably stronger evidence that the $k \varepsilon^{-2}$ bound will be the correct answer. Another contribution exists on a technical level. Previously, most coreset constructions for high dimensions heavily relied on terminal embeddings to facilitate the analysis. 
+In this paper, we present a novel method that avoids terminal embeddings. We expect that our technique may have further applications for coreset constructions in Euclidean spaces.
+
+
+\subsection{Techniques}
+Starting point of our work is the framework introduced by \cite{CSS21} and specifically \cite{CGSS22}. Prior to \cite{CGSS22}, all coreset analyses required a dependency of at least $k\cdot d \cdot \varepsilon^{-2}$. 
+To illustrate why, suppose we are sampling points from some distribution and wish to use the sampled points as an estimator for the true cost of any candidate solution. The analysis then consists of (1) a bound on the variance $\sigma^2$ of the estimator and (2) a bound on the number of solutions $|\mathbb{N}|$ to be approximated. This typically results in coresets of size $O(\varepsilon^{-2} \cdot \sigma^2 \cdot \log |\mathbb{N}|)$.
+When enumerating all (discretized) candidate solutions (henceforth called a \emph{net}) in $d$ dimensions, virtually all known techniques result in $|\mathbb{N}| \approx \exp(k\cdot d)$. 
+The dependency on $d$ may be reduced to $\log(k/\varepsilon)\varepsilon^{-2}$ using dimension reduction techniques. 
+
+To bypass this, \cite{CGSS22} used a chaining-based analysis to define a sequence of discretized candidate solutions. Specifically, they showed that there exist discretizations $\mathbb{N}_{\alpha}$ of size $\exp(k\alpha^{-2})$ such that for any point $p$ and any solution $\calS$, there exists a solution $\calS_{\alpha}$ with 
+$$|\cost(p,\calS_{\alpha}) - \cost(p,\calS)|\leq \alpha\cdot \cost(p,\calS),$$
+where $\cost(p,\calS_{\alpha})=\min_{s\in \calS_{\alpha}} \|p-s\|^2$ and $\cost(p,\calS)=\min_{s\in \calS}\|p-s\|^2$.
+The idea of the analysis is then to write $\cost(p,\calS)$ as a telescoping sum 
+$$\cost(p,\calS) = \sum_{h=1}^{\infty} \cost(p,\calS_{2^{-(h+1)}}) - \cost(p,\calS_{2^{-h}})$$
+and show that the sampled points achieve concentration for each summand. The number of candidate solutions is now $|\mathbb{N}_{2^{-(h+1)}}| \cdot |\mathbb{N}_{2^{-h}}| \approx \exp(k\cdot 2^{2h})$ but the difference in cost is $2^{-h}\cost(p,\calS)$. This directly leads to a variance of the order $2^{-2h}\sigma^2$, where $\sigma^2$ is the variance of the basic estimator. Thus, the increase in net size is countered by the decrease and variance. Using this technique, \cite{CGSS22}  obtained a coreset of size roughly $\varepsilon^{-2} k\sigma^2$.
+
+To obtain a bound on $\sigma^2$, the framework by \cite{CSS21} proposed an algorithm that first computes a solution $\greedy$ with strong structural properties and then samples any point $p$ proportionate $\cost(p,\greedy)$. To simplify the exposition, we assume that $\greedy$ is the optimum, every cluster has identical cost and every point has identical cost. For this special case, the distribution of \cite{CSS21} turns out to be equivalent to uniform sampling.
+For any given solution $\calS$, let $k_i$ be the number of clusters of $\greedy$ whose points are served at cost $2^i$ times their cost in $\greedy$ for $i>2$\footnote{Observe that if one points of a cluster $C_j$ of $\greedy$ costs $2^i$ times more for $i\geq 3$, then all points from $C_j$ do likewise (up to constant factors).}, i.e. $2^i = \frac{\cost(p,\calS)}{\cost(p,\greedy)}$.
+\cite{CSS21} showed that their sampling distribution leads to a variance of the order $\sigma^2 \approx \left(\frac{k\cdot k_i 2^i}{(k+k_i\cdot 2^i)^2}\right)\cdot  \min(\varepsilon^{-2},2^i,k)$, which yields the $\tilde{O}(k\varepsilon^{-2}\min(k,\varepsilon^{-2}))$ bound.
+
+To improve either the variance or the net size has to reduced. Unfortunately, is unlikely that reducing $\sigma^2$ will be possible as the bounds on $\sigma^2$ obtained by \cite{CGSS22} are tight up to constant factors. Our main goal is to find a net with an finer error of 
+$$|\cost(p,\calS_{\alpha}) - \cost(p,\calS)|\leq 2^{-h}\cdot \sqrt{\cost(p,\calS),\cost(p,\greedy)}.$$
+In the case of $\min(2^i,\varepsilon^{-2},k)=2^i$, this leads to a reduced variance for the $h$-th summand of the order $2^{-2h}\cdot \frac{(\sqrt{\cost(p,\calS)\cost(p,\greedy)})^2}{\cost(p,\greedy)^2} \cdot \left(\frac{k\cdot k_i}{(k+k_i\cdot 2^i)^2}\right)\leq 2^{-2h}\cdot  \left(\frac{k\cdot k_i \cdot 2^i}{(k+k_i\cdot 2^i)^2}\right).$
+To find such a net, we now have two options. First, we can essentially use the previous nets and rescale $2^{-h}$ by a factor $2^{-i/2}$. Unfortunately, this leads to nets of size $\exp(k\cdot 2^{2h}2^i)$, so any gain in reducing the variance is countered by an increase in the net size.
+
+The novelty in our approach now lies in showing that a net of size $\exp(k\cdot k_i \cdot 2^{2h})$ exists. Combining the two net sizes with the improved variance bound results in a coreset of size roughly $\varepsilon^{-2} \log \left( \exp(k\cdot \min(k_i,2^i) \cdot 2^{2h})\right)\cdot  2^{-2h}\cdot  \left(\frac{k\cdot k_i \cdot 2^i}{(k+k_i\cdot 2^i)^2}\right) $, which after some calculation is shown to be of the order $O(k^{1.5}\varepsilon^{-2})$.
+
+For the remainder of this section we will illustrate how these improved nets can be obtained. The key idea already appears in the case of a single center. Suppose that $s$ is a candidate center. Then we can show that there always exists a subspace with orthogonal basis $U$ spanned by a set $T$ of at most $O(\alpha^{-2})$ points of $P$ such that 
+$$ |p^T(I-UU^T) s| \leq \alpha\cdot \|(I-UU^T)p\|\cdot \|(I-UU^T)s\|.$$
+We can then write
+$$ \|p-s\|^2 = \|U(p-s)\|^2 + \|(I-UU^T)p\|^2 + \|(I-UU^T)s\|^2 - 2p^T(I-UU^T) s.$$
+The error for the terms $\|Up-s\|^2$ and $\|(I-UU^T)s\|^2$ can be made negligibly small using a net of size $\exp(\alpha^{-2})$. Thus the main loss in error comes from the $p^T(I-UU^T) s$ term. The key insight is that when adding the center $c_i$ of point $p$ in solution $\greedy$, we have $\|(I-UU^T)p\|^2 \leq \sqrt{\cost(p,\greedy)}$. Thus, when adding all the $k_i$ centers of clusters that cost $2^i$ more in $\calS$ than in $\greedy$ to $T$ the net size becomes $\exp(\alpha^{-2}+k_i)$.
+By composing these nets for $k$ candidate centers, we then obtain our desired bound.
+
+ 
+\subsection{Related Work}
+
+There has been a tremendous amount of work on coresets for Euclidean $k$-means and $k$-median following the work in
+\cite{BachemL018,BachemLL18,BakerBHJK020,BFS21,BecchettiBC0S19,BCJ22,BravermanJKW21,
+Chen09,Cohen-AddadL19,CSS21,Cohen-AddadSS21,FL11,FeldmanSS20,
+FengKW21,FGSSS13,HaK07, HaM04, huang2020coresets,HuangJLW18, HuangJV19, LS10, SSS19,SchwiegelshohnS22,SohlerW18}. For a detailed comparison, we refer to Table \ref{table:core}.
+
+\begin{table}[H]
+\begin{center}
+\begin{tabular}{r|c}
+Reference & Size (Number of Points) %& specificity %& Update Time 
+\\
+\hline\hline
+\multicolumn{2}{l}{{\bf Coreset Bounds in Euclidean Spaces}} \\
+\hline\hline
+\multicolumn{2}{l}{Lower Bounds} \\\hline\hline
+Baker, Braverman, Huang, Jiang,  & \multirow{2}{*}{$\Omega(k\cdot \varepsilon^{-1/2})$} \\
+ %&
+Krauthgamer, Wu (ICML'19)~\cite{BravermanJKW19} & 
+\\\hline
+Cohen-Addad, Larsen, Saulpic,  & \multirow{2}{*}{$\Omega(k \cdot \varepsilon^{-2})$} \\
+ %&
+ Schwiegelshohn \cite{CGSS22} (STOC'22) & \\ 
+\hline
+\hline
+\multicolumn{2}{l}{Upper Bounds} \\\hline\hline
+Har-Peled, Mazumdar (STOC'04)~\cite{HaM04} & $O(k\cdot \varepsilon^{-d}\cdot \log n)$ %& Only for $k$-Median and $k$-Means
+\\
+\hline
+Har-Peled, Kushal (DCG'07)~\cite{HaK07} & $O(k^3 \cdot\varepsilon^{-(d+1)})$  %&
+\\\hline
+%Feldman et al. (SoCG'07)~\cite{FMS07} & $O(k^2\varepsilon^{-5})$ 
+%%& $O(ndk^2\varepsilon^{-1}\log^2 n)$ 
+%\\\hline
+Chen (Sicomp'09)~\cite{Chen09} & $O(k^2 \cdot d \cdot \varepsilon^{-2}\cdot \log n)$ %& 
+\\\hline
+Langberg, Schulman (SODA'10)~\cite{LS10} &$O(k^3\cdot d^2 \cdot \varepsilon^{-2})$ %&
+%& $\tilde{O}( ndk + d^2k^3\varepsilon^{-2}\log^3n)$ 
+\\\hline
+Feldman, Langberg (STOC'11)~\cite{FL11} & $O(k\cdot d\cdot\varepsilon^{-2z})$ %& 
+\\\hline
+Feldman, Schmidt, Sohler (Sicomp'20)~\cite{FeldmanSS20} & $O(k^3\cdot\varepsilon^{-4})$ %& Only for $k$-means
+\\\hline
+Sohler, Woodruff (FOCS'18)~\cite{SohlerW18} & $O(k^2\cdot\varepsilon^{-O(z)})$  %& Runs in exponential time
+\\\hline
+Becchetti, Bury, Cohen-Addad, Grandoni,  & \multirow{2}{*}{$O(k\cdot\varepsilon^{-8})$}\\ Schwiegelshohn (STOC'19)~\cite{BecchettiBC0S19} & \\ %& Only for $k$-means
+\hline
+Huang, Vishnoi (STOC'20)~\cite{huang2020coresets} & $O(k\cdot\varepsilon^{-2-2z})$ %&
+\\
+\hline
+Bravermann, Jiang, Krautgamer, Wu (SODA'21)~\cite{BravermanJKW21} & \multirow{1}{*}{$ O (k^2 \cdot\eps^{-4})$} %&
+\\
+\hline
+Cohen-Addad, Saulpic, Schwiegelshohn (STOC'21)~\cite{CSS21} & $\tilde O (k\cdot\eps^{-2-\max(2,z)})$ %&
+\\\hline
+Cohen-Addad, Larsen, Saulpic,  & \multirow{2}{*}{$O(k \cdot \varepsilon^{-2} \cdot \min(k,\varepsilon^{-z}))$} \\
+ %&
+ Schwiegelshohn \cite{CGSS22} (STOC'22) & \\ 
+\hline
+\large \textbf{This paper} & $ O (k \cdot \varepsilon^{-2} \cdot \min(k^{z/(z+2)},\varepsilon^{-z}))$ %&
+\end{tabular}
+\end{center}
+\caption{Comparison of coreset sizes for $k$-means ($z=2$) and $k$-median ($z=1$) in Euclidean spaces. 
+%Writing the exponent $\varepsilon^{-O(1)}$ means that the dependency on $\varepsilon$ is different for $k$-means and $k$-median.  
+\cite{BravermanJKW19} only applies to $k$-median and \cite{BecchettiBC0S19,FeldmanSS20} only apply to $k$-means. 
+\cite{SohlerW18} runs in exponential time, which has been addressed by Feng, Kacham, and Woodruff \cite{FKW19}.
+Aside from~\cite{HaK07,HaM04}, the algorithms are randomized and succeed with constant probability. Any polylog factors have been omitted in the upper bounds.}
+\label{table:core}
+\end{table}
+
+Almost as prolific is the catalogue of work on dimension reduction for clustering problems in Euclidean spaces, see ~\cite{BoutsidisMD09,BoutsidisZD10,BoutsidisZMD15,CW22a,CW22b,CEMMP15,Cohen-AddadS17,DrineasFKVV04,FKW19,MakarychevMR19}. The arguably most important dimension reduction technique for coresets are terminal embeddings, see~\cite{ChN21,ElkinFN17,MahabadiMMR18,NaN18}. 
+
+Further work on coresets considering objects other than points as centers \cite{BJKW21,FeldmanMSW10,HuangSV21} or other objectives all together 
+\cite{BoutsidisDM13,HuangSV20,JKLZ21,KarninL19,MaiMR21,MK18,MunteanuSSW18,PhillipsT20,
+TukanMF20}.
+For further reading, we refer the interested reader to recent surveys \cite{Feldman20,MunteanuS18}.
+
+\section{Preliminaries and Setup}
+\label{sec:prelim}
+
+First, we require the following basic notions. For a point $p\in \mathbb{R}^d$, we denote $\|p\|_2 = \sqrt{\sum_{i=1}^d p_i^2}$ to be the Euclidean norm of $p$ and $\|p\|_1 = \sum_{i=1}^d |p_i|$. The distinct number of points in a point set $P$ is denoted by $\|P\|_0$. Note that the true number of points $|P|$ may be larger than $\|P\|_0$ as different points may lie on the same coordinates.
+Given a solution $\mathcal{S}$ consisting of at most $k$ centers, and any subset $P'\subset P$ we use $\cost(P',\calS):= \sum_{p\in P'} \cost(p,\calS) =\sum_{p\in P} \min_{s\in \calS} w_p\cost(p,s),$ where $\cost(p,s) = \|p-s\|^2$ for Euclidean $k$-means and $\cost(p,s) = \|p-s\|$ for Euclidean $k$-median and $w_p$ is a non-negative weight (in the basic case this simply $1$ whereas for the coreset it can be any non-negative number). 
+To unify the notation, we will often write $\cost(p,s) = \|p-s\|^z$ where $z=1$ corresponds to $k$-median and $z=2$ corresponds to $k$-means.
+We also denote by $v^{\calS} \in \mathbb{R}^{\|P\|_0}$ the cost vector associated with the point set $P$ and solution $\calS$, that is $v_p^{\calS} := w_p\cost(p,s)$. Note that $\|v^{\calS}\|_1 = \cost(P,\calS)$.
+The classic coreset guarantee is to show that for any solution $\calS$ the designated coreset $\Omega$ satisfies
+$$ |\cost(\Omega,\calS) - \cost(P,\calS)|\leq \varepsilon \cdot \cost(P,\calS).$$
+We will later introduce an equivalent statement that uses cost vectors. It will also be convenient to consider coresets with an additive error $E$ which satisfy
+$$ |\cost(\Omega,\calS) - \cost(P,\calS)|\leq \varepsilon \cdot \cost(P,\calS) + E.$$
+
+\cite{CGSS22} showed that any coreset algorithm that works for instances with the following assumptions can be extended to general instances: 
+\begin{description}
+\item[Assumption 1:] $\|P\|_0 \in \poly(k,\varepsilon^{-1})$.
+\item[Assumption 2:] $d\in O(\log(k/\varepsilon) \cdot \varepsilon^{-2})$.
+\item[Assumption 3:] $w_p = 1$, for all $p\in P$. Note that this only applies to the weights of the original points; the coreset points will have different weights.
+\item[Assumption 4:] There exists a solution $\greedy$ such that
+\begin{enumerate}
+%\item $\displaystyle \cost(P,\greedy) = O(1)\cdot \min_{\calS}\cost(P,\calS)$
+\item $|\greedy| \in O(k)$.
+\item For any two clusters $C_i$, $C_j$ induced by $\greedy$, $\cost(C_i,\greedy) \leq 2\cdot \cost(C_j,\greedy)$.
+\item For any cluster $C_j$ induced by $\greedy$ and any two points $p,p'\in C_j$, $\cost(p,\greedy) \leq 2\cdot \cost(p',\greedy)$
+\end{enumerate}
+\end{description}
+
+To keep this paper self contained, we will detail the validity of these assumptions at the end of this section.  
+
+The sampling procedure is now very simple. Given that these aforementioned assumptions hold, we sample a points $p\in C_j$ with probability $\mathbb{P}_p :=\frac{1}{|C_j|}\cdot \frac{\cost(C_j,\greedy)}{\cost(P,\greedy)}$ and add it to the designated coreset $\Omega$. Furthermore, $p$ receives the weight $w_p = \frac{1}{\mathbb{P}_p}$. Overall, our basic cost estimator for any candidate solution $\calS$ is therefore
+$$ \cost(\Omega,\calS):= \frac{1}{|\Omega|} \sum_{p\in \Omega} \cost(p,\calS) \cdot w_p.$$
+
+It is routine to check that $\mathbb{E}[\cost(\Omega,\calS)] = \cost(P,\calS)$. The remainder of this section will be devoted to showing that $\Omega$ satisfies for all $\calS$
+\begin{equation}
+\label{eq:coresetguarantee}
+|\cost(\Omega,\calS) - \cost(P,\calS)|\leq \frac{\varepsilon}{\log^2 \varepsilon^{-1}} \cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)
+\end{equation}
+Using the framework from \cite{CSS21}, this implies an $O(\varepsilon)$ coreset in general.
+
+\subsection{Justification of the Assumptions}
+
+To obtain the first assumption, we compute any coreset of size $\text{poly}(k,\varepsilon^{-1})$ in preprocessing. Constructions of these coresets are abundant in literature and any one would serve our needs.
+
+To obtain the second assumption, we apply a terminal embedding on the coreset. A terminal embedding guarantees that for any point $p\in P$ and any point $q\in \mathbb{R}^d$, where $d$ is the dimension of the points of $P$, we have a mapping $f$ s.t.
+$$ \|p-q\|^2 = (1\pm \varepsilon) \|f(p)-f(q)\|^2.$$ 
+\cite{NaN18} showed that for any $n$-point set a terminal embedding of target dimension $\tilde{O}(\varepsilon^{-2}\log n )$ exists, which, combined with the first assumption, yields the desired target dimension.
+
+To obtain the third assumption, we merely have to ensure that the weights of the coreset points are integers. A number of constructions satisfy this but a simple way of always enforcing this is to scale and round the weights (see Corollary 2 of \cite{CSS21}).
+
+The fourth assumption follows from the preprocessing of \cite{CSS21}, see Sections 3.3 and 4.1 of that reference. Similarly, the same preprocessing, given that $\greedy$ is an $O(1)$-approximation, also shows that Eq \ref{eq:coresetguarantee} implies that the overall construction will be a coreset (subject to rescaling $\varepsilon$ by constant factors), see Section 4.2 of the aforementioned reference.
+We must point out that a point set cannot always be decomposed into only sets that satisfy the aforementioned assumption. Nevertheless \cite{CGSS22} showed that every other case require only $\tilde{O}(k/\varepsilon^2)$ many sampled points (compared Lemmas 15 and 17 of that reference.)
+
+Finally, we remark that these steps and assumptions immediately also apply to the $k$-median problem.
+
+
+\section{Analysis}
+\label{sec:main}
+
+In this section we prove the following theorems.
+
+\begin{theorem}
+\label{thm:main}
+For any set of points in $d$ dimensional Euclidean space, there exists a coreset for $k$-means clustering of size $\tilde{O}(k^{3/2} \varepsilon^{-2})$.
+\end{theorem}
+
+\begin{theorem}
+\label{thm:main2}
+For any set of points in $d$ dimensional Euclidean space, there exists a coreset for $k$-median clustering of size $\tilde{O}(k^{4/3} \varepsilon^{-2})$.
+\end{theorem}
+
+If not remarked upon, the analysis will holds for both problems.
+
+
+We first describe the random process used to show concentration of the estimator. 
+
+
+\subsection{Setting up the Chaining Analysis}
+
+First, we observe that Eq.\ref{eq:coresetguarantee} is equivalent to showing 
+$$\sup_{\calS} \frac{|\cost(\Omega,\calS) - \|v\|_1|}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}  \leq \frac{\varepsilon}{\log^{2}\varepsilon^{-1}}.$$
+Our goal is to show that
+$$\mathbb{E}_{\Omega} \left[\sup_{\calS} \frac{|\cost(\Omega,\calS) - \|v\|_1|}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right]  \leq \frac{\varepsilon}{\log^{2}\varepsilon^{-1}},$$
+where $\mathbb{E}_{\Omega}$ is meant to denote the expectation over the randomness of $\Omega$. This implies that the desired guarantee holds with constant probability.
+
+We now apply a standard symmetrization argument.
+\begin{lemma}[Appendix B.3 of ~\cite{RudraW14}]
+\label{lem:symmetrization}
+Let $g_p$ be independent standard Gaussian random variables. Then.
+$$\mathbb{E}_{\Omega}\underset{\calS}{\text{sup}} \left[\left\vert\frac{\frac{1}{|\Omega|}\sum_{p\in \Omega} \cost(p,\calS)\cdot w_p - \|v\|_1}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)} \right\vert \right]  \leq  \sqrt{2\pi}\mathbb{E}_{\Omega}\mathbb{E}_{g}\underset{\calS}{\text{sup}} \left[\left\vert\frac{\frac{1}{|\Omega|}\sum_{p\in \Omega} \cost(p,\calS)\cdot w_p\cdot g_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right\vert\right].$$
+\end{lemma}
+
+It is therefore sufficient to show
+
+\begin{equation}
+\label{eq:main}
+\mathbb{E}_{\Omega}\mathbb{E}_{g}\underset{\calS}{\text{sup}}\left[ \left\vert\frac{\frac{1}{|\Omega|}\sum_{p\in \Omega} \cost(p,\calS)\cdot w_p\cdot g_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)} \right\vert\right]  \leq \frac{\varepsilon}{\sqrt{2\pi} \log^{2}\varepsilon^{-1}}.
+\end{equation}
+
+Let $z=1$ for Euclidean $k$-median and $2$ for Euclidean $k$-means.
+We partition the clusters of any solution $\calS$ by type. We consider a cluster $C_j$ of type $T_i$ if for 
+$$ 2^{i} \min_{p\in C_j} \cost(p,\greedy) \leq  \min_{p\in C_j} \min_{s\in \calS} \cost(p,\calS) \leq 2^{i+1} \min_{c\in \greedy} \cost(p,\greedy).$$
+The number of clusters $C_j\in T_i$ are denoted by $k_i$.
+If $C_j$ is of type $i\leq 3$, we say $C_j$ is of type $T_{small}$ and if $C_j$ is of type $i\geq \log \gamma \varepsilon^{-z}$, for a sufficiently large absolute constant $\gamma$, we say that $C_j$ is of type $T_{large}$.
+Then, we show
+\begin{eqnarray} 
+\label{eq:small}
+\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[\sup_{\calS} \left\vert\frac{\frac{1}{|\Omega|} \sum_{C_j \in T_{small}} \sum_{p\in C_j\cap \Omega}\cost(p,\calS)w_p\cdot g_p }{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right\vert \right] \leq \frac{\varepsilon}{\sqrt{2\pi}\log^{3}\varepsilon^{-1}} \\
+\label{eq:typei}
+\mathbb{E}_{\Omega}\mathbb{E}_{g}  \left[\sup_{\calS} \left\vert\frac{\frac{1}{|\Omega|}\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\cost(p,\calS)w_p\cdot g_p }{\left( \cost(P,\calS) + \cost(P,\greedy)\right)} \right\vert \right] \leq \frac{\varepsilon}{\sqrt{2\pi}\log^{3}\varepsilon^{-1}} \\
+\label{eq:large}
+\mathbb{E}_{\Omega}\mathbb{E}_{g} \left[\sup_{\calS} \left\vert \frac{\frac{1}{|\Omega|}\sum_{C_j \in T_{large}}\sum_{p\in C_j\cap \Omega}\cost(p,\calS)w_p\cdot g_p }{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right\vert \right]  \leq \frac{\varepsilon}{\sqrt{2\pi}\log^{3}\varepsilon^{-1}}
+\end{eqnarray}
+
+Note that if Equation \ref{eq:typei} holds for $i \in \{3,\ldots,\log 1/\varepsilon\}$, this also implies Equation \ref{eq:main}, as the error from each type can only sum up in the worst case and there are at most $O(\log \varepsilon^{-1})$ many types.
+
+The small and large types are comparatively simple to handle.
+
+\begin{lemma}[Lemmas 15 and 16 of \cite{CGSS22}]
+\label{lem:easy}
+Let $|\Omega| \geq \kappa \frac{k}{\varepsilon^2} \log^{10}(k/\varepsilon)$ for some absolute constant $\kappa$. Then Equations \ref{eq:small} and \ref{eq:large} hold.
+\end{lemma} 
+
+Our main objective will be to prove the following lemma.
+
+\begin{lemma}
+\label{main:lemma}
+Let $|\Omega| \geq \kappa_1 \frac{k^{1+ z/(z+2)}}{\varepsilon^2} \log^{10}(k/\varepsilon) \geq \kappa_2 \frac{k}{\varepsilon^2} \log^{10}(k/\varepsilon) \cdot \left(\frac{\min(k_i,2^{i}) \cdot 2^{i(z-1)} k \cdot k_i }{(k+k_i\cdot 2^{i})^2}\right)$ for some absolute constants $\kappa_1$ and $\kappa_2$. Then Equation \ref{eq:typei} holds.
+\end{lemma} 
+
+ 
+
+%This now yields the desired bound on the coreset size.
+%
+%\begin{corollary}
+%\label{cor:main}
+%Let $|\Omega| \geq \kappa \frac{k^{1.5}}{\varepsilon^2} \log^9(k/\varepsilon)$ for some absolute constant $\kappa$. Then Equation \ref{eq:typei} holds.
+%\end{corollary}
+%\begin{proof}
+%Suppose $k_i\leq \sqrt{k}$. Then $\left(\frac{\min(k_i,2^{i}) \cdot 2^{i} k \cdot k_i }{(k+k_i\cdot 2^{i})^2}\right) \leq \left(\frac{2^{i} k \cdot k_i^2}{k \cdot k_i \cdot 2^{i}}\right) \leq k_i \leq \sqrt{k}$. 
+%
+%Now suppose $k_i\geq \sqrt{k}$. Then $\left(\frac{\min(k_i,2^{i}) \cdot 2^{i} k \cdot k_i }{(k+k_i\cdot 2^{i})^2}\right) \leq \left(\frac{2^{2i} k \cdot k_i}{k_i^2 \cdot 2^{2i}}\right) \leq \frac{k}{k_i} \leq \sqrt{k}$.
+%\end{proof}
+
+Combining Lemma \ref{lem:easy} and Lemma \ref{main:lemma} then implies Theorem~\ref{thm:main}.
+
+\subsection{Proof of Lemma \ref{main:lemma}}
+
+The proof of Lemma \ref{main:lemma} mainly consists of defining a nested sequence of nets over cost vectors over which we apply a union bound. Roughly speaking, for any cost vector $v^{\calS}$, we aim to find an approximating cost vector $v'$ such that 
+$$ |v_p^{\calS} - v_p'| \leq \varepsilon \cdot \sqrt{\cost(p,\calS)^{z-1}\cdot \cost(p,\greedy)^{3-z}}.$$
+Thus, on closer inspection, we have an error proportionate to $\varepsilon\cdot \sqrt{\cost(p,\calS)\cdot \cost(p,\greedy)}$ for $k$-means and $\varepsilon\cdot \cost(p,\calS)$ for $k$-median.
+
+This analysis differs from the terminal-embedding-based nets one used in \cite{CGSS22}, which aimed for an error of the order $\varepsilon \cdot \cost(p,\calS)$.
+
+Suppose we have, for every $\varepsilon$, a suitable collection of approximating cost vectors $\mathbb{N}_{\log 1/\varepsilon}$ with this guarantee for any candidate $\calS$\footnote{The reason for indexing the net by $\mathbb{N}_{\log 1/\varepsilon}$ and not by $\mathbb{N}_{\varepsilon}$ is to conveniently sum over $\sum_{i=1}^{\infty} \log| N_{i}|$, rather than $\sum_{i=1}^{\infty} \log| N_{2^i}|$.}. Let $v^{\calS,\varepsilon}$ be the cost vector approximating $v^{\calS}$ in the net $\mathbb{N}_{\log 1/\varepsilon}$.  Then we can write
+$$ v_p^{\calS} = \sum_{h=0}^{\infty} v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}},$$
+with $v_p^{\calS,1} = 0$.
+Our goal is to now bound
+\begin{eqnarray}
+\nonumber
+& & \mathbb{E}_{\Omega} \mathbb{E}_{g} \left[\sup_{\calS}  \left\vert\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\cost(p,\calS)w_p\cdot g_p }{|\Omega|\cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)}  \right\vert \right]\\
+\nonumber
+&= & \mathbb{E}_{\Omega} \mathbb{E}_{g} \left[\sup_{v^{\calS}} \left\vert \frac{\sum_{h=0}^{\infty}\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p\cdot g_p }{|\Omega|\cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)} \right\vert\right]  \\
+\nonumber
+&\leq &  \sum_{h=0}^{\infty} \mathbb{E}_{\Omega} \mathbb{E}_{g} \left[\sup_{v^{\calS,h+1}-v^{\calS,h}\in \mathbb{N}_{2^{-(h+1)}}\times \mathbb{N}_{2^{-h}}} \left\vert \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p\cdot g_p }{|\Omega|\cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)} \right\vert \right]   \\
+&=& \label{eq:base}
+\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[  \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \left\vert \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}v_p^{\calS,2^{-1}}w_p\cdot g_p }{|\Omega|\cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)} \right\vert \right]   \\
+\label{eq:telescopesmall}
+&+& \sum_{h=1}^{\log \varepsilon^{-2}} \mathbb{E}_{\Omega} \mathbb{E}_{g}   \left[  \sup_{v^{\calS,h+1}-v^{\calS,h}\in \mathbb{N}_{h+1}\times \mathbb{N}_{h}}\left\vert \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p\cdot g_p }{|\Omega|\cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)}  \right\vert \right] \\
+\label{eq:telescopelarge}
+&+& \sum_{h=\log \varepsilon^{-2}}^{\infty} \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \sup_{v^{\calS,h+1}-v^{\calS,h}\in \mathbb{N}_{h+1}\times \mathbb{N}_{h}}  \left\vert\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p\cdot g_p }{|\Omega|\cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)} \right\vert  \right] 
+\end{eqnarray}
+
+
+We will bound Equations \ref{eq:base} and \ref{eq:telescopelarge} directly. For the $O(\log \varepsilon^{-1})$ equations in term \ref{eq:telescopesmall}, we prove a bound on each.
+Thus, we aim for a bound of the order $O(\frac{\varepsilon}{\log^3 \varepsilon^{-1}})$; the overall bound then follows by summing up the errors and rescaling by constant factors.
+Technically, bounding each of the terms in Equations \ref{eq:base}, \ref{eq:telescopesmall} and \ref{eq:telescopelarge} requires somewhat different arguments. 
+For the sake of illustrating the key new ideas we first focus on Eq. \ref{eq:telescopesmall}. 
+
+%In order to get a bound for Eq. \ref{eq:base}, we split the estimator into two parts as follows. First, let $q_j:=\frac{\sum_{p\in C_j}v_p^{\calS,2^{-1}}}{|C_j|}$. Now we consider
+%\begin{eqnarray}
+%\label{eq:firstest}
+%& &\frac{1}{|\Omega|}\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-1}} - q_j)w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \\
+%\label{eq:secondest}
+%& &+ \frac{1}{|\Omega|}\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}q_j \cdot w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p 
+%\end{eqnarray}
+%Thus, Equation~\ref{eq:base} becomes
+%\begin{eqnarray}
+%\nonumber
+%& & \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[  \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \left\vert \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}  v_p^{\calS,2^{-1}}w_p}{|\Omega|\cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \right] \\
+%\label{eq:base1}
+%&=&\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[  \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}}\left\vert \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}|v_p^{\calS,2^{-1}}-q_j|w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \right] \\
+%\label{eq:base2}
+%&+& \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[  \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \left\vert\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \right]
+%\end{eqnarray}
+%
+%Due to Assumption 4, we have $\cost(T_i,\calS) = O(1) \cdot k_i\cost(C_j,\calS)$, for any $C_j\in T_i$ Thus
+%\begin{eqnarray}
+%\nonumber
+%& & \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[  \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \left\vert\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \right] \\
+%\nonumber
+%&\leq & \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[  \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \left\vert \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(T_i,\calS) }g_p \right\vert \right]\\
+%\label{eq:base3}
+%&\leq & \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[  \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \left\vert \max_{C_j \in T_{i}}  \frac{\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }g_p \right\vert \right]
+%\end{eqnarray}
+
+The next section presents the nets for the cost vectors. The subsequent section  bounds the variance. The final section combines these results and completes the proof of Lemma \ref{main:lemma}.
+
+\subsubsection*{Cost Vector Nets}
+
+\begin{definition}\label{def:clusteringnets}
+Let $I$ be a metric space, $P$ a set of points, $k$ a positive integer, and let $\alpha > 0$ be a precision parameters and let $\greedy$ be some solution with at most $k'$ centers.  Let $\mathbb{C}\subset I^k$ be a (potentially infinite) set of candidate $k$-clusterings. 
+We say that a set of cost vectors $\mathbb{N}\subset \R^{|P|}$ is an $(\alpha,k)$-clustering net if for every $\calS\in \mathbb{C}$ there exists a vector $v' \in \mathbb{N}$ such that the following condition holds.
+For all $p \in P$, 
+$$|v^{\calS}_p - v'_p| \leq \alpha\cdot \sqrt{\cost(p,\calS)^{z-1}\cdot \cost(p,\greedy)^{3-z}}.$$
+\end{definition}
+
+These clustering nets have a substantially smaller error than those proposed in \cite{CGSS22}, which had an error of the order $\alpha\cdot \left(\cost(p,\calS) + \cost(p,\greedy)\right)$. 
+
+Given a set of points $X$ in Euclidean space, an $\varepsilon$-net is a subset $S\subset X$ such that for every  $p\in X$ there exists a $q$ in $S$ with $\|p-q\|\leq \varepsilon$. Throughout this section, we will frequently use the fact that in $d$ dimensions, there exists an $\varepsilon$-net of cardinality $(1+2/\varepsilon)^d$ (see for example \cite{Pis99}).
+%\begin{lemma}[\cite{Pis99}]
+%\label{lem:Euclideannets}
+%For unit Euclidean ball of dimension $d$ centered around the origin, there exists an $\varepsilon$-net of cardinality $(1+2/\varepsilon)^d$.
+%\end{lemma}
+Our main goal in this section is to prove the following lemma.
+
+%\begin{lemma}[Compare Lemma 22 of \cite{CGSS22}]
+%\label{lem:netsizelarge}
+%Let $P$ be a set of points in $d$ dimensional Euclidean space, $k$ a positive integer and $\greedy$ be a candidate solution. 
+%Define $\cand$ to be the set of possible candidate centers such that the clusters induced by $\greedy$ are of type $i$, with $3\leq i \leq \log 1/\varepsilon^2$.
+%For all $\alpha \leq 1/2$, there exists an $(\alpha,k)$-clustering net $\mathbb{N}$ of $\cand$ with 
+%$$|\mathbb{N}|\leq \exp\left(\gamma\cdot k\cdot d \cdot i\log(4/\alpha)\right),$$
+%where $\gamma$ is an absolute constant.  
+%\end{lemma}
+%\begin{proof}
+%The only difference to Lemma 22 of \cite{CGSS22} is that the nets are required to have an error of $\alpha\cdot \sqrt{\cost(p,\calS)\cost(p,\greedy)}$ rather than $\alpha\cdot \left(\cost(p,\calS)+ \cost(p,\greedy)\right)$. This can be done by rescaling $\varepsilon$ by $2^{-i}$, which in turn is absorbed by the constant $\gamma$ as $2^ \leq O(1)\cdot \varepsilon^{-2}$.
+%\end{proof}
+%
+%The main new result is as follows.
+
+\begin{lemma}
+\label{lem:netsize}
+Let $P$ be a set of points in $d$ dimensional Euclidean space, $k$ a positive integer, $\greedy$ be a candidate solution with $k_i$ clusters and $\gamma$ and absolute constant. 
+Define $\cand$ to be the set of possible candidate centers such that the clusters induced by $\greedy$ are of type $i$, with $3\leq i \leq \log 1/\varepsilon^z$.
+For all $\alpha \leq 1/2$, there exists an $(\alpha,k)$-clustering net $\mathbb{N}$ of $\cand$ with 
+$$|\mathbb{N}|\leq \exp\left(\gamma \cdot k \cdot \log \|P\|_0  \cdot \min(k_i + \alpha^{-2}, \alpha^{-2}\cdot 2^i) \cdot i\log\frac{1}{\alpha})\right).$$
+\end{lemma}
+\begin{proof}[Proof]
+We first show that given a set of vectors $P$ and any vector $s$, there always exists a small subset $U$ of $P$ such that all inner products between $p\in P$ and $s$ are preserved by the span of $U$.
+
+
+\begin{lemma}\label{lem:innerproduct}
+Let $P = \{p_1, ..., p_n\} \subseteq \R^d$ and let $s\in \mathbb{R}^d$. Then there exists $U \subseteq P$, with $|U| = O(\eps^{-2})$ and orthogonal basis $\Pi_U$, such that
+\begin{equation}
+    \label{eq:desire}
+\forall p \in P, |p^T (I-\Pi_U\Pi_U^T) s| \leq \eps \|(I-\Pi_U\Pi_U^T) p\| \cdot \min_{p\in P} \|p-s\|
+\end{equation}
+\end{lemma}
+\begin{proof}
+Start with $U_0 = \text{argmin}_{p\in P} \|p-s\|$, and proceed in rounds. 
+Note that $\|(I-\Pi_{U_0}\Pi_{U_0}^T)s\| \leq \|p-s\|$ for all $p\in P$.
+
+In each round $i$, denote the current set of vectors $U_i$ with orthogonal basis $\Pi_{U_i}$. We add a vector $p_i$ if the following equation holds
+$$|p^T (I-\Pi_{U_i}\Pi_{U_i}^T) s| \geq \eps \|(I-\Pi_{U_i}\Pi_{U_i}^T) p\| \cdot \|(I-\Pi_{U_0}\Pi_{U_0}^T)s\|.$$
+We observe that if this equation holds for all $p\in P$, then Equation \ref{eq:desire} must also hold.
+Note that $(I-\Pi_{U_i}\Pi_{U_i}^T)p$ is orthogonal to the span of $U_{i}$ of all previously added vectors.
+Thus, due to the Pythagorean theorem, we have
+$$\sum_{i}^{t} \left(\frac{(p^T (I-\Pi_{U_{i-1}}\Pi_{U_{i-1}}^T) s)}{\|(I-\Pi_{U_{i-1}}\Pi_{U_{i-1}}^T) p\| \cdot \|(I-U_0U_0^T)s\|}\right)^2 \geq t \cdot \varepsilon^2.$$
+Therefore, after $t=\varepsilon^{-2}$ many rounds $(I-\Pi_U\Pi_U^T) s = 0,$
+which implies that after at most $\varepsilon^{-2}$ rounds Eq. \ref{eq:desire} has to hold.
+\end{proof}
+
+With this lemma, we can prove our net bound.
+Our objective is to generate a small set of cost vectors that satisfy the desired guarantee.
+Throughout this proof, let  $\dist(p,\greedy)= \cost(p,\greedy)^{1/z}$ be the distance of $p$ to its center in $\greedy$.
+We first define the cost vectors. For each subset $U$ of size $O(\min(\alpha^{-2}2^i,\alpha^{-2}+k_i)$, we consider the the subspace $\Pi_{U}$ spanned by $U$. In this subspace we consider $(\alpha/2^i)\cdot \dist(p,\greedy)$-nets of every ball centered around $\Pi_{U}p$ with radius $60\cdot 2^i/2 \cdot \dist(p,\greedy)$ for all $p\in P$. Such a net has size $\exp(\gamma\cdot \rank(U)i \log \alpha)$, for some constant $\gamma$ and there exist at most $\|P\|_0 \cdot \exp(\gamma\cdot |U| i \log \alpha)$ many such nets. Furthermore, there are at most ${\|P\|_0 \choose |U|} \leq \|P\|_0^{|U|}$ such subsets.
+
+Now, for every point $p$, define an exponential sequence $\alpha^2 (1+\alpha/2^i)^j$ for $j\in \{0,\ldots \log 10 \cdot 2^i\}$. There exist at most $\|P\|_0$ such sequences and every such sequence consists of at most $O(\alpha^{-1}\cdot 2^i \cdot i)$ many values.
+We combine every net point in ever ball of every subspace with all values in the exponential sequence to obtain the evaluation for a single candidate center. The overall number of candidate centers is therefore of the order $\|P\|_0^{|U|}\cdot \exp(\gamma\cdot |U| i \log \alpha)$, for a sufficiently large $\gamma$. The overall number of candidate cost vectors is now the number of $k$ subsets of candidate centers, i.e. $\|P\|_0^{k\cdot |U|}\cdot \exp(\gamma\cdot k\cdot |U| i \log \alpha)$. Combined with the bounds on $U$, this yields the desired size. What remains to be shown is that the thus constructed cost vectors are a $(\alpha,k)$-clustering net.
+
+Here, we use that for any center $s$ in some candidate solution $\calS$
+$$\|p-s\|^2 = \|\Pi_U(p-s)\|^2 + \|(I-\Pi_U\Pi_U^T)p\|^2 + \|(I-\Pi_U\Pi_U^T)s\|^2 - 2p^T(I-\Pi_U\Pi_U^T)s.$$
+The nets for the span of $\Pi_U$ are so fine that the distance $\|\Pi_Us-s'\|^2$ is essentially negligible compared to the maximum error incurred by $2p^T(I-\Pi_U\Pi_U^T)s$, where $s'$ is the point in the span of $\Pi_U$ closest to $\Pi_Us$ and the same holds for the exponential sequence approximating the term $\|(I-\Pi_U\Pi_U^T)s\|^2$. Thus, the error is dominated by $2p^T(I-\Pi_U\Pi_U^T)s$. Now, we can assume that the input point closest to $s$ is included in $U$. Then $\min_{p\in P}\|p-s\| \leq O(1)\cdot 2^{i/z}\cdot \cost(p,\greedy)^{1/z}$ and $\|(I-\Pi_U\Pi_U^T)p\| \leq \cost(p,\calS)^{1/z} \leq O(1)\cdot 2^{i/z}\cost(p,\greedy)^{1/z}$.
+If $\alpha^{-2}\cdot 2^i < k_i + \alpha^{-2}$, we have
+$$|p^T(I-\Pi_U\Pi_U^T)s| \leq  \alpha \cdot 2^{-i/2} \cdot \|(I-\Pi_U\Pi_U^T) p\| \cdot \min_{p\in P}\|p-s\| \leq O(1)\cdot \alpha\cdot \cost(p,\calS)^{z-1}\cost(p,\greedy)^{3-z}$$
+otherwise we have $\|(I-\Pi_U\Pi_U^T)p\| \leq \cost(p,\greedy)^{1/z}$ which implies
+$$|p^T(I-\Pi_U\Pi_U^T)s| \leq  \alpha \cdot \|(I-\Pi_U\Pi_U^T) p\| \cdot \min_{p\in P}\|p-s\| \leq \alpha\cdot \cost(p,\calS)^{z-1}\cost(p,\greedy)^{3-z}.$$
+Rescaling $\alpha$ by constant factors yields the claim.
+%
+%Let $\calS$ be a candidate solution and let $\calS'$ be the subset of $\calS$ serving the points of $P$.
+%For a center $s\in \calS'$, let $U_1$ be the subset of vectors of $P$ given by Lemma \ref{lem:innerproduct} with $\varepsilon:= \alpha\cdot 2^{i/2}$ and let $U_2$ be the subset of vectors of $P$ given by Lemma \ref{lem:innerproduct} with $\varepsilon:= \alpha$ and let $U_2' = U_2 \cup \greedy$. Let $U = \begin{cases}U_1 &\text{if } rank(U_1) \leq rank(U_2') \\ U_2' & \text{else}\end{cases}$ and let $\Pi_{U}$ be the orthogonal matrix of the span of $U$. 
+%
+%Suppose, for every point $p$ in the span of $U$, we have are given an $(\alpha/2^i)\cdot \sqrt{\cost(p,\greedy)}$-net of the ball centered around $\Pi_{U}p$ with radius $60\cdot 2^i/2 \cdot \sqrt{\cost(p,\greedy)}$. Such a net has size $\exp(\gamma\cdot \rank(U)i \log \alpha)$, for some constant $\gamma$ and there exist at most $\|P\|_0 \cdot \exp(\gamma\cdot \rank(S)i \log \alpha)$ many such nets. 
+%Denote by $s'$ the point in these nets closest to $s\Pi_{U}$.
+%We now argue that
+%\begin{eqnarray}
+%\label{eq:netclose}
+%\|Pi_Us-s'\| &\leq &\alpha \cdot \sqrt{\cost(p,\greedy)}  \text{ if } \|Pi_{U}(p-s)\|\leq 60\cdot 2^i/2 \sqrt{\cost(p,\greedy)} \\
+%\nonumber
+%\|Pi_Us-s'\| &\geq & 10 2^{i/2} \cdot \sqrt{\cost(p,\greedy)}  \text{ if } \|Pi_{U}(p-s)\|\geq 20\cdot 2^i/2 \sqrt{\cost(p,\greedy)} 
+%\end{eqnarray}
+%Let $p'\in P$ be the point with minimal $\cost(p,\greedy)$ satisfying the first condition. Then for any point $p$ that also satisfies this condition $\|\Pi_{U}s-s'\| \leq \alpha\cdot 2^{-i}2^{i/2} \cdot \sqrt{\cost(p',\greedy)}  \leq \alpha \cdot \sqrt{\cost(p',\greedy)} \leq \alpha \cdot \sqrt{\cost(p,\greedy)}$.
+%
+%Conversely, suppose $p$ satisfies the first condition then $\|Pi_{U}(p-s)\|\geq 20\cdot 2^i/2 \sqrt{\cost(p,\greedy)}$. Let $q$ be the point in the $(\alpha/2^i)$-net of the ball centered around $\Pi_{U}p$ with radius $20\cdot 2^i$ closest to $\Pi_Us$, which implies $\|q-\Pi_Up\| \geq 20\cdot 2^i/2 \cdot \sqrt{\cost(p,\greedy)} - (\alpha/2^i)\cdot \sqrt{\cost(p,\greedy)} \geq 10\cdot 2^i/2 \cdot \sqrt{\cost(p,\greedy)}$.
+%
+%Next, we consider a net over all values $\|(I-P_UP_U^T)s\|$. For every point $p$, define an exponential sequence $\alpha^2 (1+\alpha/2^i)^j$ for $j\in \{0,\ldots \log 10 2^i\}$. There exist at most $\|P\|_0$ such sequences and every such sequence consists of at most $O(\alpha^{-1}\cdot 2^i \cdot i)$ many values. Similar to the bound above, we will show that there exists an $s''$ in the union of sequences such that
+%\begin{eqnarray}
+%\label{eq:netsingle}
+%\vert s''-\|(I-P_UP_U^T)s\| \vert &\leq &\alpha \cdot \sqrt{\cost(p,\greedy)}  \text{ if } \|(I-P_UP_U^T)s\|\leq 60\cdot 2^i/2 \sqrt{\cost(p,\greedy)} \\
+%\nonumber
+%\vert s'-\|(I-P_UP_U^T)s\| \vert &\geq & 10 2^{i/2} \cdot \sqrt{\cost(p,\greedy)}  \text{ if } \|(I-P_UP_U^T)s\|\geq 20\cdot 2^i/2 \sqrt{\cost(p,\greedy)}
+%\end{eqnarray}
+%This statement now holds due to the triangle inequality and by definition of the exponential sequence.
+%
+%We now conclude for a single center $s$. Assume that the point in $P$ closest to $s$ is included in $U$. Let $s'$ be the point in the span of $U$ satisfying Eq. \ref{eq:netclose} and let $s''$ be the element in the exponential sequence satisfying Eq. \ref{eq:netsingle}. We wish to show that for some absolute constant $\beta$
+%\begin{eqnarray}
+%\nonumber
+%\vert \|p-s\|^2 &-& \left(\|\Pi_Up-s'\|^2 + \|(I-\Pi_U\Pi_U^T)p\|^2 + s'' \right) \vert \\
+%\label{eq:netboth}
+%&\leq &\beta \cdot \alpha \cdot \sqrt{\cost(p,\greedy)\|p-s\|^2}  \text{ if } \|p-s\| \leq 60\cdot 2^i/2 \sqrt{\cost(p,\greedy)} \\
+%\nonumber
+%\vert \|p-s\|^2 &-& \left(\|\Pi_Up-s'\|^2 + \|(I-\Pi_U\Pi_U^T)p\|^2 + s'' \right) \vert \\
+%\nonumber
+% &\geq & 10 2^{i/2} \cdot \sqrt{\cost(p,\greedy)}  \text{ if } \|p-s\| \geq 60\cdot 2^i/2 \sqrt{\cost(p,\greedy)}
+%\end{eqnarray}
+%First, we decompose $\|p-s\|^2$ as follows. We have
+%\begin{eqnarray*}
+%\|p-s\|^2 &=& \|\Pi_{U}(p-s)\|^2 + \|(I-\Pi_{U}\Pi_{U}^T)(p-s)\|^2 \\
+%&\leq & \|\Pi_{U}(p-s)\|^2 + \|(I-\Pi_{U}\Pi_{U}^T)p\|^2 +\|(I-\Pi_{U}\Pi_{U}^T)s\|^2 - 2p^T(I-\Pi_{U}\Pi_{U}^T)s
+%\end{eqnarray*}
+%We first focus on the case that $\|p-s\| \leq 60\cdot 2^i/2 \sqrt{\cost(p,\greedy)}$. Since projection only decreases the norm, this implies that $\|\Pi_{U}(p-s)\|$ and $\|(I-\Pi_{U}\Pi_{U}^T)(p-s)\|$ are less than $60\cdot 2^i/2 \sqrt{\cost(p,\greedy)}$ as well. This implies that Equations \ref{eq:netclose} and \ref{eq:netboth} hold, which implies
+%\begin{equation*}
+%\vert \|p-s\|^2 - \left(\|\Pi_Up-s'\|^2 + \|(I-\Pi_U\Pi_U^T)p\|^2 + s'' \right) \vert \leq \alpha \cdot \sqrt{\cost(p,\greedy)} + |2p^T(I-\Pi_{U}\Pi_{U}^T)s|
+%\end{equation*}
+%Since the point closest to $s$ is contained in $U$, we have $\|(I-\Pi_U\Pi_U^T)s\| \leq \sqrt{\cost(p,s)}$. Suppose $|U| = \alpha^{-2} \cdot 2^i$. Due to the triangle inequality $\|(I-\Pi_U\Pi_U^T)p\| \leq 2 \|p-s\| \leq 4 \cdot 2^{i/2} \sqrt{\cost(p,\greedy)}$. Then Lemma \ref{lem:innerproduct} implies that $p^T(I-\Pi_{U}\Pi_{U}^T)s \leq \alpha\cdot 2^{-i/2} \|(I-\Pi_U\Pi_U^T)p\| |(I-\Pi_U\Pi_U^T)s\| \leq 2\alpha \sqrt{\cost(p,\greedy)\cost(p,s)}$.
+%Now suppose $\alpha^{-2}+k_i$. In this case $\|(I-\Pi_U\Pi_U^T)p\| \leq \sqrt{\cost(p,\greedy)}$. Consequently, $p^T(I-\Pi_{U}\Pi_{U}^T)s \leq \alpha\cdot \|(I-\Pi_U\Pi_U^T)p\| |(I-\Pi_U\Pi_U^T)s\| \leq 2\alpha \sqrt{\cost(p,\greedy)\cost(p,s)}$.
+%Thus, the desired difference holds.
+%
+%We now focus on the case that $\|p-s\| \geq 60\cdot 2^i/2 \sqrt{\cost(p,\greedy)}$. In this case, either $\|\Pi_{U}(p-s)\|$ or $\|(I-\Pi_{U}\Pi_{U}^T)(p-s)\|$ are at least $40\cdot 2^i/2 \sqrt{\cost(p,\greedy)}$. In the former case, Eq. \ref{eq:netclose} shows that we rule out $s$ as a viable center for $p$. In the latter case, we have due to Lemma \ref{lem:innerproduct} $\|(I-\Pi_{U}\Pi_{U}^T)(p-s)\|2= \|(I-\Pi_{U}\Pi_{U}^T)p\|^2 +\|(I-\Pi_{U}\Pi_{U}^T)s\|^2 - 2p^T(I-\Pi_{U}\Pi_{U}^T)s \geq (1-\alpha)\cdot \left(\|(I-\Pi_{U}\Pi_{U}^T)p\|^2 +\|(I-\Pi_{U}\Pi_{U}^T)s\|^2\right)$. Here, either $\|(I-\Pi_{U}\Pi_{U}^T)p\|$ or $\|(I-\Pi_{U}\Pi_{U}^T)s\|$ are now at least $20\cdot 2^i/2 \sqrt{\cost(p,\greedy)}$. In the former case, simply evaluating $\|(I-\Pi_{U}\Pi_{U}^T)p\|$ rules out $s$ as a viable center and in the latter case Eq. \ref{eq:netsingle} rules out $s$ as a viable center.
+%
+%We can now conclude overall. By assumption, all points were members of clusters of type $i$. Therefore, there exists at least one viable center for every point. Thus only the upper equation in \ref{eq:netboth} applies. The overall lemma now follows by rescaling $\alpha$.
+\end{proof}
+
+We also require an additional net that works for low dimensions.
+
+\begin{lemma}[Compare Lemma 22 of \cite{CGSS22}]
+\label{lem:netsizelarge}
+Let $P$ be a set of points in $d$ dimensional Euclidean space, $k$ a positive integer and $\greedy$ be a candidate solution. 
+Define $\cand$ to be the set of possible candidate centers such that the clusters induced by $\greedy$ are of type $i$, with $3\leq i \leq \log 1/\varepsilon^2$.
+For all $\alpha \leq 1/2$, there exists an $(\alpha,k)$-clustering net $\mathbb{N}$ of $\cand$ with 
+$$|\mathbb{N}|\leq \exp\left(\gamma\cdot k\cdot d \cdot i\log(4/\alpha)\right),$$
+where $\gamma$ is an absolute constant.  
+\end{lemma}
+\begin{proof}
+The only difference to Lemma 22 of \cite{CGSS22} is that the nets are required to have an error of $\alpha\cdot \sqrt{\cost(p,\calS)\cost(p,\greedy)}$ rather than $\alpha\cdot \left(\cost(p,\calS)+ \cost(p,\greedy)\right)$. This can be done by rescaling $\varepsilon$ by $2^{-i}$, which in turn is absorbed by the constant $\gamma$ as $2^i \leq O(1)\cdot \varepsilon^{-2}$.
+\end{proof}
+
+
+
+\subsubsection*{Bounding the Variance}
+We now use the cost vectors to obtain an improved variance for the estimator
+$$\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p.$$
+The bounds on variance for any random variable $\sum a_p g_p$ with standard Gaussians $g_p$ is Gaussian distributed with mean $0$ and variance $\sum a_p^2$.
+
+Before we do this, we require an additional notion. Let $\calE$ denote the event that $\frac{1}{|\Omega|}\sum_{p\in C_j\cap \Omega} w_p = (1\pm \varepsilon) \cdot |C_j|$.
+The following lemma bounds the probability of $\calE$ occurring.
+\begin{lemma}
+\label{lem:eventE} [Compare Lemma 19 of \cite{CGSS22}]
+If Assumption 4 holds, then event $\calE$ holds with probability $1-k^{-2}$ if $|\Omega| > \kappa\cdot k \varepsilon^{-2}\log k$ for a sufficiently high absolute constant $\kappa$.
+\end{lemma}
+
+\begin{lemma}
+\label{lem:variance}
+Given Assumption 4, the variance of $\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p\cdot g_p}{|\Omega|\cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)}$ is at most
+\begin{eqnarray*}
+\gamma \cdot \frac{2^{-2h}}{|\Omega|}  \cdot \frac{k \cdot k_i 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}& & \text{conditioned on event } \calE \\
+\gamma \cdot \frac{2^{-2h}\cdot k}{|\Omega|} \cdot \frac{k \cdot k_i 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}& & \text{conditioned on event } \overline{\calE}
+\end{eqnarray*} 
+for an absolute constant $\gamma$.
+\end{lemma}
+\begin{proof}
+We first observe that since the $g_p$ are standard normal Gaussians, the entire estimator is Gaussian distributed with variance
+$$ \sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\frac{1}{|\Omega|^2}\left(\frac{(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right)^2.$$
+We have 
+\begin{eqnarray*}
+|v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}}| &=& |v_p^{\calS,2^{-(h+1)}} - \cost(p,\calS) + \cost(p,\calS) - v_p^{\calS,2^{-h}}| \\
+&\leq & 2\cdot 2^{-h}\cdot \sqrt{\cost(p,\calS)^{z-1}\cdot \cost(p,\greedy)^{3-z}}
+\end{eqnarray*}
+ due to Lemma \ref{lem:netsize}. Furthermore, by definition $w_p= \frac{\cost(P,\greedy)|C_j|}{\cost(C_j,\greedy)}$. Finally, by definition of type $i$, we have $\cost(p,\calS)\cdot |C_j| = O(1)\cdot \cost(C_j,\calS)$ and by Assumption 4 we have $\cost(p,\greedy)\cdot |C_j| = O(1)\cdot \cost(C_j,\greedy)$ for all $p\in C_j$. 
+\begin{eqnarray*}
+& &\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\frac{1}{|\Omega|^2}\left(\frac{(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right)^2 \\
+&\leq & O(1)\cdot\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\frac{1}{|\Omega|^2}\left(\frac{2^{-h}\cdot \sqrt{\cost(p,\calS)^{z-1}\cdot \cost(p,\greedy)^{3-z}} \cdot \cost(P,\greedy)|C_j|}{\cost(C_j,\greedy) \cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right)^2 \\
+&\leq &O(1)\cdot \sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\frac{1}{|\Omega|^2}\left(\frac{2^{-2h}\cdot \cost(C_j,\greedy)^{1-z}\cdot \cost(C_j,\calS)^{z-1}\cdot \cost(P,\greedy)^2}{ \left( \cost(P,\calS) + \cost(P,\greedy)\right)^2}\right)  
+\end{eqnarray*}
+Now, let $k_i$ be the number of clusters of type $i$. Then due to Assumption 4 $\cost(C_j,\calS) \cdot k_i\leq O(1)\cost(P,\calS)$, for all $C_j$ of type $i$. Finally, note that $\frac{\cost(P,\greedy)}{\cost(C_j,\greedy)}\leq O(1)\cdot k$, also due to Assumption 4. 
+Combining this, we then have
+\begin{eqnarray*}
+& &\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\left(\frac{(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right)^2 \\
+&\leq & O(1)\cdot\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\left(\frac{2^{-2h}\cdot 2^{i(z-1)} k^2}{|\Omega|^2 \cdot \left( k+k_i \cdot 2^i\right)^2}\right)\\
+&\leq & O(1)\cdot\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\left(\frac{2^{-2h}\cdot k}{k_i \cdot |\Omega|^2 }\right)   \cdot \frac{k_i \cdot k \cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}
+\end{eqnarray*}
+Assuming event $\calE$, this may now be bounded by $O(1)\cdot \frac{2^{-2h}}{|\Omega|}\cdot \frac{k \cdot k_i 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}$. If event $\calE$ does not hold, we may bound the term by $\frac{2^{-2h}\cdot k}{k_i \cdot |\Omega| } \cdot \frac{k \cdot k_i 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}\leq \frac{2^{-2h}\cdot k}{|\Omega| }  \frac{k \cdot k_i 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}$.
+\end{proof}
+
+
+
+
+%\begin{proof}
+%We first observe that since the $g_p$ are standard normal Gaussians, the entire estimator is Gaussian distributed with variance
+%$$ \sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\frac{1}{|\Omega|^2}\left(\frac{(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right)^2.$$
+%We have $(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}}) = (v_p^{\calS,2^{-(h+1)}} - \cost(p,\calS) + \cost(p,\calS) - v_p^{\calS,2^{-h}}) \leq 2\cdot 2^{-h}\cdot \sqrt{\cost(p,\greedy)\cost(p,\calS)}$ due to Lemma \ref{lem:netsize}. Furthermore, by definition $w_p= \frac{\cost(P,\greedy)|C_j|}{\cost(C_j,\greedy)}$. Finally, by definition of type $i$, we have $\cost(p,\calS)\cdot |C_j| = O(1)\cdot \cost(C_j,\calS)$ and by Assumption 4 we have $\cost(p,\greedy)\cdot |C_j| = O(1)\cdot \cost(C_j,\greedy)$ for all $p\in C_j$. 
+%\begin{eqnarray*}
+%& &\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\frac{1}{|\Omega|^2}\left(\frac{(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right)^2 \\
+%&\leq & O(1)\cdot\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\frac{1}{|\Omega|^2}\left(\frac{2^{-h}\cdot \sqrt{\cost(p,\greedy)\cost(p,\calS)} \cdot \cost(P,\greedy)|C_j|}{\cost(C_j,\greedy) \cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right)^2 \\
+%&\leq &O(1)\cdot \sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\frac{1}{|\Omega|^2}\left(\frac{2^{-2h}\cdot \cost(C_j,\greedy)\cdot \cost(C_j,\calS) \cost(P,\greedy)^2}{ \cost(C_j,\greedy)^2 \cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)^2}\right)  
+%\end{eqnarray*}
+%Now, let $k_i$ be the number of clusters of type $i$. Then due to Assumption 4 $\cost(C_j,\calS) \cdot k_i\leq O(1)\cost(P,\calS)$, for all $C_j$ of type $i$. Finally, note that $\frac{\cost(P,\greedy)}{\cost(C_j,\greedy)}\leq O(1)\cdot k$, also due to Assumption 4. 
+%Combining this, we then have
+%\begin{eqnarray*}
+%& &\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\left(\frac{(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right)^2 \\
+%&\leq & O(1)\cdot\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\left(\frac{2^{-2h}\cdot \cost(P,\calS) \cost(P,\greedy) \cdot k}{k_i \cdot |\Omega|^2 \cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)^2}\right)\\
+%&\leq & O(1)\cdot\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\left(\frac{2^{-2h}\cdot k}{k_i \cdot |\Omega|^2 }\right)   \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}
+%\end{eqnarray*}
+%Assuming event $\calE$, this may now be bounded by $O(1)\cdot \frac{2^{-2h}}{|\Omega|}\cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}$. If event $\calE$ does not hold, we may bound the term by $\frac{2^{-2h}\cdot k}{k_i \cdot |\Omega| } \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}\leq \frac{2^{-2h}\cdot k}{|\Omega| }  \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}$.
+%\end{proof}
+%
+%For the variance of the estimator used for Eq. \ref{eq:base1}, we use the following lemma.
+%
+%\begin{lemma}
+%\label{lem:varbase}
+%If Assumption 4 holds, the variance of $\frac{1}{|\Omega|}\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-1}} - q_j)w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p$ is at most
+%\begin{eqnarray*}
+%\gamma \cdot \frac{1}{|\Omega|}  \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}& & \text{conditioned on event } \calE \\
+%\gamma \cdot \frac{k}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}& & \text{conditioned on event } \overline{\calE}
+%\end{eqnarray*} 
+%for an absolute constant $\gamma$.
+%\end{lemma}
+%\begin{proof}
+%We will bound $|v_p^{\calS,2^{-1}} - q_j|$ for any point $p\in C_j$.
+%Due to the triangle inequality and by Assumption 4 which states that all points have roughly equal distance to their center in $\greedy$, we have 
+%$$|\sqrt{v_p^{\calS,2^{-1}}} - \sqrt{q_j}| \leq O(1) \cdot \sqrt{\cost(p,\greedy)}.$$
+%Futhermore, again due to the triangle inequality, $C_j\in T_i$ with $i>3$ and Assumption 4, we have $(\sqrt{v_p^{\calS,2^{-1}}} + \sqrt{q_j}) = O(1) \sqrt{\cost(p,\calS}$. 
+%Therefore
+%\begin{eqnarray*}
+%|v_p^{\calS,2^{-1}} - q_j|  &=& |\sqrt{v_p^{\calS,2^{-1}}} - \sqrt{q_j}| \cdot (\sqrt{v_p^{\calS,2^{-1}}} + \sqrt{q_j}) = O(1) \sqrt{\cost(p,\calS)\cost(p,\greedy)}
+%\end{eqnarray*}
+%Using this bound and the same steps as in Lemma \ref{lem:variance}, we then have
+%\begin{eqnarray*}
+%& &\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\frac{1}{|\Omega|^2}\left(\frac{(v_p^{\calS,2^{-1}} - q_j)w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right)^2 \\
+%&\leq & O(1) \cdot \sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\frac{1}{|\Omega|^2}\frac{\cost(p,\calS)\cost(p,\greedy) \cost(P,\calS)^2 |C_j|^2}{\cost(C_j,\greedy)^2 \cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)^2} \\
+%&\leq & O(1) \cdot \sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\left(\frac{k}{k_i \cdot |\Omega|^2 }\right) \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}
+%\end{eqnarray*}
+%Conditioned on event $\calE$, this now becomes  $O(1)\cdot \frac{1}{|\Omega|}\cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}$ and similarly, if event $\calE$ does not hold, we have the bound $\frac{k}{|\Omega| }  \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}$.
+%\end{proof}
+%
+%We now focus on the variance of the estimator used for Eq. \ref{eq:base2}. Due to Assumption 4, we have $\cost(T_i,\calS) = O(1) \cdot k_i\cost(C_j,\calS)$, for any $C_j\in T_i$ Thus
+%\begin{eqnarray}
+%\nonumber
+%& & \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \left\vert \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \right] \\
+%\nonumber
+%&\leq & \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \left\vert \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(T_i,\calS) }g_p \right\vert \right]\\
+%\label{eq:base3}
+%&\leq & \max_{C_j \in T_{i}} \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \left\vert \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \frac{\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }g_p \right\vert \right]
+%\end{eqnarray}
+%
+%We now obtain the following variance for the estimator use in Equation \ref{eq:base3}.
+%
+%\begin{lemma}
+%\label{lem:varq}
+%If Assumption 4 holds, the variance of $\frac{\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }g_p$, given that $C_j\in T_i$ with $i\in \{3,\ldots,\log \varepsilon^{-2}\}$ is at most
+%\begin{eqnarray*}
+%\gamma \cdot \frac{k}{|\Omega|}  & & \text{conditioned on event } \calE \\
+%\gamma \cdot \frac{k^2}{|\Omega|} & & \text{conditioned on event } \overline{\calE}
+%\end{eqnarray*} 
+%for an absolute constant $\gamma$.
+%\end{lemma}
+%\begin{proof}
+%Recall by Assumption 4 $\cost(P,\calS) = O(1) \cdot k \cdot \cost(C_j,\calS)$.
+%We have
+%\begin{eqnarray*}
+%& &\sum_{p\in C_j\cap \Omega}\left(\frac{q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }\right)^2 \\
+%&=&\sum_{p\in C_j\cap \Omega}\left(\frac{q_j\cdot \cost(P,\greedy)\cdot |C_j|}{|\Omega|\cdot \cost(C_j,\greedy)\cdot  \cost(C_j,\calS) }\right)^2 \\
+%&=&O(1) \cdot \sum_{p\in C_j\cap \Omega}\left(\frac{k}{|\Omega|}\right)^2
+%\end{eqnarray*}
+%Conditioned on event $\calE$, $|C_j \cap \Omega| = \frac{1}{k}\cdot |\Omega|$ and this now becomes  $O(1)\cdot \frac{k}{|\Omega|}$. Otherwise, we have the bound $\frac{k^2}{|\Omega| }$.
+%\end{proof}
+
+\subsubsection*{Completing the Proof for Eq. \ref{eq:telescopesmall}}
+
+Throughout this section, we use the bound on the expected maximum of independent Gaussians.  
+\begin{lemma}[Lemma 2.3 of \cite{massart2007}]
+\label{lem:minichain}
+Let $g_i\thicksim\mathcal{N}(0,\sigma_i^2)$, $i\in [n]$ be Gaussian random variables and suppose $\sigma_i\leq \sigma$ for all $i$. Then $ \mathbb{E}[\underset{i\in [n]}{\max} |g_i|] \leq 2\sigma\cdot \sqrt{2\ln n}.$
+\end{lemma}
+
+The number of cost vectors in $\mathbb{N}_{h+1}\times \mathbb{N}_{h}$ is at most $\exp\left(\gamma \cdot k \cdot \log \|P\|_0  \cdot \min(k_i + 2^{2h}, 2^{2h}\cdot 2^i) \cdot i\cdot h)\right)$ for some absolute constant $\gamma$ due to Lemma \ref{lem:netsize}.
+With the bound on the variance (Lemma \ref{lem:variance} and conditioned on event $\calE$), we then have
+
+\begin{eqnarray}
+\nonumber
+& &\sum_{h=1}^{\log \varepsilon^{-2}} \mathbb{E}_{\Omega} \mathbb{E}_{g}   \left[ \left.\sup_{v^{\calS,h+1}-v^{\calS,h}\in \mathbb{N}_{h+1}\times \mathbb{N}_{h}}  \left\vert\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p\cdot g_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}  \right\vert \right\vert \calE\right] \\
+\nonumber
+&\leq & \sum_{h=1}^{\log \varepsilon^{-2}} \sqrt{\gamma \cdot k \cdot \log \|P\|_0  \cdot \min(k_i + 2^{2h}, 2^{2h}\cdot 2^i) \cdot i \cdot h \cdot \frac{2^{-2h}}{|\Omega|} \cdot \frac{k \cdot k_i 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} \\
+\label{eq:vareventE}
+& \leq & 2 \sqrt{\gamma \cdot k \cdot \log \|P\|_0  \cdot \min(k_i , 2^i) \cdot i \cdot \log^3 \varepsilon^{-1} \cdot \frac{1}{|\Omega|} \cdot \frac{k \cdot k_i 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}}.
+\end{eqnarray}
+
+Conditioned on event $\calE$ not holding, we then have using a similar calculation
+
+\begin{eqnarray}
+\nonumber
+& &\sum_{h=1}^{\log \varepsilon^{-2}} \mathbb{E}_{\Omega} \mathbb{E}_{g}   \left[ \left. \sup_{v^{\calS,h+1}-v^{\calS,h}\in \mathbb{N}_{h+1}\times \mathbb{N}_{h}}\left\vert \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p\cdot g_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}  \right\vert \right\vert \overline{\calE}\right] \\
+\nonumber
+&\leq & \sum_{h=1}^{\log \varepsilon^{-2}} \sqrt{\gamma \cdot k \cdot \log \|P\|_0  \cdot \min(k_i + 2^{2h}, 2^{2h}\cdot 2^i) \cdot i \cdot h \cdot \frac{2^{-2h}\cdot k}{|\Omega|}  \cdot \frac{k \cdot k_i 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} \\
+\label{eq:vareventnotE}
+& \leq & 2 \sqrt{\gamma \cdot k^2 \cdot \log \|P\|_0  \cdot \min(k_i , 2^i) \cdot i \cdot \log^3 \varepsilon^{-1} \cdot \frac{1}{|\Omega|} \cdot \frac{k \cdot k_i 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}}.
+\end{eqnarray}
+
+We have $\mathbb{P}[\overline{\calE}]\leq 1/k^2$ due to Lemma \ref{lem:eventE}.
+Since $\|P\|_0 \leq \text{poly}(k,\varepsilon^{-1})$, $2^{i}\leq O(1)\cdot \varepsilon^{-2}$, we can combine Equations \ref{eq:vareventE} and \ref{eq:vareventnotE} with the law of total expectation to obtain
+
+\begin{eqnarray}
+\nonumber
+& &\sum_{h=1}^{\log \varepsilon^{-2}} \mathbb{E}_{\Omega} \mathbb{E}_{g}   \left[  \sup_{v^{\calS,h+1}-v^{\calS,h}\in \mathbb{N}_{h+1}\times \mathbb{N}_{h}} \left\vert\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p\cdot g_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}  \right\vert\right] \\
+\nonumber
+&\leq & 2 \sqrt{\gamma \cdot k \cdot \log \|P\|_0  \cdot \min(k_i , 2^i) \cdot i \cdot \log^3 \varepsilon^{-1} \cdot \frac{1}{|\Omega|} \cdot \frac{k \cdot k_i \cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}}  \\
+\nonumber
+&  & + 2 \sqrt{\gamma \cdot k^2 \cdot \log \|P\|_0  \cdot \min(k_i , 2^i) \cdot i \cdot \log^3 \varepsilon^{-1} \cdot \frac{1}{|\Omega|} \cdot \frac{k \cdot k_i \cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} \cdot \frac{1}{k^2} \\
+\label{eq:finalbound}
+&\leq & 4 \sqrt{\gamma \cdot k \cdot \log \|P\|_0  \cdot \min(k_i , 2^i) \cdot i \cdot \log^3 \varepsilon^{-1} \cdot \frac{1}{|\Omega|} \cdot \frac{k \cdot k_i \cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} 
+%\\ &\leq & O(1)\frac{\varepsilon^{-2}}{\log^3 \varepsilon^{-1}}.
+\end{eqnarray}
+Using a straightforward, but tedious calculation, we have $\min(k_i,2^i)\frac{k \cdot k_i \cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2} \in O(k^{z/(z+2)})$.
+Specifically, if $\min(k_i,2^i) = k_i$, the term may be bounded by $\frac{k_i^2 \cdot k\cdot 2^{i(z-1)}}{k^{3-z}\cdot (k_i\cdot 2^i)^{z-1}}$. If $\min(k_i,2^i) = 2^i$, the term may be bounded by $\frac{k_i \cdot k\cdot 2^{i\cdot z}}{k^{2-z}\cdot (k_i\cdot 2^i)^{z}}$. Setting both terms to be equal and solving for $k_i$ yields $k_i = k^{(z+1)/(z+2)}$. Inserting that value of $k_i$ back into $\frac{k_i^2 \cdot k\cdot 2^{i(z-1)}}{k^{2-z}\cdot (k_i\cdot 2^i)^{z}}$ then yields the upper bound $k^{z/(z+2)}$.
+Therefore, by our choice of $|\Omega|$, we can bound Eq. \ref{eq:finalbound} by $O(1)\frac{\varepsilon^{-2}}{\log^3 \varepsilon^{-1}}$.
+%The types $i$ we consider here, satisfy $2^i\leq O(1)\cdot\varepsilon^{-2}$ and moreover by Assumption 1, $\|P\|_0 \in \text{poly}(k,\varepsilon^{-1})$. Thus, we have 
+%
+%\begin{eqnarray}
+%\nonumber
+%& &\sum_{h=1}^{\log \varepsilon^{-2}} \mathbb{E}_{\Omega} \mathbb{E}_{g}   \left[  \sup_{v^{\calS,h+1}-v^{\calS,h}\in \mathbb{N}_{h+1}\times \mathbb{N}_{h}}\left\vert \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p  \right\vert\right] \\
+%\label{eq:finalbound}
+%&\leq & O(1) \cdot  \sqrt{k \cdot \log k  \cdot \min(k_i , 2^i) \cdot \log^5 \varepsilon^{-1} \cdot \frac{1}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}} 
+%\end{eqnarray}
+
+%To bound Equation \ref{eq:telescopelarge}, we proceed very similarly. Here, we use Lemma \ref{lem:netsizelarge} and Assumption 2 to show that the number of cost vectors in $\mathbb{N}_{h+1}\times \mathbb{N}_{h}$ is at most $\exp\left(\gamma \cdot k \cdot \log \|P\|_0  \cdot \varepsilon^{-2} \log h/\varepsilon)\right)$. The remaining analysis is almost entirely equal to that used to derive Eq. \ref{eq:finalbound} and we merely state the bound:
+%
+%\begin{eqnarray}
+%\nonumber
+%& &\sum_{\log \varepsilon^{-2}}^{\infty} \mathbb{E}_{\Omega} \mathbb{E}_{g}   \left[ \sup_{v^{\calS,h+1}-v^{\calS,h}\in \mathbb{N}_{h+1}\times \mathbb{N}_{h}}\left\vert  \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p  \right\vert\right] \\
+%\label{eq:finalboundlarge}
+%&\leq & O(1) \cdot  \sqrt{k \cdot \log k  \cdot \min(k_i , 2^i) \cdot \log^5 \varepsilon^{-1} \cdot \frac{1}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}} 
+%\end{eqnarray}
+
+%For Equation \ref{eq:base} we focus on Equations \ref{eq:base1} and \ref{eq:base3}. For the former, we have $|\mathbb{N}_{2^{-1}}|\leq \exp\left(\gamma \cdot k \cdot \log \|P\|_0   \cdot \min(k_i, 2^i) \cdot i)\right)$. Thus, combined with Lemma \ref{lem:varbase} and conditioning on event $\calE$, we have
+%\begin{eqnarray*}
+%& &\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}}  \left\vert\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}|v_p^{\calS,2^{-1}}-q_j|w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \vert \calE \right] \\
+%&=& O(1)\sqrt{\gamma \cdot k \cdot \log \|P\|_0   \cdot \min(k_i, 2^i) \cdot i) \cdot  \frac{1}{|\Omega|}  \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}} 
+%\end{eqnarray*}
+%
+%Similarly, not conditioning on event $\calE$ implies
+%\begin{eqnarray*}
+%& &\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}}  \left\vert \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}|v_p^{\calS,2^{-1}}-q_j|w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \vert \overline{\calE}\right] \\
+%&leq & O(1)\sqrt{\gamma \cdot k \cdot \log \|P\|_0   \cdot \min(k_i, 2^i) \cdot i) \cdot  \frac{k^2}{|\Omega|}  \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}} 
+%\end{eqnarray*}
+%
+%The remaining analysis is now analogous to that used to derive Eq. \ref{eq:finalbound} which then yields
+%\begin{eqnarray}
+%\nonumber
+%& &\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[\sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \left\vert  \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}|v_p^{\calS,2^{-1}}-q_j|w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \right] \\
+%\label{eq:finalboundbase}
+%&\leq &O(1) \cdot  \sqrt{k \cdot \log k  \cdot \min(k_i , 2^i) \cdot \log^5 \varepsilon^{-1} \cdot \frac{1}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}} 
+%\end{eqnarray}
+%
+%For the term in Equation \ref{eq:base3}, we note that $q_j$ is a scalar and the expectation is scales linearly when multiplying with scalars. Thus, for every cluster, we have a net of size $1$, which means we have an overall net of size $k$. We thus obtain 
+%\begin{eqnarray*}
+%& &\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \max_{C_j \in T_{i}} \left\vert  \frac{\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }g_p \right\vert \vert \calE\right] \\
+%&=& O(1)\sqrt{ \log k \frac{k}{|\Omega|}  \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}} 
+%\end{eqnarray*}
+%
+%Similarly, not conditioning on event $\calE$ implies
+%\begin{eqnarray*}
+%& &\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \max_{C_j \in T_{i}}  \left\vert \frac{\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }g_p \right\vert \vert \overline{\calE}\right] \\
+%&leq & O(1)\sqrt{\log k \frac{k^2}{|\Omega|}  \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}} 
+%\end{eqnarray*}
+%
+%Combining both terms now yields
+%
+%\begin{eqnarray}
+%\nonumber
+%& &\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[  \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \max_{C_j \in T_{i}}  \left\vert\frac{\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }g_p \right\vert \right] \\
+%\label{eq:finalboundbaseq}
+%&\leq &O(1) \cdot  \sqrt{\frac{k \log k}{|\Omega|}} 
+%\end{eqnarray}
+%
+%Combining the bounds in Equations \ref{eq:finalbound}, \ref{eq:finalboundlarge}, \ref{eq:finalboundbase} and \ref{eq:finalboundbaseq} for the respective terms in Equations \ref{eq:telescopesmall}, \ref{eq:telescopelarge}, \ref{eq:base1} and \ref{eq:base3} now yields the claim.
+
+\paragraph{Completing the Proof for Eq. \ref{eq:telescopelarge}}
+
+
+Here, we use Lemma \ref{lem:netsizelarge} and Assumption 2 to show that the number of cost vectors in $\mathbb{N}_{h+1}\times \mathbb{N}_{h}$ is at most $\exp\left(\gamma \cdot k \cdot \log \|P\|_0  \cdot \varepsilon^{-2} \log h/\varepsilon)\right)$. Conditioned on event $\calE$, we therefore have
+
+\begin{eqnarray*}
+\nonumber
+& &\sum_{\log \varepsilon^{-2}}^{\infty} \mathbb{E}_{\Omega} \mathbb{E}_{g}   \left[ \sup_{v^{\calS,h+1}-v^{\calS,h}\in \mathbb{N}_{h+1}\times \mathbb{N}_{h}} \left. \left\vert  \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p  \right\vert \right\vert \calE\right] \\
+&\leq & \sum_{\log \varepsilon^{-2}}^{\infty} O(1) \cdot  \sqrt{\gamma \cdot k \cdot \log \|P\|_0  \cdot \varepsilon^{-2} \cdot \log h/\varepsilon \cdot \frac{2^{-2h}}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} \\
+&\leq & \sum_{1}^{\infty} O(1) \cdot  \sqrt{\gamma \cdot k \cdot \log \|P\|_0   \cdot \log h/\varepsilon \cdot \frac{2^{-2h}}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} \\
+&\leq & O(1) \cdot  \sqrt{\gamma \cdot k \cdot \log \|P\|_0   \cdot \log 1/\varepsilon \cdot \frac{1}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} 
+\end{eqnarray*}
+
+Similarly, if $\calE$ does not hold, we have
+
+\begin{eqnarray*}
+\nonumber
+& &\sum_{\log \varepsilon^{-2}}^{\infty} \mathbb{E}_{\Omega} \mathbb{E}_{g}   \left[ \sup_{v^{\calS,h+1}-v^{\calS,h}\in \mathbb{N}_{h+1}\times \mathbb{N}_{h}}\left. \left\vert  \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p  \right\vert\right\vert \overline{\calE}\right] \\
+&\leq & \sum_{\log \varepsilon^{-2}}^{\infty} O(1) \cdot  \sqrt{\gamma \cdot k \cdot \log \|P\|_0  \cdot \varepsilon^{-2} \cdot \log h/\varepsilon \cdot \frac{2^{-2h}k}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} \\
+&\leq & \sum_{1}^{\infty} O(1) \cdot  \sqrt{\gamma \cdot k \cdot \log \|P\|_0   \cdot \log h/\varepsilon \cdot \frac{2^{-2h}k}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} \\
+&\leq & O(1) \cdot  \sqrt{\gamma \cdot k \cdot \log \|P\|_0   \cdot \log 1/\varepsilon \cdot \frac{k}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} 
+\end{eqnarray*}
+
+We have $\mathbb{P}[\overline{\calE}]\leq 1/k^2$ due to Lemma \ref{lem:eventE}.
+Since $\|P\|_0 \leq \text{poly}(k,\varepsilon^{-1})$, $2^{i}\leq O(1)\cdot \varepsilon^{-2}$ and by our choice of $|\Omega|$, we can combine the last two equations with the law of total expectation to obtain
+\begin{eqnarray}
+\nonumber
+& &\sum_{\log \varepsilon^{-2}}^{\infty} \mathbb{E}_{\Omega} \mathbb{E}_{g}   \left[ \sup_{v^{\calS,h+1}-v^{\calS,h}\in \mathbb{N}_{h+1}\times \mathbb{N}_{h}}\left\vert  \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-(h+1)}} - v_p^{\calS,2^{-h}})w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p  \right\vert\right] \\
+\label{eq:finalboundlarge}
+&\leq & O(1) \cdot  \sqrt{k \cdot \log k  \cdot \min(k_i , 2^i) \cdot \log^5 \varepsilon^{-1} \cdot \frac{1}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}}.
+\end{eqnarray}
+
+Observe that Eq. \ref{eq:finalboundlarge} and Eq. \ref{eq:finalbound} are essentially identical up to lower order terms.
+
+\paragraph{Completing the Proof for Eq. \ref{eq:base}}
+
+Here, we first split Eq. \ref{eq:base} into two estimators that will be easier to handle. We split the estimator into two parts as follows. First, let $q_j:=\frac{\sum_{p\in C_j}v_p^{\calS,2^{-1}}}{|C_j|}$. Now we consider
+\begin{eqnarray}
+\label{eq:firstest}
+& &\frac{1}{|\Omega|}\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-1}} - q_j)w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \\
+\label{eq:secondest}
+& &+ \frac{1}{|\Omega|}\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}q_j \cdot w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p 
+\end{eqnarray}
+Thus, Equation~\ref{eq:base} becomes
+\begin{eqnarray}
+\nonumber
+& & \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[  \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \left\vert \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}  v_p^{\calS,2^{-1}}w_p}{|\Omega|\cdot \left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \right] \\
+\label{eq:base1}
+&=&\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[  \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}}\left\vert \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}|v_p^{\calS,2^{-1}}-q_j|w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \right] \\
+\label{eq:base2}
+&+& \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[  \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \left\vert\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \right]
+\end{eqnarray}
+
+For the variance of the estimator used for Eq. \ref{eq:base1}, we use the following lemma.
+
+\begin{lemma}
+\label{lem:varbase}
+If Assumption 4 holds, the variance of $\frac{1}{|\Omega|}\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}(v_p^{\calS,2^{-1}} - q_j)w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p$ is at most
+\begin{eqnarray*}
+\gamma \cdot \frac{1}{|\Omega|}  \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}& & \text{conditioned on event } \calE \\
+\gamma \cdot \frac{k}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}& & \text{conditioned on event } \overline{\calE}
+\end{eqnarray*} 
+for an absolute constant $\gamma$.
+\end{lemma}
+\begin{proof}
+The proof of this is very close to the proof of Lemma 9 from \cite{CSS21}. 
+For $k$-median, this is a straightforward application of the triangle inequality.
+For $k$-means, the analysis is slightly more involved and included for completeness. Thus, throughout this proof, we have $z=2$.
+
+We will bound $|v_p^{\calS,2^{-1}} - q_j|$ for any point $p\in C_j$.
+Due to the triangle inequality and by Assumption 4 which states that all points have roughly equal distance to their center in $\greedy$, we have 
+$$|\sqrt{v_p^{\calS,2^{-1}}} - \sqrt{q_j}| \leq O(1) \cdot \sqrt{\cost(p,\greedy)}.$$
+Futhermore, again due to the triangle inequality, $C_j\in T_i$ with $i>3$ and Assumption 4, we have $(\sqrt{v_p^{\calS,2^{-1}}} + \sqrt{q_j}) = O(1) \sqrt{\cost(p,\calS}$. 
+Therefore
+\begin{eqnarray*}
+|v_p^{\calS,2^{-1}} - q_j|  &=& |\sqrt{v_p^{\calS,2^{-1}}} - \sqrt{q_j}| \cdot (\sqrt{v_p^{\calS,2^{-1}}} + \sqrt{q_j}) = O(1) \sqrt{\cost(p,\calS)\cost(p,\greedy)}
+\end{eqnarray*}
+Using this bound and the same steps as in Lemma \ref{lem:variance}, we then have
+\begin{eqnarray*}
+& &\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\frac{1}{|\Omega|^2}\left(\frac{(v_p^{\calS,2^{-1}} - q_j)w_p}{\left( \cost(P,\calS) + \cost(P,\greedy)\right)}\right)^2 \\
+&\leq & O(1) \cdot \sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\frac{1}{|\Omega|^2}\frac{\cost(p,\calS)\cost(p,\greedy) \cost(P,\calS)^2 |C_j|^2}{\cost(C_j,\greedy)^2 \cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)^2} \\
+&\leq & O(1) \cdot \sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}\left(\frac{k}{k_i \cdot |\Omega|^2 }\right) \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}
+\end{eqnarray*}
+Conditioned on event $\calE$, this now becomes  $O(1)\cdot \frac{1}{|\Omega|}\cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}$ and similarly, if event $\calE$ does not hold, we have the bound $\frac{k}{|\Omega| }  \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}$.
+\end{proof}
+
+
+We now focus on the variance of the estimator used for Eq. \ref{eq:base2}. Due to Assumption 4, we have $\cost(T_i,\calS) = O(1) \cdot k_i\cost(C_j,\calS)$, for any $C_j\in T_i$ Thus
+\begin{eqnarray}
+\nonumber
+& & \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \left\vert \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \right] \\
+\nonumber
+&\leq & \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \left\vert \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(T_i,\calS) }g_p \right\vert \right]\\
+\label{eq:base3}
+&\leq &  \mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \left\vert \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \max_{C_j \in T_{i}}\frac{\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }g_p \right\vert \right]
+\end{eqnarray}
+
+We now obtain the following variance for the estimator used in Equation \ref{eq:base3}.
+
+\begin{lemma}
+\label{lem:varq}
+If Assumption 4 holds, the variance of $\frac{\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }g_p$, given that $C_j\in T_i$ with $i\in \{3,\ldots,\log \varepsilon^{-2}\}$ is at most
+\begin{eqnarray*}
+\gamma \cdot \frac{k}{|\Omega|}  & & \text{conditioned on event } \calE \\
+\gamma \cdot \frac{k^2}{|\Omega|} & & \text{conditioned on event } \overline{\calE}
+\end{eqnarray*} 
+for an absolute constant $\gamma$.
+\end{lemma}
+\begin{proof}
+Recall by Assumption 4 $\cost(P,\calS) = O(1) \cdot k \cdot \cost(C_j,\calS)$.
+We have
+\begin{eqnarray*}
+& &\sum_{p\in C_j\cap \Omega}\left(\frac{q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }\right)^2 \\
+&=&\sum_{p\in C_j\cap \Omega}\left(\frac{q_j\cdot \cost(P,\greedy)\cdot |C_j|}{|\Omega|\cdot \cost(C_j,\greedy)\cdot  \cost(C_j,\calS) }\right)^2 \\
+&=&O(1) \cdot \sum_{p\in C_j\cap \Omega}\left(\frac{k}{|\Omega|}\right)^2
+\end{eqnarray*}
+Conditioned on event $\calE$, $|C_j \cap \Omega| = \frac{1}{k}\cdot |\Omega|$ and this now becomes  $O(1)\cdot \frac{k}{|\Omega|}$. Otherwise, we have the bound $\frac{k^2}{|\Omega| }$.
+\end{proof}
+
+We now bound Equations \ref{eq:base1} and \ref{eq:base3}. For the former, we have $|\mathbb{N}_{2^{-1}}|\leq \exp\left(\gamma \cdot k \cdot \log \|P\|_0   \cdot \min(k_i, 2^i) \cdot i)\right)$. Thus, combined with Lemma \ref{lem:varbase} and conditioning on event $\calE$, we have
+\begin{eqnarray*}
+& &\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}}  \left\vert\frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}|v_p^{\calS,2^{-1}}-q_j|w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \vert \calE \right] \\
+&=& O(1)\sqrt{\gamma \cdot k \cdot \log \|P\|_0   \cdot \min(k_i, 2^i) \cdot i) \cdot  \frac{1}{|\Omega|}  \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} 
+\end{eqnarray*}
+
+Similarly, not conditioning on event $\calE$ implies
+\begin{eqnarray*}
+& &\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}}  \left\vert \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}|v_p^{\calS,2^{-1}}-q_j|w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \vert \overline{\calE}\right] \\
+&\leq & O(1)\sqrt{\gamma \cdot k \cdot \log \|P\|_0   \cdot \min(k_i, 2^i) \cdot i) \cdot  \frac{k}{|\Omega|}  \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} 
+\end{eqnarray*}
+
+We have $\mathbb{P}[\overline{\calE}]\leq 1/k^2$ due to Lemma \ref{lem:eventE}.
+Plugging in $\|P\|_0 \leq \text{poly}(k,\varepsilon^{-1})$ and our choice of $|\Omega|$, we can combine the last two equations with the law of total expectation to obtain
+\begin{eqnarray}
+\nonumber
+& &\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[\sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \left\vert  \frac{\sum_{C_j \in T_{i}}\sum_{p\in C_j\cap \Omega}|v_p^{\calS,2^{-1}}-q_j|w_p}{|\Omega|\cdot\left( \cost(P,\calS) + \cost(P,\greedy)\right)}g_p \right\vert \right] \\
+\label{eq:finalboundbase}
+&\leq &O(1) \cdot  \sqrt{k \cdot \log k  \cdot \min(k_i , 2^i) \cdot \log^5 \varepsilon^{-1} \cdot \frac{1}{|\Omega|} \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} 
+\end{eqnarray}
+
+For the term in Equation \ref{eq:base3}, we note that $\frac{q_j\cdot w_p}{\cost(C_j,\calS)}=\cost(P,\greedy)$. Thus, for every cluster, we have a net of size $1$, which means we have an overall net of size $k$. We thus obtain 
+\begin{eqnarray*}
+& &\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \max_{C_j \in T_{i}} \left\vert  \frac{\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }g_p \right\vert \vert \calE\right] \\
+&\leq & O(1)\sqrt{ \log k \frac{k}{|\Omega|}  \cdot \frac{k\cdot k_i\cdot 2^i}{(k+k_i\cdot 2^i)^2}} 
+\end{eqnarray*}
+
+Similarly, conditioning on event $\overline{\calE}$ implies
+\begin{eqnarray*}
+& &\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[ \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \max_{C_j \in T_{i}}  \left\vert \frac{\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }g_p \right\vert \vert \overline{\calE}\right] \\
+&\leq & O(1)\sqrt{\log k \frac{k^2}{|\Omega|}  \cdot \frac{k\cdot k_i\cdot 2^{i(z-1)}}{(k+k_i\cdot 2^i)^2}} 
+\end{eqnarray*}
+
+Combining both terms, using $\mathbb{P}[\overline{\calE}]\leq 1/k^2$ due to Lemma \ref{lem:eventE} and the law of total expectation, we obtain
+\begin{eqnarray}
+\nonumber
+& &\mathbb{E}_{\Omega} \mathbb{E}_{g}  \left[  \sup_{v^{\calS,1}\in \mathbb{N}_{2^{-1}}} \max_{C_j \in T_{i}}  \left\vert\frac{\sum_{p\in C_j\cap \Omega}q_j\cdot w_p}{|\Omega|\cdot  \cost(C_j,\calS) }g_p \right\vert \right] \\
+\label{eq:finalboundbaseq}
+&\leq &O(1) \cdot  \sqrt{\frac{k \log k}{|\Omega|}} 
+\end{eqnarray}
+
+Combining the bounds in Equations \ref{eq:finalbound}, \ref{eq:finalboundlarge}, \ref{eq:finalboundbase} and \ref{eq:finalboundbaseq} for the respective terms in Equations \ref{eq:telescopesmall}, \ref{eq:telescopelarge}, \ref{eq:base1} and \ref{eq:base3} now yields the claim.
+
+
+\begin{thebibliography}{10}
+
+\bibitem{BachemL018}
+Olivier Bachem, Mario Lucic, and Andreas Krause.
+\newblock Scalable k -means clustering via lightweight coresets.
+\newblock In {\em Proceedings of the 24th {ACM} {SIGKDD} International
+  Conference on Knowledge Discovery {\&} Data Mining, {KDD} 2018, London, UK,
+  August 19-23, 2018}, pages 1119--1127, 2018.
+
+\bibitem{BachemLL18}
+Olivier Bachem, Mario Lucic, and Silvio Lattanzi.
+\newblock One-shot coresets: The case of k-clustering.
+\newblock In {\em International Conference on Artificial Intelligence and
+  Statistics, {AISTATS} 2018, 9-11 April 2018, Playa Blanca, Lanzarote, Canary
+  Islands, Spain}, pages 784--792, 2018.
+
+\bibitem{BakerBHJK020}
+Daniel~N. Baker, Vladimir Braverman, Lingxiao Huang, Shaofeng~H.{-}C. Jiang,
+  Robert Krauthgamer, and Xuan Wu.
+\newblock Coresets for clustering in graphs of bounded treewidth.
+\newblock In {\em Proceedings of the 37th International Conference on Machine
+  Learning, {ICML} 2020, 13-18 July 2020, Virtual Event}, volume 119 of {\em
+  Proceedings of Machine Learning Research}, pages 569--579. {PMLR}, 2020.
+
+\bibitem{BFS21}
+Sayan Bandyapadhyay, Fedor~V. Fomin, and Kirill Simonov.
+\newblock On coresets for fair clustering in metric and euclidean spaces and
+  their applications.
+\newblock In Nikhil Bansal, Emanuela Merelli, and James Worrell, editors, {\em
+  48th International Colloquium on Automata, Languages, and Programming,
+  {ICALP} 2021, July 12-16, 2021, Glasgow, Scotland (Virtual Conference)},
+  volume 198 of {\em LIPIcs}, pages 23:1--23:15. Schloss Dagstuhl -
+  Leibniz-Zentrum f{\"{u}}r Informatik, 2021.
+
+\bibitem{BecchettiBC0S19}
+Luca Becchetti, Marc Bury, Vincent Cohen{-}Addad, Fabrizio Grandoni, and Chris
+  Schwiegelshohn.
+\newblock Oblivious dimension reduction for \emph{k}-means: beyond subspaces
+  and the johnson-lindenstrauss lemma.
+\newblock In {\em Proceedings of the 51st Annual {ACM} {SIGACT} Symposium on
+  Theory of Computing, {STOC}}, pages 1039--1050, 2019.
+
+\bibitem{BoutsidisDM13}
+Christos Boutsidis, Petros Drineas, and Malik Magdon{-}Ismail.
+\newblock Near-optimal coresets for least-squares regression.
+\newblock {\em {IEEE} Trans. Inf. Theory}, 59(10):6880--6892, 2013.
+
+\bibitem{BoutsidisMD09}
+Christos Boutsidis, Michael~W. Mahoney, and Petros Drineas.
+\newblock Unsupervised feature selection for the
+  {\textdollar}k{\textdollar}-means clustering problem.
+\newblock In {\em Advances in Neural Information Processing Systems 22: 23rd
+  Annual Conference on Neural Information Processing Systems 2009. Proceedings
+  of a meeting held 7-10 December 2009, Vancouver, British Columbia, Canada.},
+  pages 153--161, 2009.
+
+\bibitem{BoutsidisZD10}
+Christos Boutsidis, Anastasios Zouzias, and Petros Drineas.
+\newblock Random projections for {\textdollar}k{\textdollar}-means clustering.
+\newblock In {\em Advances in Neural Information Processing Systems 23: 24th
+  Annual Conference on Neural Information Processing Systems 2010. Proceedings
+  of a meeting held 6-9 December 2010, Vancouver, British Columbia, Canada.},
+  pages 298--306, 2010.
+
+\bibitem{BoutsidisZMD15}
+Christos Boutsidis, Anastasios Zouzias, Michael~W. Mahoney, and Petros Drineas.
+\newblock Randomized dimensionality reduction for k-means clustering.
+\newblock {\em {IEEE} Trans. Information Theory}, 61(2):1045--1062, 2015.
+
+\bibitem{BCJ22}
+Vladimir Braverman, Vincent Cohen{-}Addad, Shaofeng~H.{-}C. Jiang, Robert
+  Krauthgamer, Chris Schwiegelshohn, Mads~Bech Toftrup, and Xuan Wu.
+\newblock The power of uniform sampling for coresets.
+\newblock {\em CoRR}, abs/2209.01901, 2022.
+
+\bibitem{BravermanJKW19}
+Vladimir Braverman, Shaofeng~H.{-}C. Jiang, Robert Krauthgamer, and Xuan Wu.
+\newblock Coresets for ordered weighted clustering.
+\newblock In {\em Proceedings of the 36th International Conference on Machine
+  Learning, {ICML} 2019, 9-15 June 2019, Long Beach, California, {USA}}, pages
+  744--753, 2019.
+
+\bibitem{BravermanJKW21}
+Vladimir Braverman, Shaofeng~H.{-}C. Jiang, Robert Krauthgamer, and Xuan Wu.
+\newblock Coresets for clustering in excluded-minor graphs and beyond.
+\newblock In D{\'{a}}niel Marx, editor, {\em Proceedings of the 2021 {ACM-SIAM}
+  Symposium on Discrete Algorithms, {SODA} 2021, Virtual Conference, January 10
+  - 13, 2021}, pages 2679--2696. {SIAM}, 2021.
+
+\bibitem{BJKW21}
+Vladimir Braverman, Shaofeng~H.{-}C. Jiang, Robert Krauthgamer, and Xuan Wu.
+\newblock Coresets for clustering with missing values.
+\newblock In Marc'Aurelio Ranzato, Alina Beygelzimer, Yann~N. Dauphin, Percy
+  Liang, and Jennifer~Wortman Vaughan, editors, {\em Advances in Neural
+  Information Processing Systems 34: Annual Conference on Neural Information
+  Processing Systems 2021, NeurIPS 2021, December 6-14, 2021, virtual}, pages
+  17360--17372, 2021.
+
+\bibitem{CW22a}
+Moses Charikar and Erik Waingarten.
+\newblock The johnson-lindenstrauss lemma for clustering and subspace
+  approximation: From coresets to dimension reduction.
+\newblock {\em CoRR}, abs/2205.00371, 2022.
+
+\bibitem{CW22b}
+Moses Charikar and Erik Waingarten.
+\newblock Polylogarithmic sketches for clustering.
+\newblock In Mikolaj Bojanczyk, Emanuela Merelli, and David~P. Woodruff,
+  editors, {\em 49th International Colloquium on Automata, Languages, and
+  Programming, {ICALP} 2022, July 4-8, 2022, Paris, France}, volume 229 of {\em
+  LIPIcs}, pages 38:1--38:20. Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r
+  Informatik, 2022.
+
+\bibitem{Chen09}
+Ke~Chen.
+\newblock On coresets for k-median and k-means clustering in metric and
+  {E}uclidean spaces and their applications.
+\newblock {\em {SIAM} J. Comput.}, 39(3):923--947, 2009.
+
+\bibitem{ChN21}
+Yeshwanth Cherapanamjeri and Jelani Nelson.
+\newblock Terminal embeddings in sublinear time.
+\newblock In {\em 62nd {IEEE} Annual Symposium on Foundations of Computer
+  Science, {FOCS} 2021, Denver, CO, USA, February 7-10, 2022}, pages
+  1209--1216. {IEEE}, 2021.
+
+\bibitem{CEMMP15}
+Michael~B. Cohen, Sam Elder, Cameron Musco, Christopher Musco, and Madalina
+  Persu.
+\newblock Dimensionality reduction for k-means clustering and low rank
+  approximation.
+\newblock In {\em Proceedings of the Forty-Seventh Annual {ACM} on Symposium on
+  Theory of Computing, {STOC} 2015, Portland, OR, USA, June 14-17, 2015}, pages
+  163--172, 2015.
+
+\bibitem{CGSS22}
+Vincent Cohen{-}Addad, Kasper~Green Larsen, David Saulpic, and Chris
+  Schwiegelshohn.
+\newblock Towards optimal lower bounds for k-median and k-means coresets.
+\newblock In Stefano Leonardi and Anupam Gupta, editors, {\em {STOC} '22: 54th
+  Annual {ACM} {SIGACT} Symposium on Theory of Computing, Rome, Italy, June 20
+  - 24, 2022}, pages 1038--1051. {ACM}, 2022.
+
+\bibitem{Cohen-AddadL19}
+Vincent Cohen{-}Addad and Jason Li.
+\newblock On the fixed-parameter tractability of capacitated clustering.
+\newblock In {\em 46th International Colloquium on Automata, Languages, and
+  Programming, {ICALP} 2019, July 9-12, 2019, Patras, Greece}, pages
+  41:1--41:14, 2019.
+
+\bibitem{Cohen-AddadSS21}
+Vincent Cohen{-}Addad, David Saulpic, and Chris Schwiegelshohn.
+\newblock Improved coresets and sublinear algorithms for power means in
+  euclidean spaces.
+\newblock In Marc'Aurelio Ranzato, Alina Beygelzimer, Yann~N. Dauphin, Percy
+  Liang, and Jennifer~Wortman Vaughan, editors, {\em Advances in Neural
+  Information Processing Systems 34: Annual Conference on Neural Information
+  Processing Systems 2021, NeurIPS 2021, December 6-14, 2021, virtual}, pages
+  21085--21098, 2021.
+
+\bibitem{CSS21}
+Vincent Cohen{-}Addad, David Saulpic, and Chris Schwiegelshohn.
+\newblock A new coreset framework for clustering.
+\newblock In Samir Khuller and Virginia~Vassilevska Williams, editors, {\em
+  {STOC} '21: 53rd Annual {ACM} {SIGACT} Symposium on Theory of Computing,
+  Virtual Event, Italy, June 21-25, 2021}, pages 169--182. {ACM}, 2021.
+
+\bibitem{Cohen-AddadS17}
+Vincent Cohen{-}Addad and Chris Schwiegelshohn.
+\newblock On the local structure of stable clustering instances.
+\newblock In {\em 58th {IEEE} Annual Symposium on Foundations of Computer
+  Science, {FOCS} 2017, Berkeley, CA, USA, October 15-17, 2017}, pages 49--60,
+  2017.
+
+\bibitem{DrineasFKVV04}
+Petros Drineas, Alan~M. Frieze, Ravi Kannan, Santosh Vempala, and V.~Vinay.
+\newblock Clustering large graphs via the singular value decomposition.
+\newblock {\em Machine Learning}, 56(1-3):9--33, 2004.
+
+\bibitem{ElkinFN17}
+Michael Elkin, Arnold Filtser, and Ofer Neiman.
+\newblock Terminal embeddings.
+\newblock {\em Theor. Comput. Sci.}, 697:1--36, 2017.
+
+\bibitem{Feldman20}
+Dan Feldman.
+\newblock Core-sets: An updated survey.
+\newblock {\em Wiley Interdiscip. Rev. Data Min. Knowl. Discov.}, 10(1), 2020.
+
+\bibitem{FL11}
+Dan Feldman and Michael Langberg.
+\newblock A unified framework for approximating and clustering data.
+\newblock In {\em Proceedings of the 43rd {ACM} Symposium on Theory of
+  Computing, {STOC} 2011, San Jose, CA, USA, 6-8 June 2011}, pages 569--578,
+  2011.
+
+\bibitem{FeldmanMSW10}
+Dan Feldman, Morteza Monemizadeh, Christian Sohler, and David~P. Woodruff.
+\newblock Coresets and sketches for high dimensional subspace approximation
+  problems.
+\newblock In {\em Proceedings of the Twenty-First Annual {ACM-SIAM} Symposium
+  on Discrete Algorithms, {SODA} 2010, Austin, Texas, USA, January 17-19,
+  2010}, pages 630--649, 2010.
+
+\bibitem{FeldmanSS20}
+Dan Feldman, Melanie Schmidt, and Christian Sohler.
+\newblock Turning big data into tiny data: Constant-size coresets for k-means,
+  pca, and projective clustering.
+\newblock {\em {SIAM} J. Comput.}, 49(3):601--657, 2020.
+
+\bibitem{FKW19}
+Zhili Feng, Praneeth Kacham, and David~P. Woodruff.
+\newblock Strong coresets for subspace approximation and k-median in nearly
+  linear time.
+\newblock {\em CoRR}, abs/1912.12003, 2019.
+
+\bibitem{FengKW21}
+Zhili Feng, Praneeth Kacham, and David~P. Woodruff.
+\newblock Dimensionality reduction for the sum-of-distances metric.
+\newblock In Marina Meila and Tong Zhang, editors, {\em Proceedings of the 38th
+  International Conference on Machine Learning, {ICML} 2021, 18-24 July 2021,
+  Virtual Event}, volume 139 of {\em Proceedings of Machine Learning Research},
+  pages 3220--3229. {PMLR}, 2021.
+
+\bibitem{FGSSS13}
+Hendrik Fichtenberger, Marc Gill{\'{e}}, Melanie Schmidt, Chris Schwiegelshohn,
+  and Christian Sohler.
+\newblock {BICO:} {BIRCH} meets coresets for k-means clustering.
+\newblock In {\em Algorithms - {ESA} 2013 - 21st Annual European Symposium,
+  Sophia Antipolis, France, September 2-4, 2013. Proceedings}, pages 481--492,
+  2013.
+
+\bibitem{HaK07}
+Sariel Har{-}Peled and Akash Kushal.
+\newblock Smaller coresets for k-median and k-means clustering.
+\newblock {\em Discrete {\&} Computational Geometry}, 37(1):3--19, 2007.
+
+\bibitem{HaM04}
+Sariel Har{-}Peled and Soham Mazumdar.
+\newblock On coresets for k-means and k-median clustering.
+\newblock In {\em Proceedings of the 36th Annual {ACM} Symposium on Theory of
+  Computing, Chicago, IL, USA, June 13-16, 2004}, pages 291--300, 2004.
+
+\bibitem{HuangJLW18}
+Lingxiao Huang, Shaofeng~H.{-}C. Jiang, Jian Li, and Xuan Wu.
+\newblock Epsilon-coresets for clustering (with outliers) in doubling metrics.
+\newblock In {\em 59th {IEEE} Annual Symposium on Foundations of Computer
+  Science, {FOCS} 2018, Paris, France, October 7-9, 2018}, pages 814--825,
+  2018.
+
+\bibitem{HuangJV19}
+Lingxiao Huang, Shaofeng~H.{-}C. Jiang, and Nisheeth~K. Vishnoi.
+\newblock Coresets for clustering with fairness constraints.
+\newblock In {\em Advances in Neural Information Processing Systems 32: Annual
+  Conference on Neural Information Processing Systems 2019, NeurIPS 2019, 8-14
+  December 2019, Vancouver, BC, Canada}, pages 7587--7598, 2019.
+
+\bibitem{HuangSV20}
+Lingxiao Huang, K.~Sudhir, and Nisheeth~K. Vishnoi.
+\newblock Coresets for regressions with panel data.
+\newblock In Hugo Larochelle, Marc'Aurelio Ranzato, Raia Hadsell,
+  Maria{-}Florina Balcan, and Hsuan{-}Tien Lin, editors, {\em Advances in
+  Neural Information Processing Systems 33: Annual Conference on Neural
+  Information Processing Systems 2020, NeurIPS 2020, December 6-12, 2020,
+  virtual}, 2020.
+
+\bibitem{HuangSV21}
+Lingxiao Huang, K.~Sudhir, and Nisheeth~K. Vishnoi.
+\newblock Coresets for time series clustering.
+\newblock In Marc'Aurelio Ranzato, Alina Beygelzimer, Yann~N. Dauphin, Percy
+  Liang, and Jennifer~Wortman Vaughan, editors, {\em Advances in Neural
+  Information Processing Systems 34: Annual Conference on Neural Information
+  Processing Systems 2021, NeurIPS 2021, December 6-14, 2021, virtual}, pages
+  22849--22862, 2021.
+
+\bibitem{huang2020coresets}
+Lingxiao Huang and Nisheeth~K. Vishnoi.
+\newblock Coresets for clustering in euclidean spaces: importance sampling is
+  nearly optimal.
+\newblock In {\em Proccedings of the 52nd Annual {ACM} {SIGACT} Symposium on
+  Theory of Computing, {STOC} 2020}, 2020.
+
+\bibitem{JKLZ21}
+Shaofeng~H.{-}C. Jiang, Robert Krauthgamer, Jianing Lou, and Yubo Zhang.
+\newblock Coresets for kernel clustering.
+\newblock {\em CoRR}, abs/2110.02898, 2021.
+
+\bibitem{KarninL19}
+Zohar~S. Karnin and Edo Liberty.
+\newblock Discrepancy, coresets, and sketches in machine learning.
+\newblock In Alina Beygelzimer and Daniel Hsu, editors, {\em Conference on
+  Learning Theory, {COLT} 2019, 25-28 June 2019, Phoenix, AZ, {USA}}, volume~99
+  of {\em Proceedings of Machine Learning Research}, pages 1975--1993. {PMLR},
+  2019.
+
+\bibitem{LS10}
+Michael Langberg and Leonard~J. Schulman.
+\newblock Universal $\varepsilon$-approximators for integrals.
+\newblock In {\em Proceedings of the Twenty-First Annual {ACM-SIAM} Symposium
+  on Discrete Algorithms, {SODA} 2010, Austin, Texas, USA, January 17-19,
+  2010}, pages 598--607, 2010.
+
+\bibitem{MahabadiMMR18}
+Sepideh Mahabadi, Konstantin Makarychev, Yury Makarychev, and Ilya~P.
+  Razenshteyn.
+\newblock Nonlinear dimension reduction via outer bi-lipschitz extensions.
+\newblock In {\em Proceedings of the 50th Annual {ACM} {SIGACT} Symposium on
+  Theory of Computing, {STOC} 2018, Los Angeles, CA, USA, June 25-29, 2018},
+  pages 1088--1101, 2018.
+
+\bibitem{MaiMR21}
+Tung Mai, Cameron Musco, and Anup Rao.
+\newblock Coresets for classification - simplified and strengthened.
+\newblock In Marc'Aurelio Ranzato, Alina Beygelzimer, Yann~N. Dauphin, Percy
+  Liang, and Jennifer~Wortman Vaughan, editors, {\em Advances in Neural
+  Information Processing Systems 34: Annual Conference on Neural Information
+  Processing Systems 2021, NeurIPS 2021, December 6-14, 2021, virtual}, pages
+  11643--11654, 2021.
+
+\bibitem{MakarychevMR19}
+Konstantin Makarychev, Yury Makarychev, and Ilya~P. Razenshteyn.
+\newblock Performance of johnson-lindenstrauss transform for \emph{k}-means and
+  \emph{k}-medians clustering.
+\newblock In {\em Proceedings of the 51st Annual {ACM} {SIGACT} Symposium on
+  Theory of Computing, {STOC}}, pages 1027--1038, 2019.
+
+\bibitem{massart2007}
+Pascal Massart.
+\newblock Concentration inequalities and model selection.
+\newblock 2007.
+
+\bibitem{MK18}
+Alejandro Molina, Alexander Munteanu, and Kristian Kersting.
+\newblock Core dependency networks.
+\newblock In Sheila~A. McIlraith and Kilian~Q. Weinberger, editors, {\em
+  Proceedings of the Thirty-Second {AAAI} Conference on Artificial
+  Intelligence, (AAAI-18), the 30th innovative Applications of Artificial
+  Intelligence (IAAI-18), and the 8th {AAAI} Symposium on Educational Advances
+  in Artificial Intelligence (EAAI-18), New Orleans, Louisiana, USA, February
+  2-7, 2018}, pages 3820--3827. {AAAI} Press, 2018.
+
+\bibitem{MunteanuS18}
+Alexander Munteanu and Chris Schwiegelshohn.
+\newblock Coresets-methods and history: {A} theoreticians design pattern for
+  approximation and streaming algorithms.
+\newblock {\em K{\"{u}}nstliche Intell.}, 32(1):37--53, 2018.
+
+\bibitem{MunteanuSSW18}
+Alexander Munteanu, Chris Schwiegelshohn, Christian Sohler, and David~P.
+  Woodruff.
+\newblock On coresets for logistic regression.
+\newblock In Samy Bengio, Hanna~M. Wallach, Hugo Larochelle, Kristen Grauman,
+  Nicol{\`{o}} Cesa{-}Bianchi, and Roman Garnett, editors, {\em Advances in
+  Neural Information Processing Systems 31: Annual Conference on Neural
+  Information Processing Systems 2018, NeurIPS 2018, December 3-8, 2018,
+  Montr{\'{e}}al, Canada}, pages 6562--6571, 2018.
+
+\bibitem{NaN18}
+Shyam Narayanan and Jelani Nelson.
+\newblock Optimal terminal dimensionality reduction in euclidean space.
+\newblock In Moses Charikar and Edith Cohen, editors, {\em Proceedings of the
+  51st Annual {ACM} {SIGACT} Symposium on Theory of Computing, {STOC} 2019,
+  Phoenix, AZ, USA, June 23-26, 2019}, pages 1064--1069. {ACM}, 2019.
+
+\bibitem{PhillipsT20}
+Jeff~M. Phillips and Wai~Ming Tai.
+\newblock Near-optimal coresets of kernel density estimates.
+\newblock {\em Discret. Comput. Geom.}, 63(4):867--887, 2020.
+
+\bibitem{Pis99}
+Gilles Pisier.
+\newblock {\em {The volume of convex bodies and Banach space geometry.}}
+\newblock {Cambridge Tracts in Mathematics. 94}, 1999.
+
+\bibitem{RudraW14}
+Atri Rudra and Mary Wootters.
+\newblock Every list-decodable code for high noise has abundant near-optimal
+  rate puncturings.
+\newblock In David~B. Shmoys, editor, {\em Symposium on Theory of Computing,
+  {STOC} 2014, New York, NY, USA, May 31 - June 03, 2014}, pages 764--773.
+  {ACM}, 2014.
+
+\bibitem{SSS19}
+Melanie Schmidt, Chris Schwiegelshohn, and Christian Sohler.
+\newblock Fair coresets and streaming algorithms for fair k-means.
+\newblock In {\em Approximation and Online Algorithms - 17th International
+  Workshop, {WAOA} 2019, Munich, Germany, September 12-13, 2019, Revised
+  Selected Papers}, pages 232--251, 2019.
+
+\bibitem{SchwiegelshohnS22}
+Chris Schwiegelshohn and Omar~Ali Sheikh{-}Omar.
+\newblock An empirical evaluation of k-means coresets.
+\newblock In Shiri Chechik, Gonzalo Navarro, Eva Rotenberg, and Grzegorz
+  Herman, editors, {\em 30th Annual European Symposium on Algorithms, {ESA}
+  2022, September 5-9, 2022, Berlin/Potsdam, Germany}, volume 244 of {\em
+  LIPIcs}, pages 84:1--84:17. Schloss Dagstuhl - Leibniz-Zentrum f{\"{u}}r
+  Informatik, 2022.
+
+\bibitem{SohlerW18}
+Christian Sohler and David~P. Woodruff.
+\newblock Strong coresets for k-median and subspace approximation: Goodbye
+  dimension.
+\newblock In {\em 59th {IEEE} Annual Symposium on Foundations of Computer
+  Science, {FOCS} 2018, Paris, France, October 7-9, 2018}, pages 802--813,
+  2018.
+
+\bibitem{TukanMF20}
+Murad Tukan, Alaa Maalouf, and Dan Feldman.
+\newblock Coresets for near-convex functions.
+\newblock In Hugo Larochelle, Marc'Aurelio Ranzato, Raia Hadsell,
+  Maria{-}Florina Balcan, and Hsuan{-}Tien Lin, editors, {\em Advances in
+  Neural Information Processing Systems 33: Annual Conference on Neural
+  Information Processing Systems 2020, NeurIPS 2020, December 6-12, 2020,
+  virtual}, 2020.
+
+\end{thebibliography}

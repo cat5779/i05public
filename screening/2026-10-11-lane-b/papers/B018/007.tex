@@ -1,0 +1,2286 @@
+\documentclass[11pt]{article}
+\pdfoutput=1
+\def\withcolors{1}
+\def\withnotes{0} 
+
+\usepackage{ccanonne}
+\usepackage{palatino}
+\usepackage{braket}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{comment}
+
+\newcommand{\cyan}[1]{\textcolor{cyan!70!blue!100}{#1}}
+
+\DeclarePairedDelimiter\parens{\lparen}{\rparen}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\braces{\lbrace}{\rbrace}
+\DeclarePairedDelimiter\bracks{\lbrack}{\rbrack}
+\DeclarePairedDelimiter\angles{\langle}{\rangle}
+\DeclareMathOperator*{\avg}{avg}
+\newcommand{\E}{\shortexpect}
+\newcommand{\wh}[1]{\widehat{#1}}
+\newcommand{\wt}[1]{\widetilde{#1}}
+
+\newcommand{\bi}{\boldsymbol{i}}
+\newcommand{\bj}{\boldsymbol{j}}
+\newcommand{\bq}{\boldsymbol{q}}
+\newcommand{\bF}{\boldsymbol{F}}
+\newcommand{\bH}{\boldsymbol{H}}
+\newcommand{\bJ}{\boldsymbol{J}}
+\newcommand{\bT}{\boldsymbol{T}}
+\newcommand{\bU}{\boldsymbol{U}}
+\newcommand{\tbU}{\widetilde{\boldsymbol{U}}}
+\newcommand{\bX}{\boldsymbol{X}}
+\newcommand{\bY}{\boldsymbol{Y}}
+\newcommand{\bmu}{\boldsymbol{\mu}}
+\newcommand{\bsigma}{\boldsymbol{\sigma}}
+\newcommand{\bDelta}{\boldsymbol{\Delta}}
+
+\colorlet{tableheadcolor}{gray!25} %
+\newcommand{\headcol}{\rowcolor{tableheadcolor}} %
+\colorlet{tablerowcolor}{gray!10} %
+\newcommand{\rowcol}{\rowcolor{tablerowcolor}} %
+    %
+\newcommand{\topline}{\arrayrulecolor{black}\specialrule{0.1em}{\abovetopsep}{0pt}%
+            \arrayrulecolor{tableheadcolor}\specialrule{\belowrulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}}
+    %
+\newcommand{\midline}{\arrayrulecolor{tableheadcolor}\specialrule{\aboverulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}\specialrule{\lightrulewidth}{0pt}{0pt}%
+            \arrayrulecolor{white}\specialrule{\belowrulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}}
+    %
+\newcommand{\midlinec}{\arrayrulecolor{tableheadcolor}\specialrule{\aboverulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}\specialrule{\lightrulewidth}{0pt}{0pt}%
+            \arrayrulecolor{tablerowcolor}\specialrule{\belowrulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}}
+    %
+\newcommand{\rowmidlinecw}{\arrayrulecolor{tablerowcolor}\specialrule{\aboverulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}\specialrule{\lightrulewidth}{0pt}{0pt}%
+            \arrayrulecolor{white}\specialrule{\belowrulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}}
+    %
+\newcommand{\rowmidlinewc}{\arrayrulecolor{white}\specialrule{\aboverulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}\specialrule{\lightrulewidth}{0pt}{0pt}%
+            \arrayrulecolor{tablerowcolor}\specialrule{\belowrulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}}
+    %
+\newcommand{\rowmidlinew}{\arrayrulecolor{white}\specialrule{\aboverulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}}
+    %
+\newcommand{\rowmidlinec}{\arrayrulecolor{tablerowcolor}\specialrule{\aboverulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}}
+    %
+\newcommand{\bottomline}{\arrayrulecolor{white}\specialrule{\aboverulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}\specialrule{\heavyrulewidth}{0pt}{\belowbottomsep}}%
+\newcommand{\bottomlinec}{\arrayrulecolor{tablerowcolor}\specialrule{\aboverulesep}{0pt}{0pt}%
+            \arrayrulecolor{black}\specialrule{\heavyrulewidth}{0pt}{\belowbottomsep}}%
+
+
+\addbibresource{references.bib}
+\addbibresource{morerefs.bib}
+
+%=========
+
+\title{\vspace{-3ex}\bfseries Uniformity testing when you have the source code\vspace{-0.5ex}}
+
+\author{Cl\'ement L. Canonne\thanks{The University of Sydney.} 
+\and Robin Kothari\thanks{Google Quantum AI.} 
+\and Ryan O'Donnell\thanks{Carnegie Mellon University. Supported by ARO grant W911NF2110001 and by a gift from Google Quantum~AI.}}
+\date{\vspace{-5ex}}
+
+%=========
+\begin{document}
+\maketitle
+\begin{abstract}
+  We study quantum algorithms for verifying properties of the output probability distribution of a classical or quantum circuit, given access to the source code that generates the distribution. We consider the basic task of uniformity testing, which is to decide if the output distribution is uniform on $[\dims]$ or $\dst$-far from uniform in total variation distance.  More generally, we  consider identity testing, which is the task of deciding if the output distribution equals a known hypothesis distribution, or is $\dst$-far from it. For both problems, the previous best known upper bound was $O(\min\{\dims^{1/3}/\dst^{2},\dims^{1/2}/\dst\})$. 
+  Here we improve the upper bound to $O(\min\{\dims^{1/3}/\dst^{4/3}, \dims^{1/2}/\dst\})$, which we conjecture is optimal.
+\end{abstract}
+
+%=========
+\section{Introduction}
+%
+For 30 years we have known that quantum computers can solve certain problems significantly faster than any known classical algorithm. 
+Traditionally, most of the research in this area has focused on decision problems (like SAT) or function problems (like Factoring), where for each possible input there is a unique ``correct'' output.
+%
+However, we have also found that quantum computers can yield speedups for the task of \emph{sampling} from certain probability distributions. Prominent examples include boson sampling~\cite{AA13} and random circuit sampling~\cite{BIS+18}. 
+Sampling tasks have seemed more natural for NISQ-era quantum computation, and indeed many of the first candidate experimental demonstrations of quantum advantage have been for sampling problems~\cite{AAB+19}. 
+%
+
+One of the downsides of sampling problems is the challenge of \emph{verifying} the output of an algorithm, whether classical or quantum, that claims to sample from a certain distribution. 
+As a simple example, consider a classical or quantum algorithm that implements a supposed hash function with output alphabet $[\dims]\eqdef\{1,\ldots,\dims\}$. The algorithm designer claims that the output distribution of this hash function is uniform on $[\dims]$. %
+If $\p$ denotes the actual output distribution of the algorithm, and $\uniform_\dims$ denotes the uniform distribution on $[\dims]$, then we would like to test whether $\p=\uniform_\dims$, and reject the claim if $\p$ is in fact $\dst$-far from $\uniform_\dims$ in total variation distance, meaning $\frac{1}{2} \norm{\p-\uniform_\dims}_1 > \dst$.
+%
+(We will also consider other distance measures in this work, since the complexity of the testing task is sensitive to this choice.) 
+
+This verification task is called ``uniformity testing'' (in total variation distance) and its complexity is well studied in the classical literature. If we only have access to samples from $\p$, but are not allowed to inspect the algorithm that produces these samples, it is known that $\Theta(\dims^{1/2}/\dst^2)$ samples are necessary and sufficient to solve this problem; there are various classical algorithms that achieve this bound (starting with that of~\cite{Paninski08}; see, \eg~\cite{CanonneTopicsDT2022} for a detailed survey and discussion), and it is also not possible to do better with a quantum algorithm. But what if---as in the examples above---we \emph{do} have access to the algorithm that produces $\p$? Can we improve on this complexity if we have access to the ``source code'' of the algorithm? 
+
+\paragraph{Having the source code.} To clarify, the ``source code'' for a classical randomized sampling algorithm means a randomized circuit (with no input) whose output is one draw from~$\p$.
+More generally, the ``source code'' for a quantum sampling algorithm means a unitary quantum circuit (with all input qubits fixed to~$\ket{0}$) which gives one draw from~$\p$ when some of its output bits are measured in the standard basis and the rest are discarded.\footnote{This is sometimes termed the ``purified quantum query access model'', and is the most natural and general model.  The ``quantum string oracle'', referenced later in \Cref{table:1}, refers to a situation in which one assumes a very specific type of source code for~$\p$ (thus making algorithmic tasks easier). See \Cref{sec:prelims} for details and~\cite{Bel19} for a thorough discussion.}
+%
+The simplest way to use the code $C$ for~$\p$ is to run it, obtaining one sample.  
+If $C$ has size~$S$, then getting one sample this way has cost~$S$.  
+Another way to use the code~$C$ is to deterministically compute all its output probabilities; this gives one perfect information about~$\p$, but has cost bound~$2^S$.  
+But quantum computing has suggested a third way to use the code: ``running it in reverse''.  
+For example, Grover's original algorithm~\cite{Gro96} can be seen as distinguishing two possibilities for $\p$ on $[2]$, namely $\p_1 = 0$ or $\p_1 = 1/N$, while using only $O(N^{1/2})$ forwards/backwards executions of~$C$.
+The total cost here is $O(N^{1/2}) \cdot S$, the same as the cost for $O(N^{1/2})$ samples. 
+
+We suggest that the utility of ``having the source code'' for distribution testing problems remains notably underexplored.
+Indeed, there is significant room for improvment in the bounds for even the most canonical of all such problems: uniformity testing.  
+Our main theorem is the following:
+\begin{theorem}\label{thm:main}
+  There is a computationally efficient quantum algorithm for uniformity testing with the following guarantees: given $\dst \geq 1/\sqrt{\dims}$, the algorithm makes $O(\dims^{1/3}/\dst^{4/3})$ uses of  ``the code'' for an unknown distribution $\p$ over $[\dims]$, and distinguishes with probability at least~$.99$ between 
+  \begin{equation}
+      (1)~\p=\uniform_\dims, \qquad \textrm{and}\qquad (2)~\totalvardist{\p}{\uniform_\dims} > \dst.    
+  \end{equation}
+\end{theorem}
+The main idea behind this theorem is to combine very careful classical probabilistic analysis with a black-box use of Quantum Mean Estimation (QME)~\cite{Gro98,BHT98,Hei02,Mon15,Ham21,KO23}; see \Cref{sec:ideas} for further discussion.
+\Cref{table:1} below compares our result to prior work on the problem.
+\begin{table}[b]  
+%
+  \begin{tabular}{cccc}
+  \toprule
+  Reference  & Large $\dst$ regime    & Small $\dst$ regime  &  Access model \\
+  \midrule
+  \cite{Paninski08,AcharyaDK15} \hspace{-1em} & $\Theta(\dims^{1/2}/\dst^2)$ & & Classical, no source code \\
+  \cite{BHH11} & $O(\dims^{1/3})$ for $\dst = \Theta(1)^*$  & & Quantum string oracle \\
+  \cite{CFMdW10} & $O(\dims^{1/3}/\dst^2)$ & & Quantum string oracle \\
+  \cite{GL20} & & \hspace{-2em}$O(\dims^{1/2}/\dst) \cdot \log(\dims/\dst)^3 \log \log(\dims/\dst)$\hspace{-1em} & Source code  \\
+  \cite{LuoWL24} & & $O(\dims^{1/2}/\dst)$ & Source code \\
+  \bf{}This work  & $O(\dims^{1/3}/\dst^{4/3})$ for $\dst\geq \frac{1}{\sqrt\dims}$ & & Source code \\
+  \bottomrule
+  \end{tabular}
+  {\footnotesize *The work states a bound of $O(\dims^{1/3}/\dst^{4/3})$, but adds that $\dst$ must be constant.}
+  \caption{``Sample'' complexity for uniformity testing with respect to total variation distance \label{table:1}}
+\end{table}
+\Cref{table:1} has two columns because it seems that different algorithms are necessary depending on how $\dims$ and $\dst$ relate.
+(Interestingly, this is not the case in the classical no-source-code model.)
+Thus combining our new result with that of~\cite{LuoWL24}, the best known upper bound becomes $O(\min\{\dims^{1/3}/\dst^{4/3}, \dims^{1/2}/\dst\})$.
+We remark that although~\cite{LuoWL24}'s algorithm/analysis is already simple, we give an alternative simple algorithm and analysis achieving $O(\dims^{1/2}/\dst)$ in \Cref{sec:small}, employing the classical analysis + QME approach used in the proof of our main theorem.
+
+\paragraph{Lower bounds?} As for lower bounds (holding even in the quantum string oracle model): complexity $\Omega(1/\dst)$ is necessary even in the case of constant $\dims = 2$, following from work of \cite{NW99}; and, \cite{CFMdW10} showed a lower bound of $\Omega(\dims^{1/3})$ even in the case of constant~$\dst$, by  reduction from the collision problem~\cite{AS04}.
+For reasons discussed in \Cref{sec:ideas}, we make the (somewhat bold) conjecture that our new upper bound is in fact tight for all $\dims$ and~$\dst$:
+\begin{conjecture} \label{conj:tv}
+    Any algorithm that distinguishes  $\p = \uniform_\dims$ from $\totalvardist{\p}{\uniform_\dims} > \dst$ with success probability at least~$.99$ requires $\Omega(\min\{\dims^{1/3}/\dst^{4/3}, \dims^{1/2}/\dst\})$ uses of the code for~$\p$. (Moreover, we conjecture this lower bound in the stronger quantum string oracle model.)
+\end{conjecture}
+
+\paragraph{Identity testing.} 
+Several prior works in this area have also studied the following natural generalization of uniformity testing: testing identity of the unknown distribution~$\p$ to a known hypothesis distribution~$\q$.
+An example application of this might be when $\q$ is a Porter--Thomas-type distribution arising as the ideal output of a random quantum circuit. 
+Luckily, fairly recent work has given a completely generic reduction from \emph{any} fixed identity testing problem to the uniformity testing problem; see~\cite{Goldreich:16}, or~\cite[Section~2.2.3]{CanonneTopicsDT2022}. We can therefore immediately extend our new theorem to the general identity-testing setting:
+\begin{corollary}
+  There is a computationally efficient quantum algorithm for identity testing to a reference distribution $\q$ over $[\dims]$ with the following guarantees: The algorithm makes $O(\min(\dims^{1/3}/\dst^{4/3}, \dims^{1/2}/\dst))$ uses of  ``the code'' for an unknown distribution $\p$ over $[\dims]$, and distinguishes with probability at least $.99$ between
+\begin{equation}
+    (1)~\p=\q, \qquad \text{and} \qquad (2)~\totalvardist{\p}{\q} > \dst.    
+\end{equation}
+\end{corollary}
+\noindent(For completeness, we verify in~\cref{app:identity:reduction} that the blackbox reduction does indeed carry through in our setting, preserving access to ``the code''.)
+
+
+\paragraph{More fine-grained results.}
+In proving our main theorem, we will in fact prove a strictly stronger version, one which is more fine-grained in two ways: 
+
+(1)~\emph{Tolerance:} Not only does our test accept with high probability when $\p = \uniform_\dims$, it also accepts with high probability when $\p$ is sufficiently close to $\uniform_\dims$.  
+
+(2)~\emph{Stricter distance measure.} Not only does our test reject with high probability when $\totalvardist{\p}{\uniform_\dims} > \dst$, it also rejects with high probability when $\hellinger{\p}{\uniform_\dims} > \dst$.
+(This is stronger, since $\totalvardist{\p}{\q} \leq \hellinger{\p}{\q}$ always.)
+
+To elaborate, recall the below chain of inequalities, which also includes KL- and $\chi^2$-divergence.  
+(We review probability distance measures in \Cref{sec:prelims}.)
+\begin{equation}  \label{eqn:ineqs}
+  \totalvardist{\p}{\q}^2 \leq \hellingersq{\p}{\q} \leq \kldiv{\p}{\q} \leq \chisquare{\p}{\q}.
+\end{equation}
+The strictly stronger version of \Cref{thm:main} that we prove is:
+\begin{theorem}\label{thm:main2}
+  There is a computationally efficient quantum algorithm for uniformity testing with the following guarantees: For $1/\dims \leq \thresh \leq 1$, the algorithm makes $O(\dims^{1/3}/\thresh^{2/3})$ uses of  ``the code'' for an unknown distribution $\p$ over $[\dims]$, and distinguishes with probability at least~$.99$ between 
+  \begin{equation}
+      (1)~\chisquare{\p}{\uniform_\dims} \leq .99\thresh ~~\text{and}~~ \norminf{\p} \leq 100/\dims, 
+      \qquad \textrm{and} \qquad (2)~\hellingersq{\p}{\uniform_\dims} > \thresh.    
+  \end{equation}
+\end{theorem}
+We remark that most prior works on uniformity testing~\cite{BHH11,CFMdW10,GL20,LuoWL24} also had some additional such fine-grained aspects, beyond what is stated in \Cref{table:1}.
+%
+
+\paragraph{Additional results.}  Speaking of $\chi^2$-divergence, we mention two additional results we prove at the end of our work. These results additionally inform our \Cref{conj:tv}.
+
+First, as mentioned earlier, in \Cref{sec:small} we give an alternative proof of the $O(\dims^{1/2}/\dst)$ upper bound of~\cite{LuoWL24}, and---like in that work---our result is tolerant with respect to $\chi^2$-divergence.  
+That is, we prove the strictly stronger result that for $\thresh \leq 1/\dims$, one can use the code $O(\dims^{1/2}/\thresh^{1/2})$ times to distinguish $\chisquare{\p}{\uniform_\dims} \leq c \thresh$ from $\chisquare{\p}{\uniform_\dims} > \thresh$ (for some constant $c > 0$).
+
+Second, recall that $\chisquare{\p}{\uniform_\dims}$ can be as large as~$\dims$.  
+For example, $\chisquare{\uniform_{\cyan{S} }}{\uniform_\dims} = \frac{\dims}{\cyan{r} } - 1$ for any set $\cyan{S} \subseteq [\dims]$ of size $\cyan{r}$. Thus it makes sense to consider the uniformity testing problem even with respect to a $\chi^2$-divergence threshold $\thresh$ that exceeds~$1$.  
+In \Cref{sec:giant} we show (albeit only in the quantum string oracle model) that for $\thresh \geq 1$, one can use the code $O(\dims^{1/3}/\thresh^{1/3})$ times to distinguish $\chisquare{\p}{\uniform_\dims} \leq c \thresh$ from $\chisquare{\p}{\uniform_\dims} > \thresh$, and this is optimal.
+
+%=========
+\section{Technical overview of our proof}\label{sec:ideas}
+Our main algorithm is concerned with achieving the best possible $\dst$-dependence for uniformity testing while maintaining a $\dims$-dependence of~$\dims^{1/3}$; in this way, it is best compared with the older works of~\cite{BHH11,CFMdW10}, the latter of which achieves complexity~$O(\dims^{1/3}/\dst^2)$, as well as the classical (no-source-code) algorithm achieving complexity $O(\dims^{1/2}/\dst^2)$.
+In fact, all four algorithms here are almost the same (except in terms of the number of samples they use).
+Let us describe our viewpoint on this common methodology. 
+
+\noindent We consider the algorithm as being divided into two Phases, and we may as well assume each Phase uses $\ns$ samples.
+Phase~1 will have two properties:
+\begin{itemize}
+ \item It will make $\ns$ \emph{black-box} draws from~$\p$ (\ie the source code is not used in Phase~1).
+
+ \item Using these draws, Phase~1 will end by constructing a certain ``random variable''---in the technical sense of a function $Y : [\dims] \to \R$.
+
+  \item The mean of this random variable~$Y$, vis-a-vis the unknown distribution~$\p$, will ideally be close to $\chisquare{\p}{\uniform} = \dims \cdot \normtwo{\p - \uniform_\dims}^2$. 
+  That is, ideally $\mu \coloneqq \E_{\p}[Y] = \sum_{j=1}^\dims \p_j Y(j) \approx \chisquare{\p}{\uniform_\dims}$.
+\end{itemize}
+\noindent Phase~2 then performs a \emph{mean estimation} algorithm on $Y$ (vis-a-vis~$\p$) to get an estimate of~$\mu$ and therefore of~$\chisquare{\p}{\uniform_\dims}$.  
+Ideally, the resulting overall algorithm is not just a uniformity tester, but a $\chi^2$-divergence-from-uniformity \emph{estimator}.  
+This could then be weakened to a TV-distance uniformity tester using the inequality $\totalvardist{\p}{\uniform_\dims}^2 \leq \chisquare{\p}{\uniform_\dims}$.
+
+The mean estimation algorithm used in Phase~2 differs depending on whether one has the source code or not.  
+In the classical (no source code) model, one simply uses the naive mean estimation algorithm based on $\ns$ more black-box samples; by Chebyshev's inequality, this will (with high probability) give an estimate of~$\mu$ to within $\pm O(\sigma/\ns^{1/2})$, where $\sigma \coloneqq \stddev_\p[Y] = \sqrt{\sum_{j=1}^\dims (Y(j) - \mu)^2}$.
+In the case of a quantum tester with the source code access, we can use a \emph{Quantum Mean Estimation} (QME) routine; in particular, the one from~\cite{KO23} will (with high probability) yield an estimate of~$\mu$ to within $\pm O(\sigma/\ns)$.\footnote{This QME routine was not available at the time of~\cite{BHH11,CFMdW10} which had to make do with Quantum Approximate Counting~\cite{BHT98}---essentially, QME for Bernoulli random variables.  But this is not the source of our improvement; one can obtain our main theorem with only a $(\polylog \dims)$-factor loss using just Quantum Approximate Counting.} 
+
+A subtle aspect of this overall plan is that the mean~$\mu$ and standard deviation~$\sigma$ of~$Y$ \emph{are themselves random variables} (in the usual sense), where the randomness comes from Phase~1.  
+Thus it is natural to analyze $\E_{\text{Phase~1}}[\mu]$ and $\E_{\text{Phase~1}}[\sigma]$.
+Of course, these depend on the definition of~$Y$, which we now reveal:  $Y(j) = \frac{\dims}{\ns}X_j - 1$, where $X_j$ denotes the number of times $j \in [\dims]$ was drawn in Phase~1.
+The point of this definition of $Y$ is that a short calculation implies 
+\begin{equation}
+  \E_{\text{Phase~1}}[\mu] = \chisquare{\p}{\uniform_\dims};
+\end{equation}
+that is, the random variable $\mu$ is an \emph{unbiased estimator} for our quantity of interest, the $\chi^2$-divergence of~$\p$ from~$\uniform_\dims$.
+This is excellent, because although the algorithm does not see~$\mu$ at the end of Phase~1, it will likely get a good estimate of it at the end of Phase~2\dots so long as (the random variable) $\sigma$ is small. 
+
+We therefore finally have two sources of uncertainty about our final error (in estimating $\chisquare{\p}{\uniform_\dims}$):
+\begin{enumerate}
+  \item Although $\E_{\text{Phase~1}}[\mu] = \chisquare{\p}{\uniform_\dims}$, the random variable $\mu$ may have fluctuated around its expectation at the end of Phase~1.  One way to control this would be to bound $\var_{\text{Phase~1}}[\mu]$ (and then use Chebyshev).
+  \item The Phase~2 mean estimation incurs an error proportional to~$\sigma$. One way to control this would be to bound $\E_{\text{Phase~1}}[\sigma^2]$ (and then use Markov to get a high-probability bound on~$\sigma^2$, and hence~$\sigma$).
+\end{enumerate}
+The quantities controlling the error here, $\var_{\text{Phase~1}}[\mu]$ and $\E_{\text{Phase~1}}[\sigma^2]$, are explicitly calculable symmetric polynomials in $\p_1, \dots, \p_\dims$ of degree at most~$4$, depending on~$\ns$.
+In principle, then, one can relate these quantities to $\chisquare{\p}{\uniform_\dims} = \dims \cdot \normtwo{\p-\uniform_\dims}^2$ itself, and derive a bound on how big~$\ns$ must be to (with high probability) get a good estimate of $\chisquare{\p}{\uniform_\dims}$. 
+
+In the classical (no source code) case, this methodology is a way to obtain the $O(\dims^{1/2}/\dst^2)$ sample complexity, adding to the number of existing classical sample-optimal algorithms for the task.
+(This method in particular has some potential useful applications; \eg  one could consider decoupling the number of samples used in Phases~1 and~2 to, \eg obtain tradeoffs for memory-limited settings).
+On one hand, with this method one can give a very compressed proof of the $O(\dims^{1/2}/\dst^2)$ that, factoring out routine calculations, 
+%
+fits in half a page (see, \eg~\cite[Sec.~10]{OW23}). 
+%
+On the other hand, one has to execute the calculations and estimations with great care, lest one would obtain a suboptimal result (there is a reason it took $8$~years\footnote{Technically, it took more than $8$ years, as the proof of~\cite{Paninski08} was later shown to have a flaw: so the tight dependence had to wait until~\cite{AcharyaDK15}. See~\cite[Section~2.3]{CanonneTopicsDT2022} for a discussion.} to get the optimal quadratic dependence on~$\dst$~\cite{GRexp:00,Paninski08}). 
+
+In the case when source code is available, so that one can use the QME algorithm, how well does this methodology fare?  
+On one hand, QME gives a quadratic improvement over naive classical mean estimation, meaning one can try to use signficantly fewer samples in Phase~2.  
+But when one balances out the sample complexity between the two Phases, it implies one is using fewer samples in Phase~1, and hence one gets worse concentration of~$\mu$ around its mean in Phase~1. 
+So the calcuations become more delicate.
+
+\subsection{Heuristic calculations}
+Instead of diving into complex calculations, let's look at some heuristics.
+First, let's consider how the algorithm proceeds in the case when $\p$ really is the uniform distribution $\uniform_\dims$.
+In this case, as long as we're in a scenario where $\ns \ll \dims^{1/2}$, we will likely get all distinct elements in Phase~1, meaning that $X_j$ will be~$1$ for exactly $\ns$ values of~$j$ and $X_j$ will be~$0$ otherwise.
+Then $Y(j)$ will be $\frac{\dims}{\ns}-1$ for $\ns$ values of~$j$ and will be~$-1$ otherwise.
+This indeed means $\mu = \E_{\p}[Y] = \frac{1}{\dims} \sum_{j=1}^\dims Y(j) = 0 = \normtwo{\p - \uniform_\dims}$ with \emph{certainty} in Phase~1.  
+This is very good; we get no error out of Phase~1.
+However QME in Phase~2 will not perfectly return the value~$\mu =0$; rather, it will return something in the range $\pm O(\sigma/\ns)$, where $\sigma = \sqrt{\frac{1}{\dims}\sum_{j=1}^\dims (Y(j)-0)^2} = \sqrt{\frac{\dims}{\ns} - 1} \sim \dims^{1/2}/\ns^{1/2}$.
+Thus the value returned by QME may well be around $\dims^{1/2}/\ns^{3/2}$, which from the algorithm's point of view is consistent with $\chisquare{\p}{\uniform_\dims} \approx \dims^{1/2}/\ns^{3/2}$.
+Thus the algorithm will only become confident that $\totalvardist{\p}{\uniform_\dims}^2 \lessapprox \dims^{1/2}/\ns^{3/2}$, and hence it can only confidently accept in the case $\p = \uniform_\dims$ provided $\dims^{1/2}/\ns^{3/2} \lessapprox \dst^2$; \ie $\ns \gtrapprox \dims^{1/3}/\dst^{4/3}$.
+We thereby see that with this algorithm, a uniformity testing upper bound of $O(\dims^{1/3}/\dst^{4/3})$ is the \emph{best} we can hope for.  
+If one also believes that this algorithm might be optimal (and it \emph{has} been the method of choice for essentially all previously known results), then this could possibly be taken as evidence for our \Cref{conj:tv}. 
+
+At this point, one might try to prove that complexity $O(\dims^{1/3}/\dst^{4/3})$ \emph{is} achievable; so far we have only argued that with this many samples, the algorithm will correctly accept when $\p = \uniform_\dims$ (with high probability).
+Again, before jumping into calculations, one might try to guess the ``hardest'' kind of $\dst$-far distributions one might face, and try to work out the calculations for these cases.
+The hardest distributions in the classical case (\ie the ones that lead to the matching $\Omega(\dims^{1/2}/\dst^2)$ lower bound) are very natural: they are the $\p$'s in which half of the elements $j \in [\dims]$ have $\p_j = \frac{1+2\dst}{\dims}$ and half have $\p_j = \frac{1-2\dst}{\dims}$.  
+Assuming this is the ``worst case'', one can calculate what $\var_{\text{Phase~1}}[\mu]$ and $\E_{\text{Phase~1}}[\sigma^2]$ will be, and the calculations turn out just as desired.  
+That is, with $\ns = O(\dims^{1/3}/\dst^{4/3})$, these two error quantities can be shown to be suffciently small so that the overall algorthm will correctly become confident that $\chisquare{\p}{\uniform_\dims} = \dims \cdot \normtwo{\p - \uniform_\dims}^2  \leq 4\dims \cdot \totalvardist{\p}{\uniform_\dims}^2$ significantly exceeds~$\dst^2$, and hence the algorithm can correctly reject. 
+
+Everything therefore looks good, but there is a fly in the ointment.  
+Even though this particular~$\p$ with its values of $\frac{1 \pm 2\dst}{\dims}$ seems like the ``hardest'' distribution to face, one still has to reason about all possible~$\p$'s with $\totalvardist{\p}{\uniform_\dims}$.
+And when one does the calculations of $\var[\mu]$ and $\E[\sigma^2]$ as prescribed by the standard methodology, the plan ends up \emph{failing}.
+Specifically one gets too much error for $\p$'s that have somewhat ``heavy'' elements, meaning $\p_j$'s with $\p_j \gg 1/\dims$.   The prior works~\cite{BHH11,CFMdW10} cope with this failure by taking more samples; \ie setting $\ns = O(\dims^{1/3}/\dst^{c})$ for $c > 4/3$ (specifically, \cite{CFMdW10} achieves $c=2$).  But our goal is to show that this is unnecessary---that the algorithm itself works, even though the standard and natural way of analyzing it fails. 
+
+In short, the reason the standard analysis of the algorithm fails is due to ``rare events'' that are caused by heavy elements in~$\p$. 
+These $j$'s with $\p_j \gg 1/\dims$ may well still have $\p_j \ll 1/\ns$ (for our desired $\ns = O(\dims^{1/3}/\dst^{4/3})$), and thus be drawn only rarely in Phase~1.  
+The major difficulty is that when they \emph{are} drawn, they generate a \emph{very} large contribution to~$\sigma^2$, causing $\E_{\text{Phase~1}}[\sigma^2]$ to be ``misleadingly large''.  
+That is, when there are heavy elements, $\sigma^2$ may have the property of typically being much smaller than its expectation.
+Thus controlling the QME error using the \emph{expected} value of~$\sigma^2$ is a bad strategy. 
+
+Perhaps the key insight in our analysis is to show: \emph{In those rare Phase~1 outcomes when $\sigma^2$ is unusually large, $\mu$ is \emph{also} unusually large compared to its expectation.}  The latter event is helpful, because if $\mu$ ends up much bigger than its expectation, we can tolerate a correspondingly worse error-bar from QME.  In short, we show that the rare \emph{bad} outcomes for $\sigma^2$ coincide with the rare \emph{good} outcomes for $\mu$. 
+
+In order to make this idea work out quantitatively, we (seem to) need to weaken our ambitions and get something a bit worse than a $\chi^2$-divergence-from-uniform estimation algorithm, in two ways. (This is fine, as our main goal is just a non-tolerant uniformity tester with respect to TV.)  
+First, rather than insisting that we accept with high probability when $\chisquare{\p}{\uniform_\dims} \leq .99 \thresh$ and reject with high probability when $\chisquare{\p}{\uniform_\dims} > \thresh$, we need to only require rejection when $\hellingersq{\p}{\uniform_\dims} > \thresh$.
+The reason is that the rare large values of $\sigma^2$ that we face are only comparable with the larger value $\hellingersq{\p}{\uniform_\dims}$, and not with $\chisquare{\p}{\uniform_\dims}$.\footnote{We remark that this $\chi^2$-versus-Hellinger-squared dichotomy is quite reminsicent of the one that occurs in classical works on identity testing, such as~\cite{AcharyaDK15}.} 
+
+As for the second weakening we need to make:  We explicitly add to our tester a check that the value of $\max_j\{X_j\}$ arising after Phase~1 is not too large.  Roughly speaking, this extra test ensures that there are no very heavy elements.  %
+(Of course, this is satisfied when $\p = \uniform_\dims$, so we don't mind adding this test.)
+The reason we need to add this check is so that we can bound the quadratic expression $\sum_{j = 1}^\dims X_j^2$ (which enters into the value of~$\sigma^2$) by $\max_j\{X_j\} \cdot \sum_{j=1}^\dims X_j$; in turn, once $\max_j\{X_j\}$ is checked to be small, this expression can be bounded by the linear quantity $\sum_{j=1}^\dims X_j$, which can be related to~$\mu$.
+It is by relating $\sigma^2$ to $\mu$ in this way that we are able to show the correlation between rare events --- that when $\sigma^2$ is big, $\mu$ is also big. 
+
+To conclude, we apologize to the reader for writing a ``technical overview'' whose length is nearly comparable to that of the actual proof itself. While we tried to make our argument as streamlined and concise as possible, we felt that it was worth conveying the ideas and detours which led us there, and which, while now hidden, motivated the final proof.
+
+%=========
+\section{Preliminaries}
+  \label{sec:prelims}
+%
+\subsection{Probability distances}
+Throughout, $\log$ and $\ln$ the binary and natural logarithms, respectively. We identify a probability distribution $\p$ over $[\dims]=\{1,2,\dots,\dims\}$ with its probability mass function (pmf), or, equivalently, a vector $\p\in\R^\dims$ such that $\p_i \geq 0$ for all $i$ and $\sum_{i=1}^\dims \p_i=1$. For a subset $S\subseteq [\dims]$, we accordingly let $\p(S) = \sum_{i\in S}\p_i$. The \emph{total variation distance} between two distributions $\p,\q$ over $[\dims]$ is defined as
+\begin{equation}
+  \totalvardist{\p}{\q} = \sup_{S\subseteq [\dims]} \{\p(S)-\q(S)\} = \frac{1}{2}\normone{\p-\q} \in [0,1],
+\end{equation}
+where the last equality is from Scheff\'e's lemma. By Cauchy--Schwarz, this gives us the relation 
+\begin{equation}
+  \frac{1}{2} \normtwo{\p-\q} \leq \totalvardist{\p}{\q} \leq \frac{\sqrt{\dims}}{2} \normtwo{\p-\q}.
+\end{equation}
+We will in this paper also consider other notions of distance between probability distributions: the \emph{squared Hellinger distance}, defined as
+\begin{equation}
+  \hellingersq{\p}{\q} = \sum_{i=1}^\dims \Paren{\sqrt{\p_i}-\sqrt{\q_i}}^2 = \normtwo{\sqrt{\p}-\sqrt{\q}}^2 \in [0,2].
+\end{equation}
+(Some texts normalize this by a factor of $\frac12$; we do not do so, as it makes our statements cleaner.) 
+The \emph{chi-squared divergence} is then defined as
+\begin{equation}
+  \chisquare{\p}{\q} = \sum_{i=1}^\dims \frac{(\p_i-\q_i)^2}{\q_i} =\parens*{\sum_{i=1}^\dims\frac{\p_i^2}{\q_i}}-1\,,
+\end{equation}
+while the \emph{Kullback--Leibler divergence} (least relevant to us, but quite common in the literature), in nats, is defined as
+\begin{equation}
+  \kldiv{\p}{\q} = \sum_{i=1}^\dims \q_i \ln \frac{\q_i}{\p_i}\,.
+\end{equation}
+%
+
+\noindent As mentioned in \Cref{eqn:ineqs}, we have the following well known~\cite{GS02} chain of inequalities:
+
+\begin{equation}  %
+  \totalvardist{\p}{\q}^2 \leq \hellingersq{\p}{\q} \leq \kldiv{\p}{\q} \leq \chisquare{\p}{\q}.
+\end{equation}
+Moreover, for the special case of the uniform distribution $\uniformOn{\dims}$ over $[\dims]$, we have
+\begin{equation}
+\chisquare{\p}{\uniformOn{\dims}} = \dims\cdot \normtwo{\p-\uniformOn{\dims}}^2\,.
+\end{equation}
+
+\subsection{Distribution access models}
+
+For a probability distribution $\p$ on $[\dims]$, we say a unitary $U_{\p}$ is a \emph{synthesizer} for $\p$ if for some $k$
+\begin{equation}
+  U_{\p}\ket{0^k} = \sum_{i\in[\dims]} \sqrt{p_i} \ket{i}\ket{\psi_i},
+\end{equation}
+where the $\ket{\psi_i}$'s are normalized states often called ``garbage states''. Note that any classical randomized circuit using $S$ gates that samples from $\p$ can be converted to a synthesizer $U_{\p}$ in a purely black-box way with gate complexity $O(S)$. (See \cite{KO23} for details and a more thorough discussion of synthesizers.)
+
+In this paper, we say an algorithm makes $t$ uses of ``the code for $\p$'' to mean that we use (as a black box) the unitaries $U_{\p}$, $U_{\p}^\dagger$, and controlled-$U_{\p}$ a total of $t$ times in the algorithm. Each of these unitaries is easy to construct given an explicit gate decomposition of $U_{\p}$ with the same gate complexity up to constant factors.
+
+The \emph{quantum string oracle}, which is used in many prior works, is a specific type of source code for $\p$. Here we have standard quantum oracle access to an $m$-bit string $x \in [\dims]^m$ for some $m$. For any symbol $i \in [\dims]$, the probability $\p_i$ is defined as the frequency with which that symbol appears in $x$, i.e., $\p_i = \frac{1}{m} \left| \{j:x_j=i\} \right|$. Note that calling this oracle on the uniform superposition over $m$ gives us a synthesizer for $\p$. When a randomized sampler for $\p$ is converted to a synthesizer, we get a quantum string oracle, but quantum string oracles are not as general as arbitrary synthesizers. For example, all probabilities described by a quantum string oracle will be integer multiples of $\frac{1}{m}$, whereas an arbitrary synthesizer has no such constraint.
+
+\subsection{Quantum Mean Estimation}
+When we use QME, we will have the source code for some distribution $\p$ on $[\dims]$, and we will also have explicitly constructed some (rational-valued) random variable $Y : [\dims] \to \Q$ (say, simply as a table).  
+From this, one can easily generate code that outputs a sample from~$Y$ (i.e., outputs $Y(\bj)$ for $\bj \sim [\dims]$), using the code for~$\p$ just one time.
+We will then use the following QME result from~\cite{KO23}:
+\begin{theorem} \label{thm:QME}
+  There is a computationally efficient quantum algorithm with the following guarantee: Given the source code for a random variable~$Y$, as well as parameters $\ns$ and $\errprob$, the algorithm uses the code $O(\ns \log(1/\errprob))$ times and outputs an estimate $\wh{\bmu}$  such that $\Pr[|\wh{\mu} - \mu| > \sigma/\ns] \leq \errprob$, where $\mu = \E[Y]$ and $\sigma = \stddev[Y]$.
+\end{theorem}
+
+%=========
+\section{Algorithm in the Large Distance Regime}
+  \label{sec:large}
+%
+\newcommand{\cc}{c}
+\newcommand{\cq}{C}
+In this section, we establish~\cref{thm:main}, our main technical contribution. 
+We do this by proving the strictly stronger \Cref{thm:main2}, which we restate more formally:
+\begin{theorem}
+	\label{theo:medium:case}
+For any constant $B > 0$, there exists a computationally efficient quantum algorithm (\cref{algo:medium:case}) with the following guarantees: on input $\frac{1}{\ab} \leq \thresh \leq 1$, it makes 
+$O(\ab^{1/3}/\thresh^{2/3})$  uses (where the hidden constant depends on $B$) of ``the code'' for an unknown probability distribution $\p$ over $[\dims]$, and satisfies
+\begin{enumerate}
+	\item If $\chisquare{\p}{\uniform_{\ab}} \leq .99 \thresh$ and $\norminf{\p} \leq B/\ab$, then the algorithm will \accept with probability at least $.99$.
+	\item If $\hellingersq{\p}{\uniform_{\ab}} \geq \thresh$, %
+	then  the algorithm will \reject with probability at least $.99$.%
+\end{enumerate}
+\end{theorem}
+
+\begin{algorithm}[htbp]
+	\begin{algorithmic}[1]
+	\Require Parameter $\frac{1}{\ab} \leq \thresh \leq 1$, constant $B \geq 1$.
+	\State Let $\cc = \cc(B)$ and let $\cq = \cq(\cc)$ be sufficiently large, and let $L$ be defined as
+	\[
+	L \coloneqq \begin{cases}
+		100 & \text{if $\ns \leq \ab^{.99}/B$,} \\
+		B\cc \ln \ab & \text{if $\ns > \ab^{.99}/B$.}
+	\end{cases}
+	\]
+    \State Set $\ns \coloneqq \lceil \cc \ab^{1/3}/\thresh^{2/3}\rceil$.
+	\State Make $\ns$ draws $\bJ_1, \dots, \bJ_{\ns}$, and let $\bX_j = \sum_{t=1}^{\ns} \indic{J_t=j}$ be the number of times $j\in[\ab]$ is seen.
+    \If{$\bX_j \geq L$ for any $j$} 
+		\reject  \label{algo:Linf} 
+		\EndIf
+	\State Do QME with $\cq\ns$ ``samples'' on the random variable $\bY$ defined by $\bY_j = \frac{\ab}{\ns} X_j - 1$, obtaining $\wh{\bmu}$. 
+	\If{$\wh{\bmu} \leq .995 \thresh$} 
+		\accept 
+	\Else\ 
+		\reject
+	\EndIf
+	\end{algorithmic}
+		\caption{\label{algo:medium:case}for the large distance regime}
+\end{algorithm}
+\begin{proof}
+	Let us start by recording the following inequalities that we will frequently use: 
+	\begin{equation}	\label{ineq:nbd}
+		\ns =  \lceil \cc \ab^{1/3}/\thresh^{2/3}\rceil,\ \thresh \geq 1/\ab \quad\implies\quad \cc/\thresh \leq \ns \leq \cc\ab.
+	\end{equation}
+	We begin with a simple lemma regarding the check on~\cref{algo:Linf}:
+	\begin{lemma} \label{prop:line3}
+	If $\norminf{\p} \leq B/\ab$, then \Cref{algo:Linf} will \reject with probability at most~$.001$.
+	Conversely, if $\norminf{\p} > 2L/\ns$, then \Cref{algo:Linf} will \reject with probability at least~$.999$.
+\end{lemma}
+\begin{proof}
+	Let $\bX_j \sim \text{Bin}(\ns,p_j)$ denote the number of times~$j$ is drawn.
+	The second (``conversely'') part of of the proposition follows from a standard Chernoff bound. %
+	As for the first part, suppose $\norminf{\p} \leq B/\ab$.
+	Now on one hand, if $\ns \leq \ab^{.99}/B$, so that $L = 100$, we have
+	\begin{equation}
+		\Pr[\text{Bin}(\ns,p_j) \geq 100] \leq \binom{\ns}{100} p_j^{100} \leq ((e\ns/100)p_j)^{100} \leq (e/(100\ab^{.01}))^{100} \leq .001/\ab,
+	\end{equation}
+	and thus $\bX_j < 100$ for all~$j$ except with probability at most~$.001$, as desired.
+	Otherwise, $L = B\cc \ln \ab$, and since $
+		\E[\bX_j] \leq B\ns/\ab \leq B\cc,
+	$
+	the desired result follows from a standard Chernoff and union bound (provided $\cc$ is large enough).
+\end{proof}
+	\noindent From this, we conclude:
+	\begin{itemize}
+		\item In Case (1), Line~\ref{algo:Linf} rejects with probability at most $.001$.
+		\item In Case (2), we may assume $\norminf{\p}\leq 2L/\ns$ and $\|\bX\|_\infty \leq L$, else Line~\ref{algo:Linf} rejects with probability $\geq .999$. Call this observation $(\diamondsuit)$.
+	\end{itemize}
+
+	Now to begin the QME analysis, write $p_j = \frac{1+\eps_j}{\ab}$, where $\eps_j \in [-1, \ab-1]$, 
+	and let $\bmu = \sum_{j=1}^{\ab} p_j \bY_j$, the mean of~$\bY$ (from QME's point of view).
+	Writing $\eta \coloneqq \hellingersq{p}{\uniform_{\ab}} $, our first goal will be to show:
+	\begin{align}
+		\text{In Case (1),\qquad} \bmu & \leq .991\thresh && \text{except with probability at most $.001$;}\label{eqn:case1}\\
+		\text{In Case (2),\qquad} \bmu & \geq .997\eta && \text{except with probability at most $.002$.} \label{eqn:case2}
+	\end{align}
+	Starting with \Cref{eqn:case1}, a short calculation (using $\sum_{j=1}^{\ab} \eps_j = 0$) shows
+	\begin{equation} \label{eqn:bmu}
+		\bmu = \avg_{t=1}^{\ns} \{\eps_{\bJ_t}\}
+	\quad\implies\quad
+		\E[\bmu] = \frac{1}{\ab}  \sum_{j=1}^{\ab} \eps_j^2 = \chisquare{p}{\uniform_{\ab}}
+	\quad\implies\quad \E[\bmu] \leq .99\thresh \text{ in Case~(1).}
+	\end{equation}
+	Also in Case~(1) we get from \Cref{eqn:bmu} that
+	\begin{equation}	\label{ineq:varmu}
+		\var[\bmu] = \frac{1}{\ns} \var_{\bj \sim p}[\eps_{\bj}] \leq \frac{1}{\ns} \E_{\bj \sim p}[\eps_{\bj}^2] \leq \frac{B}{\ns \ab}
+		\sum_{j=1}^{\ns} \eps_j^2 = \frac{B}{\ns} \chisquare{p}{\uniform_{\ab}} \leq \frac{.99B\thresh}{\ns} \leq \frac{B\thresh^2}{\cc},
+	\end{equation}
+	the last inequality using \Cref{ineq:nbd}.
+	Combining the preceding two inequalities and using Chebyshev, we indeed conclude \Cref{eqn:case1} (provided $\cc = \cc(B)$ is sufficiently large).
+
+	Towards \Cref{eqn:case2},  let  $b \geq 2$ be a certain universal constant to be chosen later, and say that $j \in [\ab]$ is \emph{light} if $p_j \leq b/\ab$ (i.e., $\eps_j \leq b-1$), \emph{heavy} otherwise. 
+	We will write 
+	\begin{equation}
+		\bmu_1 = \avg_{t=1}^{\ns}\{\eps_{\bJ_t} : \bJ_t \text{ heavy}\} \geq 0, \quad	 \bmu_2 = \avg_{t=1}^{\ns}\{\eps_{\bJ_t} : \bJ_t \text{ light}\} \qquad \text{(so $\bmu = \bmu_1 + \bmu_2$),}
+	\end{equation}
+	and also observe
+	\begin{equation}	\label{eqn:helly}
+		%
+		\eta =\hellingersq{p}{\uniform_{\ab}} = \frac{1}{\ab} \sum_{j=1}^{\ab}(\sqrt{1+\eps_j} - 1)^2 \leq \frac{1}{\ab} \sum_{j=1}^{\ab}\min\{|\eps_j|, \eps_j^2\} \leq \frac{1}{\ab} \sum_{\text{heavy }j} \eps_j + \frac{1}{\ab} \sum_{\text{light }j}\eps_j^2 \eqqcolon \eta_1 + \eta_2.
+	\end{equation}
+	Let us now make some estimates.
+	 First:
+	\begin{equation} \label{eqn:pheavy}
+		p_{\text{heavy}} \coloneqq \sum_{j \text{ heavy}} p_j = \frac{1}{\ab}\sum_{j \text{ heavy}} (1+\eps_j) \geq \eta_1.%
+	\end{equation}
+	Also, similar to our Case~(1) estimates we have
+	\begin{equation}	\label{eqn:case2a2}
+		\E[\bmu_2] = \frac{1}{\ab} \sum_{\text{light } j} (\eps_j^2 + \eps_j) = \eta_2  - \eta_1 \quad \text{(where we used $\sum_{j=1}^{\ab} \eps_j = 0$),}
+	\end{equation}
+	and
+	%
+	\begin{equation} \label{eqn:thevar}
+		\var[\bmu_2] = \frac{1}{\ns} \var_{\bj \sim p}[\indicSet{\bj \text{ light}} \cdot \eps_{\bj}] 
+		\leq \frac{1}{\ns} \E_{\bj \sim p}[\indicSet{\bj \text{ light}} \cdot \eps_{\bj}^2] 
+		\leq \frac{b}{\ns\ab} \sum_{j \text{ light}} \eps_j^2 = \frac{b}{\ns} \eta_2 \leq \frac{b}{\cc} \thresh\eta_2 \leq \frac{b}{\cc}\eta_2 \eta \text{ (in Case~(2)).}
+	\end{equation}
+	We will now establish \Cref{eqn:case2}; in fact, we we even will show the following very slightly stronger fact:
+	\begin{align}	
+		\text{In Case (2),\qquad} \bmu & \geq .997(\eta_1+\eta_2) \geq .997\eta && \text{except with probability at most $.002$.} \label{eqn:case22}	
+	\end{align}
+	We divide into two subcases:
+	\paragraph{Case (2a):} $\eta_1 \leq .001\eta_2$.  \quad In this case we have $\eta_2 \geq \frac{1}{1.001} (\eta_1+\eta_2)$, and $\E[\bmu_2] \geq .999\eta_2$ from \Cref{eqn:case2a2}.  Since \Cref{eqn:thevar} implies $\var[\bmu_2] \leq 1.001\frac{b}{\cc} \eta_2^2$, Chebyshev's inequality tells us that $\bmu_2 \geq .998\eta_2$ except with probability at most~$.001$ (provided~$\cc$ is large enough).  
+	But then $\bmu \geq \bmu_2 \geq \frac{.998}{1.001}(\eta_1+\eta_2)$, confirming \Cref{eqn:case22}.
+	\paragraph{Case (2b):} $\eta_1 > .001\eta_2$.  \quad In this case we have $\eta_1 \geq \frac{.001}{1.001} (\eta_1+\eta_2) \geq .0009(\eta_1+\eta_2)$.  
+	We now use that heavy~$j$ have $\eps_j \geq b-1$ to observe that
+	\begin{equation}
+		\bmu_1 = \avg_{t=1}^{\ns}\{\eps_{\bJ_t} : \bJ_t \text{ heavy}\} \geq (b-1) \cdot (\text{fraction of } \bJ_t\text{'s that are heavy}) =  (b-1) \cdot \frac{\text{Bin}(\ns, p_{\text{heavy}})}{\ns}
+	\end{equation}
+    (in distribution).
+	We see that $\E[\bmu_1] \geq (b-1)p_{\text{heavy}}$, and moreover concentration of Binomials and \Cref{eqn:pheavy} imply that 
+	\begin{equation} \label{ineq:crunch1}
+		\bmu_1\geq \frac12(b-1)p_{\text{heavy}} \geq \frac12(b-1)\eta_1 \text{ except with probability at most $.001$},	
+	\end{equation}
+	provided that $p_{\text{heavy}} \ns$ is a sufficiently large constant.
+	But we can indeed ensure this by taking $\cc$ sufficient large: by \Cref{eqn:pheavy},  being in Case~(2b), and \Cref{ineq:nbd}, it holds that
+	\begin{equation}
+		p_{\text{heavy}} \ns \geq \eta_1 \ns \geq .0009(\eta_1+\eta_2) \ns \geq .0009 \eta \ns \geq .0009\thresh \ns \geq .0009\cc.
+	\end{equation}
+	At the same time, \Cref{eqn:case2a2} certainly implies $\E[\bmu_2] \geq -\eta_1$, and \Cref{eqn:thevar} implies $\var[\bmu_2] \leq \frac{b}{\cc} \eta_2 (\eta_1+\eta_2) \leq \frac{1000\cdot 1001 b}{\cc} \eta_1^2$ (using Case~(2b)).
+	Thus Chebyshev implies 
+	\begin{equation} \label{ineq:crunch2}
+		\bmu_2 \geq -1.1\eta_1 \text{ except with probability at most~$.001$},
+	\end{equation}
+	provided $\cc$ is large enough.	
+	Combining \Cref{ineq:crunch1,ineq:crunch2} yields
+	\begin{equation}
+		\bmu = \bmu_1 + \bmu_2 \geq (\tfrac{b-1}{2}-1.1)\eta_1 \geq .0009(\tfrac{b-1}{2}-1.1)(\eta_1+\eta_2) \text{ except with probability at most~$.002$},
+	\end{equation}
+	which verifies \Cref{eqn:case22} provided $b$ is a large enough constant.
+
+	\bigskip
+
+	We have now verified the properties of~$\bmu$ claimed in \Cref{eqn:case1,eqn:case22}.  
+	Next we analyze the random variable~$\bsigma^2$ that represents the variance of~$\bY$ (from QME's point of view). 
+    Our goal will be to show:
+    \begin{align}
+		\text{In Case (1),\qquad} \bsigma^2/(\cq\ns)^2 & \leq 10^{-6} \cdot \thresh^2 && \text{except with probability at most $.001$,}  \label{eqn:caseee1}\\
+		\text{In Case (2),\qquad} \bsigma^2/(\cq\ns)^2 & \leq 10^{-6} \cdot \bmu^2 && \text{except with probability at most $.001$.} \label{eqn:caseee2}
+	\end{align}
+    Together with \Cref{eqn:case1,eqn:case22}, these facts are sufficient to complete the proof of the theorem, by the QME guarantee of \Cref{thm:QME}.
+
+    We have:
+	\begin{equation} \label{ineq:recall}
+		\bsigma^2 \coloneqq \sum_{j=1}^{\ab} p_j\bY_j^2 - \bmu^2 = (\ab/\ns)^2\sum_{j=1}^{\ab} p_j\bX_j^2 - (\bmu+1)^2 \leq  (\ab/\ns)^2\sum_{j=1}^{\ab} p_j\bX_j^2 = \bsigma_S^2 + \bsigma_{S^c}^2,
+	\end{equation}
+	where we've defined $\bsigma_S^2 \coloneqq (\ab/\ns)^2\sum_{j \in S} p_j\bX_j^2$ and $S^c = [\ab] \setminus S$.  
+	We will be making two different choices for~$S$ later, but we will always assume
+	\begin{equation}	\label{ineq:neg}
+		S \supseteq \{j : j \text{ light}\}, \quad \text{which implies }\sum_{j \in S} \eps_j \leq 0
+	\end{equation}
+	(the implication because $\sum_{j=1}^{\ab} \eps_j = 0$ and $S^c$ contains only $j$'s with $\eps_j \geq b-1 \geq 0$).
+	Now since $\E[\bX_j^2] = \ns p_j(1-p_j) + (\ns p_j)^2 \leq \ns p_j + (\ns p_j)^2$, we have
+	%
+		%
+	\begin{align}
+		\E[\bsigma_S^2] &\leq (\ab^2/\ns)\sum_{j\in S} p_j^2 + \ab^2 \sum_{j\in S} p_j^3 \\
+		&\leq \ab/\ns  +  (2/\ns)\sum_{j\in S}\eps_j + (1/\ns)\sum_{j\in S}\eps_j^2 + 1/\ab + (3/\ab) \sum_{j \in S} \eps_j +  (3/\ab) \sum_{j\in S} \eps_j^2 + (1/\ab) \sum_{j\in S} \eps_j^3 \label{ineq:just1}\\
+		%
+        &\leq (5\cc\ab/\ns)\parens*{1+ \frac{1}{\ab}\sum_{j\in S}\eps_j + \frac{1}{\ab}\sum_{j\in S}\eps_j^2} + \frac{1}{\ab} \sum_{j\in S} \eps_j^3 
+        \label{ineq:toreturn}
+	\end{align}
+	(where the last inequality used  $1/\ab \leq \cc/\ns \leq (\cc-1)\ab/\ns$ from \Cref{ineq:nbd}).
+	Using \Cref{ineq:neg} to drop the term of \Cref{ineq:toreturn} that's linear in the~$\eps_j$'s, we thereby conclude
+	\begin{align}
+		\E[\bsigma_S^2/(\cq\ns)^2] \leq \E[\bsigma_S^2/\ns^2] 
+        &\leq (5\cc\ab/\ns^3)\parens*{1 + \frac{1}{\ab}\sum_{j\in S}\eps_j^2} + (\ab^{1/2}/\ns^2) \parens*{\frac{1}{\ab}\sum_{j\in S}\eps_j^2}^{3/2}  \\
+        &\leq (5\thresh^2/\cc^2)(1 + \eta_S) +  \frac{\thresh^{4/3}}{\cc^2 \ab^{1/6}} \eta_S^{3/2},
+	\end{align}
+	where $\eta_S \coloneqq \frac{1}{\ab}\sum_{j\in S}\eps_j^2$.
+	In Case~(1) we select $S = [\ab]$, so $\eta_S = \chisquare{p}{\uniform_{\ab}} \leq .99\thresh \leq \thresh \leq 1$, and the above bound gives
+	\begin{equation}
+		\text{Case (1)} \implies \E[\bsigma^2/(\cq\ns)^2] \leq 10\thresh^2/\cc^2 +\frac{\thresh^{17/6}}{\cc^2 \ab^{1/6}}  \leq \cdot 10^{-9} \cdot \thresh^2
+	\end{equation}
+	(provided $\cc$ is large enough).  Now \Cref{eqn:caseee1} follows by Markov's inequality.
+
+	In Case~(2) we select $S  = \{j : j \text{ light}\}$, so $\eta_S = \eta_2$ and we conclude (using obvious notation)
+	\begin{equation} \label{ineq:put}
+		\text{Case (2)} \implies \E[\bsigma_{\text{light}}^2/(\cq\ns)^2] \leq (5\thresh^2/\cc^2)(1+\eta_2)+\frac{\thresh^{4/3}}{\cc^2 \ab^{1/6}}  \eta_2^{3/2}
+		\leq .4 \cdot 10^{-9} \cdot (\eta_1+\eta_2)^2,
+	\end{equation}
+	(provided $\cc$ large enough), 
+	where we used $\thresh \leq \eta \leq \eta_1 + \eta_2$ and also $\thresh \leq 1$.
+	We now complete the bounding of~$\bsigma^2$ in Case~(2) by two different strategies:
+
+	\paragraph{Case (2.i):} $\ns > \ab^{.99}/B$. \quad In this case, $L = B\cc \ln \ab$, and $(\diamondsuit)$ tells us $\norminf{\p} \leq 2L/\ns$, so we have
+    \begin{equation}    \label{ineq:pinf}
+        \norminf{\p} \leq \frac{2B\cc \ln \ab}{\ns} \leq \frac{2B^2 \cc \ln \ab}{\ab^{.99}}.
+    \end{equation}
+    Now returning to \Cref{ineq:toreturn}, we get
+	\begin{align}
+		\E[\bsigma_{\text{heavy}}^2/(\cq\ns)^2] &\leq \frac{5\cc\ab}{\cq^2\ns^3} + \frac{5\cc\ab}{\cq^2\ns^3}\parens*{1 +  \eps_{\text{max}} + \frac{\ns}{5\cc\ab}\eps_{\text{max}}^2} \cdot \frac{1}{\ab}\sum_{j \text{ heavy}}\eps_j\\
+		&\leq \frac{5\thresh^2}{(\cq\cc)^2}  + \frac{5\cc\ab^2}{\cq^2\ns^3}\parens*{\norminf{\p} + \frac{\ns}{5 \cc} \cdot \norminf{\p}^2}\eta_1
+        %
+        \leq \frac{5\thresh^2}{(\cq\cc)^2}  + \frac{14B^6\cc^2 \ln^2 \ab}{\cq^2 \ab^{1.96}}\eta_1, \label{ineq:12}
+	\end{align}
+    where we used \Cref{ineq:pinf} and $\ns > \ab^{.99}/B$.
+	We can again bound the first expression in \Cref{ineq:12} as $\frac{5\thresh^2}{(\cq \cc)^2} \leq 10^{-6} \cdot (\eta_1 + \eta_2)^2$.
+	As for the second expression, either $\eta_1 =0$ (there are no heavy~$j$'s) or else $\eta_1 \geq \frac{b-1}{\ab}$ (there is at least one heavy~$j$). 
+	In either case, we have $\eta_1 \leq  \frac{\ab}{b-1}\eta_1^2 \leq \ab \eta_1^2$, so we can bound this second expression  by
+	\begin{equation}
+		\frac{14B^6\cc^2 \ln^2 \ab}{\cq^2 \ab^{.96}}\eta_1^2
+        \leq .4 \cdot 10^{-9} \cdot (\eta_1 + \eta_2)^2
+	\end{equation}
+    where we used $\cq = \cq(\cc)$ sufficiently large (and we could have taken $\cq = 1$ were willing to assume~$\ab$ sufficiently large).
+	Putting this bound together with \Cref{ineq:put} we obtain:
+	\begin{equation}
+		\text{Case~(2.i)} \implies \E[\bsigma/(\cq\ns)^2] \leq .8\cdot 10^{-9}\cdot (\eta_1+\eta_2)^2 \leq \tfrac{.8}{.997} \cdot 10^{-9} \cdot \bmu^2 \leq \cdot 10^{-9} \cdot \bmu^2,
+	\end{equation}
+    using \Cref{eqn:case22}.  \Cref{eqn:caseee2} now follows (in this Case~(2.i)) by Markov's inequality.
+
+	\paragraph{Case (2.ii):} $\ns \leq \ab^{.99}/B$. \quad In this case we use a different strategy.  
+	Recall from \Cref{ineq:recall} that
+	\begin{equation}
+		\bsigma^2 \leq (\ab/\ns)^2 \sum_{j=1}^{\ab} p_j \bX_j^2 \leq (\ab/\ns)^2 \|\bX\|_\infty \sum_{j=1}^{\ab} p_j \bX_j = (\ab/\ns) \|\bX\|_\infty (1+\bmu).
+	\end{equation}
+    By $(\diamondsuit)$ we may assume $\|\bX\|_\infty \leq L = 100$, the equality because we are in Case~(2.ii).
+	Thus
+	\begin{equation}
+		\bsigma^2/(\cq\ns)^2 \leq \bsigma^2/\ns^2 \leq 100 (\ab/\ns^3) (1+\bmu) \leq \frac{100 \thresh^2}{\cc^3}+ \frac{100 \thresh^2}{\cc^3}\bmu \leq 10^{-6} \cdot \bmu^2.
+	\end{equation}
+	(provided $\cc$ large enough), where we used $\thresh \leq \eta \leq \frac{1}{.997}\bmu$ (from \Cref{eqn:case22}) and also $\thresh \leq 1$.
+    This verifies \cref{eqn:caseee2} in Case~(2.ii), completing the proof.
+\end{proof}
+
+%========= 
+\section{Algorithm in the Small Distance Regime}
+  \label{sec:small}
+%
+\newcommand{\dstltwo}{\textcolor{ForestGreen}{\tau}}
+In this section, we provide an alternative (and arguably simpler) proof of the main result of~\cite{LuoWL24}:
+\begin{theorem}
+  \label{thm:smalldistance:restated}
+There is a computationally efficient quantum algorithm (\cref{algo:qme:hashing}) for uniformity testing with the following guarantees: it takes $O(\dims^{1/2}/\dst)$ ``samples'' from an unknown probability distribution $\p$ over $[\dims]$, and distinguishes with probability at least $2/3$ between (1)~$\chisquare{\p}{\uniform_\dims} \leq \frac{\dst^2}{144}$, and (2)~$\chisquare{\p}{\uniform_\dims} > \dst^2$.
+\end{theorem}
+This in turn will follow from the more general result on tolerant $\lp[2]$ closeness testing, where one is given access to the source code for \emph{two} unknown probability distributions $\p,\q$ over $[\dims]$, and one seeks to distinguish $\normtwo{\p-\q} \leq c\cdot \dstltwo$ from $\normtwo{\p-\q} \geq \dstltwo$.
+\begin{theorem}
+  \label{thm:smalldistance:l2}
+There is a computationally efficient quantum algorithm (\cref{algo:qme:hashing}) for closeness testing with the following guarantees: it takes $O(1/\dstltwo)$ ``samples'' from two unknown probability distributions $\p,\q$ over $[\dims]$, and distinguishes with probability at least $2/3$ between (1)~$\normtwo{\p-\q} \leq \frac{\dstltwo}{12}$, and (2)~$\normtwo{\p-\q} > \dstltwo$.
+\end{theorem}
+\cref{thm:smalldistance:restated} can then be obtained as a direct corollary by setting $\dstltwo = \dst/\sqrt{\dims}$, recalling that when $\q$ is the uniform distribution $\uniformOn{\ab}$, $\lp[2]$ distance and $\chi^2$ divergence are equivalent:
+\[
+ \normtwo{\p-\uniformOn{\ab}}^2 = \sum_{i=1}^{\dims} (\p_i-1/\dims)^2 = \frac{1}{\dims} \sum_{i=1}^{\dims} \frac{(\p_i-1/\dims)^2}{1/\dims}
+ = \frac{1}{\dims} \chisquare{\p}{\uniformOn{\ab}}
+\]
+We emphasize that the result of~\cref{thm:smalldistance:l2} itself is not new, as a quantum algorithm achieving the same sample complexity (in the same access model) was recently obtained by~\cite{LuoWL24}.\footnote{Technically,~\cite{LuoWL24}'s result can be seen as slightly stronger, in that it allows to test $\normtwo{\p-\q} \leq (1-\gamma)\dstltwo$ vs. $\normtwo{\p-\q}{\uniform_\dims} > \dstltwo$, for arbitrarily small constant $\gamma>0$.} However, our algorithm differs significantly from the one in~\cite{LuoWL24}, and we believe it to be of independent interest for several reasons:
+\begin{itemize}
+  \item it is \emph{conceptually very simple}: (classically) hash the domain down to \emph{two} elements, and use QME to estimate the bias of the resulting Bernoulli;
+  \item it neatly \emph{separates the quantum and classical aspects} of the task, only using QME (as a blackbox) in a single step of the algorithm;
+  \item in contrast to the algorithm of~\cite{LuoWL24}, it \emph{decouples the use of the source code from $\p$ and $\q$}, allowing one to run our algorithm when the accesses to the two distributions are on different machines, locations, or even will be granted at different points in time (\ie one can run part of the algorithm using the source code for $\p$, and, one continent and a year apart, run the remaining part on the now-available source code for $\q$ without needing $\p$ anymore).
+\end{itemize}
+The idea behind~\cref{thm:smalldistance:l2} is relatively simple: previous work (in the classical setting) showed that hashing the domain from $\dims$ to a much smaller $\ab' \ll \dims$ could yield sample-optimal testing algorithms in some settings, \eg when testing under privacy bandwidth, or memory constraints. Indeed, while this ``domain compression'' reduces the total variation distance by a factor $\Theta(\sqrt{\ab'/\dims})$, this shrinkage is, in these settings, balanced by the reduction in domain size. The key insight in our algorithm is then to (1)~use this hashing with respect to $\lp[2]$ distance, not total variation distance, and show that one can in this case get a two-sided guarantee in the distance (low-distortion embedding) instead of a one-sided one; and (2)~compress the domain all the way to $\dims'=2$, so that one can then invoke the QME algorithm to simply estimate the bias of a coin to an additive $\pm \dstltwo$, a task for which a quantum quadratic speedup is well known.
+\begin{proof}[Proof of~\cref{thm:smalldistance:l2}]
+As mentioned above, a key building block of our algorithm is the following ``binary hashing lemma,'' a simple case of the domain compression primitive of~\cite{ACHST:20}:
+\begin{lemma}[Random Binary Hashing (Lemma~2.9 and Remark~2.4 of~\cite{CanonneTopicsDT2022}]
+  \label{lemma:random:binary:hashing}
+  Let $\p,\q\in\distribs{\ab}$. Then, for every $\alpha\in[0,1/2]$,
+  \[
+        \probaDistrOf{S}{ |\p(S)-\q(S)| \geq \alpha\normtwo{\p-\q} } \geq \frac{1}{12}(1-4\alpha^2)^2\,,
+  \] 
+  where $S\subseteq[\ab]$ is a uniformly random subset of $[\ab]$.
+\end{lemma}
+Given our goal of tolerant testing, we also require a converse to~\cref{lemma:random:binary:hashing}, stated and proven below:
+\begin{lemma}
+  \label{lemma:random:binary:hashing:2}
+  Let $\p,\q\in\distribs{\ab}$. Then, for every $\beta\in[1/2,\infty)$,
+  \[
+        \probaDistrOf{S}{ |\p(S)-\q(S)| \geq \beta\normtwo{\p-\q} } \leq \frac{1}{4\beta^2}\,,
+  \] 
+  where $S\subseteq[\ab]$ is a uniformly random subset of $[\ab]$.
+\end{lemma}
+\begin{proof}
+As in the proof of~\cref{lemma:random:binary:hashing}, we write $\delta \eqdef \p-\q\in\R^{\ab}$ and $\p(S)-\q(S) = \frac{1}{2}Z$, where $Z \eqdef \sum_{i=1}^{\ab} \delta_i \xi_i$ for $\xi_1,\dots,\xi_{\ab}$ \iid Rademacher. We will use the following fact established in the proof of this lemma, which we reproduce for completeness: 
+\begin{equation}
+	\label{eq:random:binary:hashing:expectation}
+  \bEE{Z^2} = \sum_{1\leq i,j\leq \ab} \delta_i\delta_j \bEE{\xi_i\xi_j} = \sum_{i=1}^{\ab} \delta_i^2 = \normtwo{\delta}^2\,.
+\end{equation}
+By Markov's inequality, we then have
+\[
+        \probaDistrOf{S}{ |\p(S)-\q(S)| > \beta\normtwo{\p-\q} } 
+        = \probaDistrOf{S}{ Z^2 > 4\beta^2\bEE{Z^2} } 
+        \leq \frac{1}{4\beta^2}
+ \]
+ concluding the proof.
+\end{proof}
+While the above two lemmas allow us to obtain a slightly more general result than in the theorem statement by keeping $\alpha,\beta$ as free parameters, for concreteness, set $\alpha \coloneqq 1/(2\sqrt{2})$ and $\beta=4$. This implies the following:
+\begin{itemize}
+  \item If $\normtwo{\p-\q} \geq \dstltwo$, then
+  \[
+      \probaDistrOf{S}{ \abs{\p(S)-\frac{|S|}{\dims}} \geq \frac{\dstltwo}{\sqrt{8}} } \geq \frac{1}{48}
+  \]
+  \item If $\normtwo{\p-\q} \leq \frac{\dstltwo}{12}$, then
+  \[
+    \probaDistrOf{S}{ \abs{\p(S)-\frac{|S|}{\dims}} \geq \frac{\dstltwo}{\sqrt{9}} } \leq \frac{1}{64}\,.
+  \]
+\end{itemize}
+where $S\subseteq[\ab]$ is a uniformly random subset of $[\ab]$. This allows us to distinguish between the two cases with only $\bigO{1}$ repetitions:
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+	\State Set $T = O(1)$, $\errprob \eqdef \frac{1}{600}$, $\tau \eqdef \frac{1/48+1/64}{2}$.	\Comment{$\errprob \leq \frac{1}{3}\Paren{\frac{1}{48}-\frac{1}{64}}$.}
+	\For{$t = 1$ \textbf{to} $T$}
+		\State Pick a u.a.r. subset $S_t\subseteq[\ab]$ (independently of previous iterations)
+		\State Estimate $\p(S_t), \q(S_t)$ by $\hat{p}_t,\hat{q}_t$ to within $\pm \frac{\tau}{100}$ with error probability $\errprob$. \Comment{QME}\label{step:qme}
+		\If{$|\hat{p}_t-\hat{q}_t| \leq \frac{\dst}{\sqrt{8\dims}}$}
+		    \ $b_t \gets 0$
+		\Else
+		    \ $b_t \gets 1$
+		\EndIf
+	\EndFor
+	\Return \accept if $\frac{1}{T}\sum_{t=1}^T b_t \leq \tau$ \Comment{Estimate of the probability \accept}
+\end{algorithmic}
+	\caption{QME+Binary Hashing Tester}\label{algo:qme:hashing}
+\end{algorithm}
+A standard analysis shows that, for $T$ a sufficiently large constant, with probability at least $2/3$ the estimate $\frac{1}{T}\sum_{t=1}^T b_t$ will be within an additive $\errprob+\frac{1}{1000}$ of the corresponding value (either $1/48$ or $1/64$), in which case the output is correct. The total number of samples required is $T$ times the sample of the Quantum Mean Estimation call on Line~\ref{step:qme}, which is $O(1/\dstltwo)$: the complexity of  getting a $O(\dstltwo)$-additive estimate of the mean of a Bernoulli random variable with high (constant) probability. 
+This concludes the proof.
+\end{proof}
+
+%=========
+\section{Algorithm in the Giant Distance Regime}
+  \label{sec:giant}
+%
+%
+\newcommand{\pow}{\mathrm{pow}}
+\newcommand{\del}{\delta}
+\newcommand{\bigns}{{\textcolor{red}{N}}}
+%
+
+In this final section, we show that, in the (stronger) quantum string oracle model, one can perform tolerant uniformity testing with respect to $\chi^2$ divergence in the ``very large parameter regime,'' that is, to distinguish $\chisquare{\p}{\uniform_\dims} \leq c \thresh$ from $\chisquare{\p}{\uniform_\dims} > \thresh$ for $\thresh \geq 1$: 
+\begin{theorem}\label{thm:giant}
+  There is a computationally efficient quantum algorithm for uniformity testing with the following guarantees: For $\thresh\geq 1$, the algorithm makes $O(\dims^{1/3}/\thresh^{1/3})$ calls to the quantum string oracle for an unknown distribution $\p$ over $[\dims]$, and distinguishes with probability at least~$.99$ between 
+  \begin{equation}
+      (1)~\chisquare{\p}{\uniform_\dims} \leq c\cdot \thresh, 
+      \qquad \textrm{and} \qquad (2)~\chisquare{\p}{\uniform_\dims} > \thresh\,,    
+  \end{equation}
+  where $c>0$ is an absolute constant. Moreover, this query complexity is optimal.
+\end{theorem}
+Note that, as discussed in the introduction, this result does not imply anything in terms of total variation distance, as the latter is always at most $1$; however, we believe this result to be of interest for at least two reasons: (1)~it is in itself a reasonable (and often useful) testing question, when total variation distance is not the most relevant distance measure, and implies, for instance, testing $\chisquare{\p}{\uniform_\dims} \leq c\cdot \thresh$ from $\kldiv{\p}{\uniform_\dims} > \thresh$; and (2)~one can show that this complexity is tight, by a reduction to the $\theta$-to-1 collision problem, which provides additional evidence for~\Cref{conj:tv}. 
+\begin{proof}
+The main ingredient of the proof is the following lemma, which guarantees that taking $\bigns = \Theta({\dims}/{\thresh})$ from the unknown distribution $\p$ is enough to obtain (with high constant probability) a multiset of elements with, in one case, no collisions, and in the other at least one collision:
+\begin{lemma}\label{lem:distinctelements}
+For $\thresh \geq 1$, there exists a constant $c\in(0,1)$ such that taking $\bigns$ \iid samples from an unknown $\p$ over $[\dims]$ results in a multiset $S$ satisfying the following with probability at least $.99$:
+\begin{itemize}
+	\item If $\chisquare{\p}{\uniformOn{\dims}} \leq c\cdot \thresh$, then all elements in $S$ are distinct;
+	\item If $\chisquare{\p}{\uniformOn{\dims}} \geq \thresh$, then at least two elements in $S$ are identical;
+\end{itemize}
+as long as $1601\cdot \frac{\dims}{\thresh} \leq \bigns \leq \frac{1}{10c}\cdot \frac{\dims}{\thresh}$. (In particular, taking $c \eqdef \frac{1}{16010}$ suffices to ensure such a choice of $\bigns$ is possible.)
+\end{lemma}
+Before proving this lemma, we describe how it implies our stated complexity upper bound. \Cref{lem:distinctelements} guarantees that we can reduce our testing problem to that of deciding if, given oracle access to a string of size $\bigns = \Theta(\sqrt{\dims/\thresh})$, whether all the elements in it are distinct. This problem is solved by Ambainis' element distinctness quantum-walk algorithm~\cite{Amb07} using $O(\bigns^{2/3}) = O({\dims^{1/3}/\thresh^{1/3}})$ quantum queries.
+
+\begin{proof}[Proof of~\Cref{lem:distinctelements}]
+Suppose we take $\bigns$ \iid samples $X_1,\dots, X_\bigns$ from $\p$, and count the number $Z$ of collisions among them:
+\[
+		Z \eqdef \sum_{1\leq i < j \leq \bigns} \indic{X_i = X_j}
+\]
+Letting $\del \eqdef \p - \uniformOn{\dims}$ and $\pow_t(x) \eqdef \sum_{i=1}^{\dims} x_i^t$ for all integer $t\geq 0$ and vector $x\in\R^{\dims}$ (so that $\del_i = \p_i - 1/\dims$ for all $i$), we have, $\pow_1(\del) = 0$, and 
+\[
+\pow_2(\del) = \normtwo{\p-\uniformOn{\dims}}^2 = \frac{1}{\dims}\chisquare{\p}{\uniformOn{\dims}}
+\]
+Now, it is not hard to verify that $\bEE{Z} = \binom{\bigns}{2} \normtwo{\p}^2 = \binom{\bigns}{2} (\pow_2(\del)+1/\ab)$, and 
+\begin{align} %
+\var[Z] 
+&= \binom{\bigns}{2} \normtwo{\p}^2 \Paren{1-\normtwo{\p}^2} + 6\binom{\bigns}{3}\Paren{\norm{\p}_3^3 - \norm{\p}_2^4} \notag\\
+%
+&\leq \bEE{Z} + 6\binom{\bigns}{3}\Paren{\pow_3(\del) + \frac{3}{\dims}\pow_2(\del)} \label{eq:variance:collisions}  %
+\end{align}
+From this, we get, setting $\tau \eqdef \sqrt{{\thresh}/{\dims}} \geq 1/\sqrt{\dims}$:
+\begin{itemize}
+\item If $\chisquare{\p}{\uniformOn{\dims}}\leq c\cdot \thresh$, then $\pow_2(\del) \leq c^2\cdot \tau^2$, and as long as $\bigns \leq \frac{1}{10c\tau}$ we have $\binom{\bigns}{2} (c^2\cdot \tau^2+1/\ab) \leq 1/100$, so that by Markov's inequality
+\[
+	\probaOf{Z \geq 1 } \leq \probaOf{Z \geq 100\bEE{Z} } \leq \frac{1}{100}
+\]
+\item If $\chisquare{\p}{\uniformOn{\dims}}\geq \thresh$, then $\pow_2(\del) \geq \tau^2$,  and by Chebyshev's inequality and~\cref{eq:variance:collisions}
+\begin{align*}
+	\probaOf{Z = 0 } 
+	&\leq \probaOf{\abs{Z - \bEE{Z}} \geq \bEE{Z} } 
+	\leq \frac{1}{\bEE{Z}} + \frac{4}{\bigns}\cdot \frac{\pow_3(\del) + \frac{3}{\dims}\pow_2(\del)}{(\pow_2(\del)+1/\ab)^2} \\
+	&\leq \frac{2}{\bigns(\bigns-1)\tau^2} + \frac{4}{\bigns}\cdot \frac{\pow_2(\del)^{3/2} + \frac{3}{\dims}\pow_2(\del)}{\pow_2(\del)^2} \\
+	&\leq \frac{3}{\bigns^2\tau^2} + \frac{4}{\bigns\tau}+ \frac{12}{\bigns\ab\tau^2}\\
+	&\leq \frac{3}{\bigns^2\tau^2} + \frac{4}{\bigns\tau}+ \frac{12}{\bigns} \tag{$\tau\geq 1/\sqrt{\dims}$}\\
+	&\leq \frac{3}{\bigns^2\tau^2} + \frac{16}{\bigns\tau}
+\end{align*}
+which is at most $\frac{1}{100}$ for $\bigns \geq \frac{1601}{\tau}$.
+\end{itemize}
+This proves the lemma.
+\end{proof}
+This concludes the proof of the upper bound part of~\Cref{thm:giant}. To conclude, it only remains to show that this is, indeed, optimal. 
+For this, we need a lower bound of \cite{Kut05}, which generalized a lower bound of Aaronson and Shi~\cite{AS04}:
+\begin{theorem}[\cite{Kut05}]
+	Let $\dims>0$ and $\cyan{r}\geq 2$ be integers such that $\cyan{r}|\dims$, and let $f:[\dims]\to[\dims]$ be a function to which we have quantum oracle access. Then deciding if $f$ is 1-to-1 or $\cyan{r}$-to-1, promised that one of these holds, requires $\Omega((\dims/\cyan{r})^{1/3})$ quantum queries.
+\end{theorem}
+When we view this function as a quantum string oracle for a probability distribution, the function being 1-to-1 corresponds to the uniform distribution on $[\dims]$. In the other case, the distribution is uniform on a subset of size $[\dims/\cyan{r}]$, for any $\cyan{r}\geq \thresh+1$ dividing $\dims$. An easy calculation shows that the second distribution is at $\chi^2$ divergence
+\begin{equation}
+	\chisquare{\p}{\uniformOn{\dims}} 
+	= \sum_{i \in [\dims]} \left(\frac{\p_i^2}{1/\dims}\right) - 1
+	= \dims\cdot  \frac{\cyan{r}^2}{\dims^2} \cdot \frac{\dims}{\cyan{r}}	 - 1
+	= \cyan{r} -1
+	\geq \thresh,
+\end{equation}
+from uniform, which completes the proof.
+\end{proof}
+ 
+%=========
+\printbibliography
+
+%=========
+\appendix
+\section{Reduction from Identity to Uniformity Testing}
+  \label{app:identity:reduction}
+%
+As mentioned in the introduction, there is a known reduction from identity to uniformity testing, due to Goldreich~\cite{Goldreich:16} and inspired by~\cite{DK:16}: which, in a blackbox way, converts an instance of uniformity testing (in total variation distance) with reference distribution $\q$ over $[\dims]$ and distance parameter $\dst$ to an instance of uniformity testing over $[4\dims]$ and distance parameter $\dst/4$. (Here, we follow the exposition and parameter setting of~\cite[Section~2.2.3]{CanonneTopicsDT2022}.)
+
+To be able to use it in our setting, all we need to check is that this blackbox reduction $\Phi_\q$ preserves access to ``the code'': that is, given the code $C_\p$ for a probability distribution $\p$ over $[\ab]$, that we can efficiently have access to the code $C_{\p'}$ for the resulting distribution $\p'=\Phi_\q(\p)$ over $[4\dims]$. 
+To do so, note that $\Phi_\q$ is the composition of 3 successive mappings,
+\[
+  \Phi_\q = \Phi_\q^{(1)}\circ\Phi_\q^{(2)}\circ\Phi_\q^{(3)}
+\]
+where $\Phi_\q^{(3)}\colon[\ab]\to[\ab]$, $\Phi_\q^{(2)}\colon[\ab]\to[\ab+1]$, and , $\Phi_\q^{(2)}\colon[\ab+1]\to[4\ab]$. So it suffices to show that each of these 3 mappings does preserve access to the code generating a sample from the resulting distribution.
+\begin{itemize}
+  \item The first, $\Phi_\q^{(3)}$, is the easier, as it consists only in mixing its input with the uniform distribution:
+  \[
+    \Phi_\q^{(3)}(\p) = \frac{1}{2}\p + \frac{1}{2}\uniformOn{\dims}
+  \]
+  for which a circuit can be easily obtained, given a circuit for $\p$.\vspace{-0.5em}
+  \item The second, $\Phi_\q^{(2)}$, ``rounds down'' the probability of each of the $\dims$ elements of the domain, and sends the remaining probability mass to a $(\dims+1)$-th new element:
+  \[
+      \Phi_\q^{(2)}(\p)_i = 
+      \begin{cases}
+        \frac{\flr{4\dims\q_i}}{4\dims\q_i}\cdot \p_i, & i\in[\dims]\\
+        1- \sum_{i=1}^\dims \frac{\flr{4\dims\q_i}}{4\dims\q_i}\cdot \p_i, & i=\dims+1
+      \end{cases}
+  \]
+  This corresponds to adding to the circuit $C_\p$ for $\p$ a ``postprocessing circuit'' which, if the output of $C_\p$ is $i$, outputs $i$ with probability $\frac{\flr{4\dims\q_i}}{4\dims\q_i}$ (and $\dims+1$ otherwise).\vspace{-0.5em}
+  \item The third, $\Phi_\q^{(1)}$, assumes that the reference distribution $\q$ is ``grained'' (namely, all its probabilities are positive multiples of $1/(4\dims)$), which will be the case after the first two mappings\footnote{Specifically, when chaining the three mappings, the reference distribution called $\q$ here is actually $\Phi_\q^{(2)}\circ \Phi_\q^{(3)}(\q)$.} fully known). Having partitioned $[4\dims]$ in sets $S_1,\dots, S_\dims$ where 
+  \[
+    |S_i| = 4\dims\cdot \q_i \geq 1
+  \]
+  and $\Phi_\q^{(1)}$ is given by
+  \[
+      \Phi_\q^{(3)}(\p)_i = \sum_{j=1}^\dims \frac{\p_i}{|S_i|} \indic{j\in S_i} ,\qquad  i\in[4\dims]\,.
+  \]
+  This corresponds to adding to the circuit $C_\p$ for $\p$ a ``postprocessing circuit'' which, if the output of $C_\p$ is $i$, outputs an element of $S_i$ uniformly at random. (Importantly, $S_1,\dots, S_\dims$ are uniquely determined by $\q$, and do not depend on $\p$ or $C_\p$ at all.)
+\end{itemize}
+To summarize, each of these three mappings can be implemented to provide, given a circuit $C_\p$ for $\p$, a circuit $C_{\p'}$ for the output $\p'$, so that altogether the reduction can be implemented in a way which preserves access to ``the code.''
+ \end{document}
+
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.2 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{anyt/global//global/global}
+    \entry{AA13}{article}{}
+      \name{author}{2}{}{%
+        {{hash=9709fc1390d4ac82cbad7750d99484bf}{%
+           family={Aaronson},
+           familyi={A\bibinitperiod},
+           given={Scott},
+           giveni={S\bibinitperiod}}}%
+        {{hash=bbcd451e41a5aee7c62afe81f35c0279}{%
+           family={Arkhipov},
+           familyi={A\bibinitperiod},
+           given={Alex},
+           giveni={A\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Theory of Computing}%
+      }
+      \strng{namehash}{19482704ed1d4e1617efca9d7e0e2468}
+      \strng{fullhash}{19482704ed1d4e1617efca9d7e0e2468}
+      \strng{bibnamehash}{19482704ed1d4e1617efca9d7e0e2468}
+      \strng{authorbibnamehash}{19482704ed1d4e1617efca9d7e0e2468}
+      \strng{authornamehash}{19482704ed1d4e1617efca9d7e0e2468}
+      \strng{authorfullhash}{19482704ed1d4e1617efca9d7e0e2468}
+      \field{labelalpha}{AA13}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Theory of Computing}
+      \field{number}{4}
+      \field{title}{The Computational Complexity of Linear Optics}
+      \field{volume}{9}
+      \field{year}{2013}
+      \field{pages}{143\bibrangedash 252}
+      \range{pages}{110}
+      \verb{doi}
+      \verb 10.4086/toc.2013.v009a004
+      \endverb
+    \endentry
+    \entry{AAB+19}{article}{}
+      \name{author}{77}{}{%
+        {{hash=a0b41f4400dc855d7426a5f72cadaa6c}{%
+           family={Arute},
+           familyi={A\bibinitperiod},
+           given={Frank},
+           giveni={F\bibinitperiod}}}%
+        {{hash=0a2abe43325e0dd3690ccc47bfa6c6b7}{%
+           family={Arya},
+           familyi={A\bibinitperiod},
+           given={Kunal},
+           giveni={K\bibinitperiod}}}%
+        {{hash=7bb1dcf8a93d1ecc6f9531ece93ef1fa}{%
+           family={Babbush},
+           familyi={B\bibinitperiod},
+           given={Ryan},
+           giveni={R\bibinitperiod}}}%
+        {{hash=5ef37e7fe45a9ff23c761910726d5e4b}{%
+           family={Bacon},
+           familyi={B\bibinitperiod},
+           given={Dave},
+           giveni={D\bibinitperiod}}}%
+        {{hash=d831c1d824f8a4e2a69f6495b8fdc91b}{%
+           family={Bardin},
+           familyi={B\bibinitperiod},
+           given={Joseph\bibnamedelima C.},
+           giveni={J\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+        {{hash=659b693e073fa93a83924447ea805d77}{%
+           family={Barends},
+           familyi={B\bibinitperiod},
+           given={Rami},
+           giveni={R\bibinitperiod}}}%
+        {{hash=44196321323dfc67fdaa85c495168130}{%
+           family={Biswas},
+           familyi={B\bibinitperiod},
+           given={Rupak},
+           giveni={R\bibinitperiod}}}%
+        {{hash=915e31fc5958183d06275c3c3e811123}{%
+           family={Boixo},
+           familyi={B\bibinitperiod},
+           given={Sergio},
+           giveni={S\bibinitperiod}}}%
+        {{hash=cfb6bdb1d0b7056322d56e3f4fad93a8}{%
+           family={Brandao},
+           familyi={B\bibinitperiod},
+           given={Fernando\bibnamedelimb G.\bibnamedelimi S.\bibnamedelimi L.},
+           giveni={F\bibinitperiod\bibinitdelim G\bibinitperiod\bibinitdelim S\bibinitperiod\bibinitdelim L\bibinitperiod}}}%
+        {{hash=11aed4b55c11ca1030deddd80f15b620}{%
+           family={Buell},
+           familyi={B\bibinitperiod},
+           given={David\bibnamedelima A.},
+           giveni={D\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+        {{hash=fac8774f4c39c4cc9371a032e53c0fb6}{%
+           family={Burkett},
+           familyi={B\bibinitperiod},
+           given={Brian},
+           giveni={B\bibinitperiod}}}%
+        {{hash=5ffb5aba0d9858b862639d446d48f8eb}{%
+           family={Chen},
+           familyi={C\bibinitperiod},
+           given={Yu},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=1fac7e902845b1c2d0fd9ae4a0d00cc7}{%
+           family={Chen},
+           familyi={C\bibinitperiod},
+           given={Zijun},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=9cba836ac52ec45b3536ecac1ca0c4c4}{%
+           family={Chiaro},
+           familyi={C\bibinitperiod},
+           given={Ben},
+           giveni={B\bibinitperiod}}}%
+        {{hash=f16002805dc7f9d96346bda6700be931}{%
+           family={Collins},
+           familyi={C\bibinitperiod},
+           given={Roberto},
+           giveni={R\bibinitperiod}}}%
+        {{hash=cf7e5385acaf82df7a53cd34a54e21e2}{%
+           family={Courtney},
+           familyi={C\bibinitperiod},
+           given={William},
+           giveni={W\bibinitperiod}}}%
+        {{hash=ecea25363fad364a9f4a37613078f227}{%
+           family={Dunsworth},
+           familyi={D\bibinitperiod},
+           given={Andrew},
+           giveni={A\bibinitperiod}}}%
+        {{hash=5e61ee12360fc49d9013fbf8fe18db89}{%
+           family={Farhi},
+           familyi={F\bibinitperiod},
+           given={Edward},
+           giveni={E\bibinitperiod}}}%
+        {{hash=f27112cd6eb82fab2bc9d0542c995ea9}{%
+           family={Foxen},
+           familyi={F\bibinitperiod},
+           given={Brooks},
+           giveni={B\bibinitperiod}}}%
+        {{hash=aa6e65cd6932f53db466e337a1cb6760}{%
+           family={Fowler},
+           familyi={F\bibinitperiod},
+           given={Austin},
+           giveni={A\bibinitperiod}}}%
+        {{hash=0101a428978c8ddc038880b7a77afd98}{%
+           family={Gidney},
+           familyi={G\bibinitperiod},
+           given={Craig},
+           giveni={C\bibinitperiod}}}%
+        {{hash=ad64cecce98f1d14ae82dabfcaf7db86}{%
+           family={Giustina},
+           familyi={G\bibinitperiod},
+           given={Marissa},
+           giveni={M\bibinitperiod}}}%
+        {{hash=8f816bc12e277c2a230aaab32148cef6}{%
+           family={Graff},
+           familyi={G\bibinitperiod},
+           given={Rob},
+           giveni={R\bibinitperiod}}}%
+        {{hash=ffd6b1344764207fb5b1cedb2b502a25}{%
+           family={Guerin},
+           familyi={G\bibinitperiod},
+           given={Keith},
+           giveni={K\bibinitperiod}}}%
+        {{hash=ac01d23b67bf69493082451323481b4c}{%
+           family={Habegger},
+           familyi={H\bibinitperiod},
+           given={Steve},
+           giveni={S\bibinitperiod}}}%
+        {{hash=fdafe36c75ea60b5e9310e5a98907464}{%
+           family={Harrigan},
+           familyi={H\bibinitperiod},
+           given={Matthew\bibnamedelima P.},
+           giveni={M\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+        {{hash=d7ea6046bc62277e6e2c5fe7d61e78df}{%
+           family={Hartmann},
+           familyi={H\bibinitperiod},
+           given={Michael\bibnamedelima J.},
+           giveni={M\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=7a9ef4b5db5d57071194cc11995a6499}{%
+           family={Ho},
+           familyi={H\bibinitperiod},
+           given={Alan},
+           giveni={A\bibinitperiod}}}%
+        {{hash=5f670721dca24ae1337011719914a64c}{%
+           family={Hoffmann},
+           familyi={H\bibinitperiod},
+           given={Markus},
+           giveni={M\bibinitperiod}}}%
+        {{hash=33dfa81b00ac11936ef381208950305d}{%
+           family={Huang},
+           familyi={H\bibinitperiod},
+           given={Trent},
+           giveni={T\bibinitperiod}}}%
+        {{hash=963b22ba5e47cd073c7fc1a754ab2a55}{%
+           family={Humble},
+           familyi={H\bibinitperiod},
+           given={Travis\bibnamedelima S.},
+           giveni={T\bibinitperiod\bibinitdelim S\bibinitperiod}}}%
+        {{hash=5b1bc1fc6c73555d5af1db48cdbef9af}{%
+           family={Isakov},
+           familyi={I\bibinitperiod},
+           given={Sergei\bibnamedelima V.},
+           giveni={S\bibinitperiod\bibinitdelim V\bibinitperiod}}}%
+        {{hash=9900c4e96164131afb8af307845df9b8}{%
+           family={Jeffrey},
+           familyi={J\bibinitperiod},
+           given={Evan},
+           giveni={E\bibinitperiod}}}%
+        {{hash=67db50e40049bac70a6d264e681d86de}{%
+           family={Jiang},
+           familyi={J\bibinitperiod},
+           given={Zhang},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=d2351f128f45cc307e110f1bf030fa0d}{%
+           family={Kafri},
+           familyi={K\bibinitperiod},
+           given={Dvir},
+           giveni={D\bibinitperiod}}}%
+        {{hash=399f6f0649872eb96c7b5d2253ac1654}{%
+           family={Kechedzhi},
+           familyi={K\bibinitperiod},
+           given={Kostyantyn},
+           giveni={K\bibinitperiod}}}%
+        {{hash=6a2991ec48fc939b711eac2466cbcc68}{%
+           family={Kelly},
+           familyi={K\bibinitperiod},
+           given={Julian},
+           giveni={J\bibinitperiod}}}%
+        {{hash=cbc1620351ea65d57c28a39c84b1ac30}{%
+           family={Klimov},
+           familyi={K\bibinitperiod},
+           given={Paul\bibnamedelima V.},
+           giveni={P\bibinitperiod\bibinitdelim V\bibinitperiod}}}%
+        {{hash=84fa8eaf8054b75340e704427e2e7414}{%
+           family={Knysh},
+           familyi={K\bibinitperiod},
+           given={Sergey},
+           giveni={S\bibinitperiod}}}%
+        {{hash=2290dc7590a4c730593624b7a1fdc40f}{%
+           family={Korotkov},
+           familyi={K\bibinitperiod},
+           given={Alexander},
+           giveni={A\bibinitperiod}}}%
+        {{hash=a7bde64895d0208e927e79c2755b9a83}{%
+           family={Kostritsa},
+           familyi={K\bibinitperiod},
+           given={Fedor},
+           giveni={F\bibinitperiod}}}%
+        {{hash=0106e3d3d8629adc0639fb0388e51a73}{%
+           family={Landhuis},
+           familyi={L\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod}}}%
+        {{hash=1660c9b8c16952a4ec028c87eef3abc7}{%
+           family={Lindmark},
+           familyi={L\bibinitperiod},
+           given={Mike},
+           giveni={M\bibinitperiod}}}%
+        {{hash=1ca86a6dfd219877ce431f01a165a869}{%
+           family={Lucero},
+           familyi={L\bibinitperiod},
+           given={Erik},
+           giveni={E\bibinitperiod}}}%
+        {{hash=22d2522f63c4d1770eed3debd45fd8fa}{%
+           family={Lyakh},
+           familyi={L\bibinitperiod},
+           given={Dmitry},
+           giveni={D\bibinitperiod}}}%
+        {{hash=3f2ddf64c1ea271a8a2634bbbb68d254}{%
+           family={Mandrà},
+           familyi={M\bibinitperiod},
+           given={Salvatore},
+           giveni={S\bibinitperiod}}}%
+        {{hash=a253ddc1c4c24cde70238bd45dc9aeff}{%
+           family={McClean},
+           familyi={M\bibinitperiod},
+           given={Jarrod\bibnamedelima R.},
+           giveni={J\bibinitperiod\bibinitdelim R\bibinitperiod}}}%
+        {{hash=7336ef3ca1b8bfadc8b89b8c7c59577b}{%
+           family={McEwen},
+           familyi={M\bibinitperiod},
+           given={Matthew},
+           giveni={M\bibinitperiod}}}%
+        {{hash=1c6ec14427d690fa73b3021943d5439b}{%
+           family={Megrant},
+           familyi={M\bibinitperiod},
+           given={Anthony},
+           giveni={A\bibinitperiod}}}%
+        {{hash=9b445b45607e1e8e0672105779ea626b}{%
+           family={Mi},
+           familyi={M\bibinitperiod},
+           given={Xiao},
+           giveni={X\bibinitperiod}}}%
+        {{hash=2338ed7a6906bd7cfdac98c5e56e45b6}{%
+           family={Michielsen},
+           familyi={M\bibinitperiod},
+           given={Kristel},
+           giveni={K\bibinitperiod}}}%
+        {{hash=3660f6bf9d4821aa4c362d0abd316e4f}{%
+           family={Mohseni},
+           familyi={M\bibinitperiod},
+           given={Masoud},
+           giveni={M\bibinitperiod}}}%
+        {{hash=5f06874711ade5e9c75656666220f803}{%
+           family={Mutus},
+           familyi={M\bibinitperiod},
+           given={Josh},
+           giveni={J\bibinitperiod}}}%
+        {{hash=4bda703a11fed621732b26896f391e85}{%
+           family={Naaman},
+           familyi={N\bibinitperiod},
+           given={Ofer},
+           giveni={O\bibinitperiod}}}%
+        {{hash=6bcda02c5188bf25bad1475b8f30cecd}{%
+           family={Neeley},
+           familyi={N\bibinitperiod},
+           given={Matthew},
+           giveni={M\bibinitperiod}}}%
+        {{hash=7e6d8fe85e636af42fba1f9d583e70e9}{%
+           family={Neill},
+           familyi={N\bibinitperiod},
+           given={Charles},
+           giveni={C\bibinitperiod}}}%
+        {{hash=ed18aa264c8650c491f53d6dc4118292}{%
+           family={Niu},
+           familyi={N\bibinitperiod},
+           given={Murphy\bibnamedelima Yuezhen},
+           giveni={M\bibinitperiod\bibinitdelim Y\bibinitperiod}}}%
+        {{hash=2d89c5708f0f2aa0a4f4358d53bfc901}{%
+           family={Ostby},
+           familyi={O\bibinitperiod},
+           given={Eric},
+           giveni={E\bibinitperiod}}}%
+        {{hash=b3e0589d3dfc4ccb2c20d9bae908ad5c}{%
+           family={Petukhov},
+           familyi={P\bibinitperiod},
+           given={Andre},
+           giveni={A\bibinitperiod}}}%
+        {{hash=b18cccf0f11300769fc4b01f5fe5f13a}{%
+           family={Platt},
+           familyi={P\bibinitperiod},
+           given={John\bibnamedelima C.},
+           giveni={J\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+        {{hash=d7e98df2b678f196d4696b116fb5edb6}{%
+           family={Quintana},
+           familyi={Q\bibinitperiod},
+           given={Chris},
+           giveni={C\bibinitperiod}}}%
+        {{hash=8ebda72545842e8ca358df12fd00edc6}{%
+           family={Rieffel},
+           familyi={R\bibinitperiod},
+           given={Eleanor\bibnamedelima G.},
+           giveni={E\bibinitperiod\bibinitdelim G\bibinitperiod}}}%
+        {{hash=ab67b0d3986106680d464532f25dc939}{%
+           family={Roushan},
+           familyi={R\bibinitperiod},
+           given={Pedram},
+           giveni={P\bibinitperiod}}}%
+        {{hash=79a0c3f2d2ac6a6e26b1e6e488c3b198}{%
+           family={Rubin},
+           familyi={R\bibinitperiod},
+           given={Nicholas\bibnamedelima C.},
+           giveni={N\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+        {{hash=9c196f976101682c061efc0614f70fa6}{%
+           family={Sank},
+           familyi={S\bibinitperiod},
+           given={Daniel},
+           giveni={D\bibinitperiod}}}%
+        {{hash=640413903b4eab5258544e70c464cf91}{%
+           family={Satzinger},
+           familyi={S\bibinitperiod},
+           given={Kevin\bibnamedelima J.},
+           giveni={K\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=087a4bb34bd0827f9235dede4eff2970}{%
+           family={Smelyanskiy},
+           familyi={S\bibinitperiod},
+           given={Vadim},
+           giveni={V\bibinitperiod}}}%
+        {{hash=a912a72b8de08532c080010f87041bda}{%
+           family={Sung},
+           familyi={S\bibinitperiod},
+           given={Kevin\bibnamedelima J.},
+           giveni={K\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=edb9b45c05af268e690b431177e285bb}{%
+           family={Trevithick},
+           familyi={T\bibinitperiod},
+           given={Matthew\bibnamedelima D.},
+           giveni={M\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+        {{hash=8c9c62d63da654e3e637727ef0ada9e9}{%
+           family={Vainsencher},
+           familyi={V\bibinitperiod},
+           given={Amit},
+           giveni={A\bibinitperiod}}}%
+        {{hash=b483aa193391113d1234b6ae181e0dca}{%
+           family={Villalonga},
+           familyi={V\bibinitperiod},
+           given={Benjamin},
+           giveni={B\bibinitperiod}}}%
+        {{hash=da61f207bd110c14a1e7e8fe213f33eb}{%
+           family={White},
+           familyi={W\bibinitperiod},
+           given={Theodore},
+           giveni={T\bibinitperiod}}}%
+        {{hash=473d08a31ed9fbf52d5baf436b7a809a}{%
+           family={Yao},
+           familyi={Y\bibinitperiod},
+           given={Z.\bibnamedelimi Jamie},
+           giveni={Z\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=e94b0ed312e1e2edcfe8a1b6bd1749d8}{%
+           family={Yeh},
+           familyi={Y\bibinitperiod},
+           given={Ping},
+           giveni={P\bibinitperiod}}}%
+        {{hash=e6df2c969e6e639ddd23909ad813034d}{%
+           family={Zalcman},
+           familyi={Z\bibinitperiod},
+           given={Adam},
+           giveni={A\bibinitperiod}}}%
+        {{hash=ddcc46c5456340da59be4077c7102a27}{%
+           family={Neven},
+           familyi={N\bibinitperiod},
+           given={Hartmut},
+           giveni={H\bibinitperiod}}}%
+        {{hash=25ae3182aa7d65d6b2ce4baea1970309}{%
+           family={Martinis},
+           familyi={M\bibinitperiod},
+           given={John\bibnamedelima M.},
+           giveni={J\bibinitperiod\bibinitdelim M\bibinitperiod}}}%
+      }
+      \list{publisher}{2}{%
+        {Springer Science}%
+        {Business Media LLC}%
+      }
+      \strng{namehash}{b5ee69b81bc21fd247bbaf0f432158b6}
+      \strng{fullhash}{9ed5ca9a711651574caed94b21c9e439}
+      \strng{bibnamehash}{aa32dae2228460f086d4a149fecaba8b}
+      \strng{authorbibnamehash}{aa32dae2228460f086d4a149fecaba8b}
+      \strng{authornamehash}{b5ee69b81bc21fd247bbaf0f432158b6}
+      \strng{authorfullhash}{9ed5ca9a711651574caed94b21c9e439}
+      \field{labelalpha}{AAB+19}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Nature}
+      \field{month}{10}
+      \field{number}{7779}
+      \field{title}{Quantum supremacy using a programmable superconducting processor}
+      \field{volume}{574}
+      \field{year}{2019}
+      \field{pages}{505\bibrangedash 510}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1038/s41586-019-1666-5
+      \endverb
+    \endentry
+    \entry{ACHST:20}{inproceedings}{}
+      \name{author}{5}{}{%
+        {{hash=22e285684071276f6bb565de3baeaed4}{%
+           family={Acharya},
+           familyi={A\bibinitperiod},
+           given={Jayadev},
+           giveni={J\bibinitperiod}}}%
+        {{hash=9e0a2f7354a33fb2d2503ff83b58cf10}{%
+           family={Canonne},
+           familyi={C\bibinitperiod},
+           given={Clément\bibnamedelima L.},
+           giveni={C\bibinitperiod\bibinitdelim L\bibinitperiod}}}%
+        {{hash=96a1977f2ea74db16d8c5b2fd3081826}{%
+           family={Han},
+           familyi={H\bibinitperiod},
+           given={Yanjun},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=f348cbc2d6a7883b528c050ace4d5684}{%
+           family={Sun},
+           familyi={S\bibinitperiod},
+           given={Ziteng},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=7ee46880f451c06e0c39642ddb024e1c}{%
+           family={Tyagi},
+           familyi={T\bibinitperiod},
+           given={Himanshu},
+           giveni={H\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {PMLR}%
+      }
+      \strng{namehash}{90206f9228de48eacdc6bd699e29368e}
+      \strng{fullhash}{d3e4962324482b28424d302576b74508}
+      \strng{bibnamehash}{d3e4962324482b28424d302576b74508}
+      \strng{authorbibnamehash}{d3e4962324482b28424d302576b74508}
+      \strng{authornamehash}{90206f9228de48eacdc6bd699e29368e}
+      \strng{authorfullhash}{d3e4962324482b28424d302576b74508}
+      \field{labelalpha}{ACH+20}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of Thirty Third Conference on Learning Theory}
+      \field{month}{7}
+      \field{series}{Proceedings of Machine Learning Research}
+      \field{title}{Domain Compression and its Application to Randomness-Optimal Distributed Goodness-of-Fit}
+      \field{volume}{125}
+      \field{year}{2020}
+      \field{pages}{3\bibrangedash 40}
+      \range{pages}{38}
+      \verb{file}
+      \verb http://proceedings.mlr.press/v125/acharya20a/acharya20a.pdf
+      \endverb
+      \verb{urlraw}
+      \verb http://proceedings.mlr.press/v125/acharya20a.html
+      \endverb
+      \verb{url}
+      \verb http://proceedings.mlr.press/v125/acharya20a.html
+      \endverb
+    \endentry
+    \entry{AcharyaDK15}{incollection}{}
+      \name{author}{3}{}{%
+        {{hash=22e285684071276f6bb565de3baeaed4}{%
+           family={Acharya},
+           familyi={A\bibinitperiod},
+           given={Jayadev},
+           giveni={J\bibinitperiod}}}%
+        {{hash=2b96cdb9399787ab044337b8fda799fd}{%
+           family={Daskalakis},
+           familyi={D\bibinitperiod},
+           given={Constantinos},
+           giveni={C\bibinitperiod}}}%
+        {{hash=4ba3ac9c6567e00d8fca01ef8b36c25b}{%
+           family={Kamath},
+           familyi={K\bibinitperiod},
+           given={Gautam\bibnamedelima C.},
+           giveni={G\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Curran Associates, Inc.}%
+      }
+      \strng{namehash}{80595a7ee4017dbea7f88ef167b63523}
+      \strng{fullhash}{80595a7ee4017dbea7f88ef167b63523}
+      \strng{bibnamehash}{80595a7ee4017dbea7f88ef167b63523}
+      \strng{authorbibnamehash}{80595a7ee4017dbea7f88ef167b63523}
+      \strng{authornamehash}{80595a7ee4017dbea7f88ef167b63523}
+      \strng{authorfullhash}{80595a7ee4017dbea7f88ef167b63523}
+      \field{labelalpha}{ADK15}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Advances in Neural Information Processing Systems 28}
+      \field{title}{{Optimal Testing for Properties of Distributions}}
+      \field{year}{2015}
+      \field{pages}{3577\bibrangedash 3598}
+      \range{pages}{22}
+    \endentry
+    \entry{Amb07}{article}{}
+      \name{author}{1}{}{%
+        {{hash=e31a92768d141b505fd318b971262b73}{%
+           family={Ambainis},
+           familyi={A\bibinitperiod},
+           given={Andris},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{e31a92768d141b505fd318b971262b73}
+      \strng{fullhash}{e31a92768d141b505fd318b971262b73}
+      \strng{bibnamehash}{e31a92768d141b505fd318b971262b73}
+      \strng{authorbibnamehash}{e31a92768d141b505fd318b971262b73}
+      \strng{authornamehash}{e31a92768d141b505fd318b971262b73}
+      \strng{authorfullhash}{e31a92768d141b505fd318b971262b73}
+      \field{labelalpha}{Amb07}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{We use quantum walks to construct a new quantum algorithm for element distinctness and its generalization. For element distinctness (the problem of finding two equal items among N given items), we get an \$O(N^{2/3})\$ query quantum algorithm. This improves the previous \$O(N^{3/4})\$ quantum algorithm of Buhrman et al. [SIAM J. Comput., 34 (2005), pp. 1324–1330] and matches the lower bound of Aaronson and Shi [J. ACM, 51 (2004), pp. 595–605]. We also give an \$O(N^{k/(k+1)})\$ query quantum algorithm for the generalization of element distinctness in which we have to find k equal items among N items.}
+      \field{journaltitle}{SIAM Journal on Computing}
+      \field{number}{1}
+      \field{title}{Quantum Walk Algorithm for Element Distinctness}
+      \field{volume}{37}
+      \field{year}{2007}
+      \field{pages}{210\bibrangedash 239}
+      \range{pages}{30}
+      \verb{doi}
+      \verb 10.1137/S0097539705447311
+      \endverb
+    \endentry
+    \entry{AS04}{article}{}
+      \name{author}{2}{}{%
+        {{hash=9709fc1390d4ac82cbad7750d99484bf}{%
+           family={Aaronson},
+           familyi={A\bibinitperiod},
+           given={Scott},
+           giveni={S\bibinitperiod}}}%
+        {{hash=c0ef269d75b4edbc0ad841549bae2ff0}{%
+           family={Shi},
+           familyi={S\bibinitperiod},
+           given={Yaoyun},
+           giveni={Y\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Association for Computing Machinery}%
+      }
+      \strng{namehash}{ec380a1b3dccec62f70b5a11d7db74cb}
+      \strng{fullhash}{ec380a1b3dccec62f70b5a11d7db74cb}
+      \strng{bibnamehash}{ec380a1b3dccec62f70b5a11d7db74cb}
+      \strng{authorbibnamehash}{ec380a1b3dccec62f70b5a11d7db74cb}
+      \strng{authornamehash}{ec380a1b3dccec62f70b5a11d7db74cb}
+      \strng{authorfullhash}{ec380a1b3dccec62f70b5a11d7db74cb}
+      \field{labelalpha}{AS04}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{J. ACM}
+      \field{month}{7}
+      \field{number}{4}
+      \field{title}{Quantum lower bounds for the collision and the element distinctness problems}
+      \field{volume}{51}
+      \field{year}{2004}
+      \field{pages}{595\bibrangedash 605}
+      \range{pages}{11}
+      \verb{doi}
+      \verb 10.1145/1008731.1008735
+      \endverb
+      \keyw{quantum lower bounds,quantum computing,polynomial method,element distinctness,Collision}
+    \endentry
+    \entry{Bel19}{inproceedings}{}
+      \name{author}{1}{}{%
+        {{hash=b22aba7fd91613e407e6764fd231694d}{%
+           family={Belovs},
+           familyi={B\bibinitperiod},
+           given={Aleksandrs},
+           giveni={A\bibinitperiod}}}%
+      }
+      \list{organization}{1}{%
+        {Schloss Dagstuhl-Leibniz-Zentrum fuer Informatik}%
+      }
+      \strng{namehash}{b22aba7fd91613e407e6764fd231694d}
+      \strng{fullhash}{b22aba7fd91613e407e6764fd231694d}
+      \strng{bibnamehash}{b22aba7fd91613e407e6764fd231694d}
+      \strng{authorbibnamehash}{b22aba7fd91613e407e6764fd231694d}
+      \strng{authornamehash}{b22aba7fd91613e407e6764fd231694d}
+      \strng{authorfullhash}{b22aba7fd91613e407e6764fd231694d}
+      \field{labelalpha}{Bel19}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the 27th Annual European Symposium on Algorithms (ESA)}
+      \field{title}{Quantum Algorithms for Classical Probability Distributions}
+      \field{year}{2019}
+      \field{pages}{50\bibrangedash 59}
+      \range{pages}{10}
+      \verb{doi}
+      \verb 10.1007/978-3-030-19955-5_5
+      \endverb
+    \endentry
+    \entry{BHH11}{article}{}
+      \name{author}{3}{}{%
+        {{hash=964ccce884d5c27e980e285b18d587cd}{%
+           family={Bravyi},
+           familyi={B\bibinitperiod},
+           given={Sergey},
+           giveni={S\bibinitperiod}}}%
+        {{hash=b824cef308634e2603600d50b41de7cf}{%
+           family={Harrow},
+           familyi={H\bibinitperiod},
+           given={Aram},
+           giveni={A\bibinitperiod}}}%
+        {{hash=3765d849007f662dc14f33a696aa6a7b}{%
+           family={Hassidim},
+           familyi={H\bibinitperiod},
+           given={Avinatan},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{7a1e847a7a8f63b9ae668c8fb5a41333}
+      \strng{fullhash}{7a1e847a7a8f63b9ae668c8fb5a41333}
+      \strng{bibnamehash}{7a1e847a7a8f63b9ae668c8fb5a41333}
+      \strng{authorbibnamehash}{7a1e847a7a8f63b9ae668c8fb5a41333}
+      \strng{authornamehash}{7a1e847a7a8f63b9ae668c8fb5a41333}
+      \strng{authorfullhash}{7a1e847a7a8f63b9ae668c8fb5a41333}
+      \field{labelalpha}{BHH11}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Transactions on Information Theory}
+      \field{number}{6}
+      \field{title}{Quantum algorithms for testing properties of distributions}
+      \field{volume}{57}
+      \field{year}{2011}
+      \field{pages}{3971\bibrangedash 3981}
+      \range{pages}{11}
+      \verb{doi}
+      \verb 10.1109/TIT.2011.2134250
+      \endverb
+    \endentry
+    \entry{BHT98}{inproceedings}{}
+      \name{author}{3}{}{%
+        {{hash=504bb784f2241f359d5030d2ca7f2bdd}{%
+           family={Brassard},
+           familyi={B\bibinitperiod},
+           given={Gilles},
+           giveni={G\bibinitperiod}}}%
+        {{hash=a63f61d51d4a7a277cce46722c380f1a}{%
+           family={H{ø}yer},
+           familyi={H\bibinitperiod},
+           given={Peter},
+           giveni={P\bibinitperiod}}}%
+        {{hash=ffbcbc5eda6edf64a21ce3b8529b1ce0}{%
+           family={Tapp},
+           familyi={T\bibinitperiod},
+           given={Alain},
+           giveni={A\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Springer--Verlag}%
+      }
+      \strng{namehash}{2d4b0d523ae0af11eb7c83c0dfcd0aad}
+      \strng{fullhash}{2d4b0d523ae0af11eb7c83c0dfcd0aad}
+      \strng{bibnamehash}{2d4b0d523ae0af11eb7c83c0dfcd0aad}
+      \strng{authorbibnamehash}{2d4b0d523ae0af11eb7c83c0dfcd0aad}
+      \strng{authornamehash}{2d4b0d523ae0af11eb7c83c0dfcd0aad}
+      \strng{authorfullhash}{2d4b0d523ae0af11eb7c83c0dfcd0aad}
+      \field{labelalpha}{BHT98}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the $25$th {A}nnual {I}nternational {C}olloquium on {A}utomata, {L}anguages, and {P}rogramming (ICALP)}
+      \field{title}{Quantum counting}
+      \field{year}{1998}
+      \field{pages}{820\bibrangedash 831}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.1007/bfb0055105
+      \endverb
+    \endentry
+    \entry{BIS+18}{article}{}
+      \name{author}{9}{}{%
+        {{hash=915e31fc5958183d06275c3c3e811123}{%
+           family={Boixo},
+           familyi={B\bibinitperiod},
+           given={Sergio},
+           giveni={S\bibinitperiod}}}%
+        {{hash=5b1bc1fc6c73555d5af1db48cdbef9af}{%
+           family={Isakov},
+           familyi={I\bibinitperiod},
+           given={Sergei\bibnamedelima V.},
+           giveni={S\bibinitperiod\bibinitdelim V\bibinitperiod}}}%
+        {{hash=80791f3c0f47c56afab9266e364f7223}{%
+           family={Smelyanskiy},
+           familyi={S\bibinitperiod},
+           given={Vadim\bibnamedelima N.},
+           giveni={V\bibinitperiod\bibinitdelim N\bibinitperiod}}}%
+        {{hash=7bb1dcf8a93d1ecc6f9531ece93ef1fa}{%
+           family={Babbush},
+           familyi={B\bibinitperiod},
+           given={Ryan},
+           giveni={R\bibinitperiod}}}%
+        {{hash=cdcad02b1e1e277b45499790b7ccacde}{%
+           family={Ding},
+           familyi={D\bibinitperiod},
+           given={Nan},
+           giveni={N\bibinitperiod}}}%
+        {{hash=67db50e40049bac70a6d264e681d86de}{%
+           family={Jiang},
+           familyi={J\bibinitperiod},
+           given={Zhang},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=969fd423ac96ed17f888b038c5228de2}{%
+           family={Bremner},
+           familyi={B\bibinitperiod},
+           given={Michael\bibnamedelima J.},
+           giveni={M\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=25ae3182aa7d65d6b2ce4baea1970309}{%
+           family={Martinis},
+           familyi={M\bibinitperiod},
+           given={John\bibnamedelima M.},
+           giveni={J\bibinitperiod\bibinitdelim M\bibinitperiod}}}%
+        {{hash=ddcc46c5456340da59be4077c7102a27}{%
+           family={Neven},
+           familyi={N\bibinitperiod},
+           given={Hartmut},
+           giveni={H\bibinitperiod}}}%
+      }
+      \list{publisher}{2}{%
+        {Springer Science}%
+        {Business Media LLC}%
+      }
+      \strng{namehash}{7c97e5c3132e1a96c15ee14e2fb76125}
+      \strng{fullhash}{320196609b46f13e4322053c88c37072}
+      \strng{bibnamehash}{320196609b46f13e4322053c88c37072}
+      \strng{authorbibnamehash}{320196609b46f13e4322053c88c37072}
+      \strng{authornamehash}{7c97e5c3132e1a96c15ee14e2fb76125}
+      \strng{authorfullhash}{320196609b46f13e4322053c88c37072}
+      \field{labelalpha}{BIS+18}
+      \field{sortinit}{B}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Nature Physics}
+      \field{month}{4}
+      \field{number}{6}
+      \field{title}{Characterizing quantum supremacy in near-term devices}
+      \field{volume}{14}
+      \field{year}{2018}
+      \field{pages}{595\bibrangedash 600}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1038/s41567-018-0124-x
+      \endverb
+    \endentry
+    \entry{CanonneTopicsDT2022}{article}{}
+      \name{author}{1}{}{%
+        {{hash=9e0a2f7354a33fb2d2503ff83b58cf10}{%
+           family={Canonne},
+           familyi={C\bibinitperiod},
+           given={Clément\bibnamedelima L.},
+           giveni={C\bibinitperiod\bibinitdelim L\bibinitperiod}}}%
+      }
+      \strng{namehash}{9e0a2f7354a33fb2d2503ff83b58cf10}
+      \strng{fullhash}{9e0a2f7354a33fb2d2503ff83b58cf10}
+      \strng{bibnamehash}{9e0a2f7354a33fb2d2503ff83b58cf10}
+      \strng{authorbibnamehash}{9e0a2f7354a33fb2d2503ff83b58cf10}
+      \strng{authornamehash}{9e0a2f7354a33fb2d2503ff83b58cf10}
+      \strng{authorfullhash}{9e0a2f7354a33fb2d2503ff83b58cf10}
+      \field{labelalpha}{Can22}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Foundations and Trends® in Communications and Information Theory}
+      \field{number}{6}
+      \field{title}{Topics and Techniques in Distribution Testing: A Biased but Representative Sample}
+      \field{volume}{19}
+      \field{year}{2022}
+      \field{pages}{1032\bibrangedash 1198}
+      \range{pages}{167}
+      \verb{doi}
+      \verb 10.1561/0100000114
+      \endverb
+    \endentry
+    \entry{CFMdW10}{inproceedings}{}
+      \name{author}{4}{}{%
+        {{hash=fd8995903e6f6ed1d47a2be0ee4ed9b4}{%
+           family={Chakraborty},
+           familyi={C\bibinitperiod},
+           given={Sourav},
+           giveni={S\bibinitperiod}}}%
+        {{hash=9c224159035ed70a4e6ff4e308b6e172}{%
+           family={Fischer},
+           familyi={F\bibinitperiod},
+           given={Eldar},
+           giveni={E\bibinitperiod}}}%
+        {{hash=3eb9f5a1f701dba86487e8f6a5dfcea5}{%
+           family={Matsliah},
+           familyi={M\bibinitperiod},
+           given={Arie},
+           giveni={A\bibinitperiod}}}%
+        {{hash=4072fcdfa949758d3a860d7e08c1fa54}{%
+           family={Wolf},
+           familyi={W\bibinitperiod},
+           given={Ronald},
+           giveni={R\bibinitperiod},
+           prefix={de},
+           prefixi={d\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {Dagstuhl, Germany}%
+      }
+      \list{publisher}{1}{%
+        {Schloss Dagstuhl -- Leibniz-Zentrum für Informatik}%
+      }
+      \strng{namehash}{882cef0f6b2e128d77a37100425bd047}
+      \strng{fullhash}{9238face5bc2aaa1c22331018ba891d2}
+      \strng{bibnamehash}{9238face5bc2aaa1c22331018ba891d2}
+      \strng{authorbibnamehash}{9238face5bc2aaa1c22331018ba891d2}
+      \strng{authornamehash}{882cef0f6b2e128d77a37100425bd047}
+      \strng{authorfullhash}{9238face5bc2aaa1c22331018ba891d2}
+      \field{labelalpha}{CFMW10}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{annotation}{Keywords: quantum algorithm, property testing}
+      \field{booktitle}{30th {I}nternational {C}onference on {F}oundations of {S}oftware {T}echnology and {T}heoretical {C}omputer {S}cience (FSTTCS 2010)}
+      \field{series}{Leibniz International Proceedings in Informatics (LIPIcs)}
+      \field{title}{{New Results on Quantum Property Testing}}
+      \field{volume}{8}
+      \field{year}{2010}
+      \field{pages}{145\bibrangedash 156}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.4230/LIPIcs.FSTTCS.2010.145
+      \endverb
+    \endentry
+    \entry{DK:16}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{hash=e7ee044190b525d3659eaae1cce3086f}{%
+           family={{Diakonikolas}},
+           familyi={D\bibinitperiod},
+           given={Ilias},
+           giveni={I\bibinitperiod}}}%
+        {{hash=2e7df8218d6243197f479311cdd2db06}{%
+           family={{Kane}},
+           familyi={K\bibinitperiod},
+           given={Daniel\bibnamedelima M.},
+           giveni={D\bibinitperiod\bibinitdelim M\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {{IEEE} Computer Society}%
+      }
+      \strng{namehash}{a10c1f2817ece8bd9d148d36bbcdb113}
+      \strng{fullhash}{a10c1f2817ece8bd9d148d36bbcdb113}
+      \strng{bibnamehash}{a10c1f2817ece8bd9d148d36bbcdb113}
+      \strng{authorbibnamehash}{a10c1f2817ece8bd9d148d36bbcdb113}
+      \strng{authornamehash}{a10c1f2817ece8bd9d148d36bbcdb113}
+      \strng{authorfullhash}{a10c1f2817ece8bd9d148d36bbcdb113}
+      \field{labelalpha}{DK16}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{57th Annual {IEEE} Symposium on Foundations of Computer Science, {FOCS} 2016}
+      \field{title}{A New Approach for Testing Properties of Discrete Distributions}
+      \field{year}{2016}
+    \endentry
+    \entry{GL20}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{hash=e79510f17f3a4f8641d9edfc32894def}{%
+           family={Gilyén},
+           familyi={G\bibinitperiod},
+           given={András},
+           giveni={A\bibinitperiod}}}%
+        {{hash=42b7d9e2fd26d0dcfd9e0b49f439fbf7}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Tongyang},
+           giveni={T\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {Dagstuhl, Germany}%
+      }
+      \list{publisher}{1}{%
+        {Schloss Dagstuhl -- Leibniz-Zentrum für Informatik}%
+      }
+      \strng{namehash}{283262dc480a2429b60f63042bf39fe9}
+      \strng{fullhash}{283262dc480a2429b60f63042bf39fe9}
+      \strng{bibnamehash}{283262dc480a2429b60f63042bf39fe9}
+      \strng{authorbibnamehash}{283262dc480a2429b60f63042bf39fe9}
+      \strng{authornamehash}{283262dc480a2429b60f63042bf39fe9}
+      \strng{authorfullhash}{283262dc480a2429b60f63042bf39fe9}
+      \field{labelalpha}{GL20}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{11th Innovations in Theoretical Computer Science Conference (ITCS 2020)}
+      \field{series}{Leibniz International Proceedings in Informatics (LIPIcs)}
+      \field{title}{{Distributional Property Testing in a Quantum World}}
+      \field{volume}{151}
+      \field{year}{2020}
+      \field{pages}{25:1\bibrangedash 25:19}
+      \range{pages}{-1}
+      \verb{doi}
+      \verb 10.4230/LIPIcs.ITCS.2020.25
+      \endverb
+    \endentry
+    \entry{Goldreich:16}{article}{}
+      \name{author}{1}{}{%
+        {{hash=66aba379c7d3adb8af5b662a65c4c140}{%
+           family={Goldreich},
+           familyi={G\bibinitperiod},
+           given={Oded},
+           giveni={O\bibinitperiod}}}%
+      }
+      \strng{namehash}{66aba379c7d3adb8af5b662a65c4c140}
+      \strng{fullhash}{66aba379c7d3adb8af5b662a65c4c140}
+      \strng{bibnamehash}{66aba379c7d3adb8af5b662a65c4c140}
+      \strng{authorbibnamehash}{66aba379c7d3adb8af5b662a65c4c140}
+      \strng{authornamehash}{66aba379c7d3adb8af5b662a65c4c140}
+      \strng{authorfullhash}{66aba379c7d3adb8af5b662a65c4c140}
+      \field{labelalpha}{Gol16}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Electronic Colloquium on Computational Complexity (ECCC)}
+      \field{title}{The uniform distribution is complete with respect to testing identity to a fixed distribution}
+      \field{volume}{23}
+      \field{year}{2016}
+      \field{pages}{15}
+      \range{pages}{1}
+      \verb{urlraw}
+      \verb http://eccc.hpi-web.de/report/2016/015
+      \endverb
+      \verb{url}
+      \verb http://eccc.hpi-web.de/report/2016/015
+      \endverb
+    \endentry
+    \entry{GRexp:00}{report}{}
+      \name{author}{2}{}{%
+        {{hash=66aba379c7d3adb8af5b662a65c4c140}{%
+           family={Goldreich},
+           familyi={G\bibinitperiod},
+           given={Oded},
+           giveni={O\bibinitperiod}}}%
+        {{hash=7b627268839731a21945ba2830618803}{%
+           family={Ron},
+           familyi={R\bibinitperiod},
+           given={Dana},
+           giveni={D\bibinitperiod}}}%
+      }
+      \list{institution}{1}{%
+        {Electronic Colloquium on Computational Complexity (ECCC)}%
+      }
+      \strng{namehash}{34dd4c88f9b03a6179f34a4ae4ebe09a}
+      \strng{fullhash}{34dd4c88f9b03a6179f34a4ae4ebe09a}
+      \strng{bibnamehash}{34dd4c88f9b03a6179f34a4ae4ebe09a}
+      \strng{authorbibnamehash}{34dd4c88f9b03a6179f34a4ae4ebe09a}
+      \strng{authornamehash}{34dd4c88f9b03a6179f34a4ae4ebe09a}
+      \strng{authorfullhash}{34dd4c88f9b03a6179f34a4ae4ebe09a}
+      \field{labelalpha}{GR00}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{number}{TR00-020}
+      \field{title}{On Testing Expansion in Bounded-Degree Graphs}
+      \field{type}{techreport}
+      \field{year}{2000}
+    \endentry
+    \entry{Gro96}{inproceedings}{}
+      \name{author}{1}{}{%
+        {{hash=9ef294aed25c4fab095552c2a61d2ed1}{%
+           family={Grover},
+           familyi={G\bibinitperiod},
+           given={Lov},
+           giveni={L\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {ACM, New York}%
+      }
+      \strng{namehash}{9ef294aed25c4fab095552c2a61d2ed1}
+      \strng{fullhash}{9ef294aed25c4fab095552c2a61d2ed1}
+      \strng{bibnamehash}{9ef294aed25c4fab095552c2a61d2ed1}
+      \strng{authorbibnamehash}{9ef294aed25c4fab095552c2a61d2ed1}
+      \strng{authornamehash}{9ef294aed25c4fab095552c2a61d2ed1}
+      \strng{authorfullhash}{9ef294aed25c4fab095552c2a61d2ed1}
+      \field{extraname}{1}
+      \field{labelalpha}{Gro96}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the $28$th {A}nnual {ACM} {S}ymposium on the {T}heory of {C}omputing (STOC)}
+      \field{title}{A fast quantum mechanical algorithm for database search}
+      \field{year}{1996}
+      \field{pages}{212\bibrangedash 219}
+      \range{pages}{8}
+      \verb{doi}
+      \verb 10.1145/237814.237866
+      \endverb
+    \endentry
+    \entry{Gro98}{inproceedings}{}
+      \name{author}{1}{}{%
+        {{hash=9ef294aed25c4fab095552c2a61d2ed1}{%
+           family={Grover},
+           familyi={G\bibinitperiod},
+           given={Lov},
+           giveni={L\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {ACM, New York}%
+      }
+      \strng{namehash}{9ef294aed25c4fab095552c2a61d2ed1}
+      \strng{fullhash}{9ef294aed25c4fab095552c2a61d2ed1}
+      \strng{bibnamehash}{9ef294aed25c4fab095552c2a61d2ed1}
+      \strng{authorbibnamehash}{9ef294aed25c4fab095552c2a61d2ed1}
+      \strng{authornamehash}{9ef294aed25c4fab095552c2a61d2ed1}
+      \strng{authorfullhash}{9ef294aed25c4fab095552c2a61d2ed1}
+      \field{extraname}{2}
+      \field{labelalpha}{Gro98}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the $30$th {A}nnual {ACM} {S}ymposium on the {T}heory of {C}omputing (STOC)}
+      \field{title}{A framework for fast quantum mechanical algorithms}
+      \field{year}{1998}
+      \field{pages}{53\bibrangedash 62}
+      \range{pages}{10}
+      \verb{doi}
+      \verb 10.1145/276698.276712
+      \endverb
+    \endentry
+    \entry{GS02}{article}{}
+      \name{author}{2}{}{%
+        {{hash=924787ed8022901d039fbecde53454be}{%
+           family={Gibbs},
+           familyi={G\bibinitperiod},
+           given={Alison},
+           giveni={A\bibinitperiod}}}%
+        {{hash=6254a169087400b3834978f65c26003e}{%
+           family={Su},
+           familyi={S\bibinitperiod},
+           given={Francis},
+           giveni={F\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Wiley Online Library}%
+      }
+      \strng{namehash}{961716e45f80296a9c095036a1675897}
+      \strng{fullhash}{961716e45f80296a9c095036a1675897}
+      \strng{bibnamehash}{961716e45f80296a9c095036a1675897}
+      \strng{authorbibnamehash}{961716e45f80296a9c095036a1675897}
+      \strng{authornamehash}{961716e45f80296a9c095036a1675897}
+      \strng{authorfullhash}{961716e45f80296a9c095036a1675897}
+      \field{labelalpha}{GS02}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{International Statistical Rreview}
+      \field{number}{3}
+      \field{title}{On choosing and bounding probability metrics}
+      \field{volume}{70}
+      \field{year}{2002}
+      \field{pages}{419\bibrangedash 435}
+      \range{pages}{17}
+    \endentry
+    \entry{Ham21}{thesis}{}
+      \name{author}{1}{}{%
+        {{hash=6231725768212e0b392e4946b21ab943}{%
+           family={Hamoudi},
+           familyi={H\bibinitperiod},
+           given={Yassine},
+           giveni={Y\bibinitperiod}}}%
+      }
+      \list{institution}{1}{%
+        {Université de Paris}%
+      }
+      \strng{namehash}{6231725768212e0b392e4946b21ab943}
+      \strng{fullhash}{6231725768212e0b392e4946b21ab943}
+      \strng{bibnamehash}{6231725768212e0b392e4946b21ab943}
+      \strng{authorbibnamehash}{6231725768212e0b392e4946b21ab943}
+      \strng{authornamehash}{6231725768212e0b392e4946b21ab943}
+      \strng{authorfullhash}{6231725768212e0b392e4946b21ab943}
+      \field{labelalpha}{Ham21}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Quantum Algorithms for the {M}onte {C}arlo {M}ethod}
+      \field{type}{phdthesis}
+      \field{year}{2021}
+    \endentry
+    \entry{Hei02}{article}{}
+      \name{author}{1}{}{%
+        {{hash=db7724bb276c2a3f4b474f9c6f11d140}{%
+           family={Heinrich},
+           familyi={H\bibinitperiod},
+           given={Stefan},
+           giveni={S\bibinitperiod}}}%
+      }
+      \strng{namehash}{db7724bb276c2a3f4b474f9c6f11d140}
+      \strng{fullhash}{db7724bb276c2a3f4b474f9c6f11d140}
+      \strng{bibnamehash}{db7724bb276c2a3f4b474f9c6f11d140}
+      \strng{authorbibnamehash}{db7724bb276c2a3f4b474f9c6f11d140}
+      \strng{authornamehash}{db7724bb276c2a3f4b474f9c6f11d140}
+      \strng{authorfullhash}{db7724bb276c2a3f4b474f9c6f11d140}
+      \field{labelalpha}{Hei02}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Complexity}
+      \field{number}{1}
+      \field{title}{Quantum summation with an application to integration}
+      \field{volume}{18}
+      \field{year}{2002}
+      \field{pages}{1\bibrangedash 50}
+      \range{pages}{50}
+      \verb{doi}
+      \verb 10.1006/jcom.2001.0629
+      \endverb
+    \endentry
+    \entry{KO23}{inbook}{}
+      \name{author}{2}{}{%
+        {{hash=2df8e1d047c0eadaf2cb05c8a1435675}{%
+           family={Kothari},
+           familyi={K\bibinitperiod},
+           given={Robin},
+           giveni={R\bibinitperiod}}}%
+        {{hash=50743952b20f37b2a9c61c2a29d88ee0}{%
+           family={O’Donnell},
+           familyi={O\bibinitperiod},
+           given={Ryan},
+           giveni={R\bibinitperiod}}}%
+      }
+      \list{publisher}{2}{%
+        {Society for Industrial}%
+        {Applied Mathematics}%
+      }
+      \strng{namehash}{9f5d646908c0210537929b8de6c750f2}
+      \strng{fullhash}{9f5d646908c0210537929b8de6c750f2}
+      \strng{bibnamehash}{9f5d646908c0210537929b8de6c750f2}
+      \strng{authorbibnamehash}{9f5d646908c0210537929b8de6c750f2}
+      \strng{authornamehash}{9f5d646908c0210537929b8de6c750f2}
+      \strng{authorfullhash}{9f5d646908c0210537929b8de6c750f2}
+      \field{labelalpha}{KO23}
+      \field{sortinit}{K}
+      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the 2023 Annual ACM-SIAM Symposium on Discrete Algorithms (SODA)}
+      \field{month}{1}
+      \field{title}{Mean estimation when you have the source code; or, quantum {M}onte {C}arlo methods}
+      \field{year}{2023}
+      \field{pages}{1186\bibrangedash 1215}
+      \range{pages}{30}
+      \verb{doi}
+      \verb 10.1137/1.9781611977554.ch44
+      \endverb
+    \endentry
+    \entry{Kut05}{article}{}
+      \name{author}{1}{}{%
+        {{hash=d60b72d6f4141ff4989f5cf0b5d89006}{%
+           family={Kutin},
+           familyi={K\bibinitperiod},
+           given={Samuel},
+           giveni={S\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Theory of Computing}%
+      }
+      \strng{namehash}{d60b72d6f4141ff4989f5cf0b5d89006}
+      \strng{fullhash}{d60b72d6f4141ff4989f5cf0b5d89006}
+      \strng{bibnamehash}{d60b72d6f4141ff4989f5cf0b5d89006}
+      \strng{authorbibnamehash}{d60b72d6f4141ff4989f5cf0b5d89006}
+      \strng{authornamehash}{d60b72d6f4141ff4989f5cf0b5d89006}
+      \strng{authorfullhash}{d60b72d6f4141ff4989f5cf0b5d89006}
+      \field{labelalpha}{Kut05}
+      \field{sortinit}{K}
+      \field{sortinithash}{c02bf6bff1c488450c352b40f5d853ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Theory of Computing}
+      \field{number}{2}
+      \field{title}{Quantum Lower Bound for the Collision Problem with Small Range}
+      \field{volume}{1}
+      \field{year}{2005}
+      \field{pages}{29\bibrangedash 36}
+      \range{pages}{8}
+      \verb{doi}
+      \verb 10.4086/toc.2005.v001a002
+      \endverb
+    \endentry
+    \entry{LuoWL24}{article}{}
+      \name{author}{3}{}{%
+        {{hash=02da900fc726e7bc32aece477233f67b}{%
+           family={Luo},
+           familyi={L\bibinitperiod},
+           given={Jingquan},
+           giveni={J\bibinitperiod}}}%
+        {{hash=41dace6ae7b5131f0609d10605ff5c32}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Qisheng},
+           giveni={Q\bibinitperiod}}}%
+        {{hash=a506471df5a014f29cd7f215fdc67b00}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Lvzhou},
+           giveni={L\bibinitperiod}}}%
+      }
+      \strng{namehash}{8ef7fe399bf7fa9df357ff7a8cd33380}
+      \strng{fullhash}{8ef7fe399bf7fa9df357ff7a8cd33380}
+      \strng{bibnamehash}{8ef7fe399bf7fa9df357ff7a8cd33380}
+      \strng{authorbibnamehash}{8ef7fe399bf7fa9df357ff7a8cd33380}
+      \strng{authornamehash}{8ef7fe399bf7fa9df357ff7a8cd33380}
+      \strng{authorfullhash}{8ef7fe399bf7fa9df357ff7a8cd33380}
+      \field{labelalpha}{LWL24}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{{IEEE} Trans. Inf. Theory}
+      \field{number}{7}
+      \field{title}{Succinct Quantum Testers for Closeness and k-Wise Uniformity of Probability Distributions}
+      \field{volume}{70}
+      \field{year}{2024}
+      \field{pages}{5092\bibrangedash 5103}
+      \range{pages}{12}
+    \endentry
+    \entry{Mon15}{article}{}
+      \name{author}{1}{}{%
+        {{hash=bd78a1f9d6e5f3fbbf33e0967436bb75}{%
+           family={Montanaro},
+           familyi={M\bibinitperiod},
+           given={Ashley},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{bd78a1f9d6e5f3fbbf33e0967436bb75}
+      \strng{fullhash}{bd78a1f9d6e5f3fbbf33e0967436bb75}
+      \strng{bibnamehash}{bd78a1f9d6e5f3fbbf33e0967436bb75}
+      \strng{authorbibnamehash}{bd78a1f9d6e5f3fbbf33e0967436bb75}
+      \strng{authornamehash}{bd78a1f9d6e5f3fbbf33e0967436bb75}
+      \strng{authorfullhash}{bd78a1f9d6e5f3fbbf33e0967436bb75}
+      \field{labelalpha}{Mon15}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Proceedings of the Royal Society A}
+      \field{number}{2181}
+      \field{title}{Quantum speedup of {M}onte {C}arlo methods}
+      \field{volume}{471}
+      \field{year}{2015}
+      \field{pages}{20150301\bibrangessep 20}
+      \range{pages}{2}
+      \verb{doi}
+      \verb 10.1098/rspa.2015.0301
+      \endverb
+    \endentry
+    \entry{NW99}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{hash=9c04b0b60fefd4ea143d94fae6568f1e}{%
+           family={Nayak},
+           familyi={N\bibinitperiod},
+           given={Ashwin},
+           giveni={A\bibinitperiod}}}%
+        {{hash=5d3c3a632d3c15054a532172777a7e40}{%
+           family={Wu},
+           familyi={W\bibinitperiod},
+           given={Felix},
+           giveni={F\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {Atlanta, Georgia, USA}%
+      }
+      \list{publisher}{1}{%
+        {Association for Computing Machinery}%
+      }
+      \strng{namehash}{edb83fe572eb3f94016a950f664e97f2}
+      \strng{fullhash}{edb83fe572eb3f94016a950f664e97f2}
+      \strng{bibnamehash}{edb83fe572eb3f94016a950f664e97f2}
+      \strng{authorbibnamehash}{edb83fe572eb3f94016a950f664e97f2}
+      \strng{authornamehash}{edb83fe572eb3f94016a950f664e97f2}
+      \strng{authorfullhash}{edb83fe572eb3f94016a950f664e97f2}
+      \field{labelalpha}{NW99}
+      \field{sortinit}{N}
+      \field{sortinithash}{22369a73d5f88983a108b63f07f37084}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the Thirty-First Annual ACM Symposium on Theory of Computing}
+      \field{series}{STOC '99}
+      \field{title}{The quantum query complexity of approximating the median and related statistics}
+      \field{year}{1999}
+      \field{pages}{384\bibrangedash 393}
+      \range{pages}{10}
+      \verb{doi}
+      \verb 10.1145/301250.301349
+      \endverb
+    \endentry
+    \entry{OW23}{incollection}{}
+      \name{author}{2}{}{%
+        {{hash=a6443b4330ad30f55ff01dfe2383c6a4}{%
+           family={O'Donnell},
+           familyi={O\bibinitperiod},
+           given={Ryan},
+           giveni={R\bibinitperiod}}}%
+        {{hash=08d606d3cdd9e3e64020f253922ab631}{%
+           family={Wright},
+           familyi={W\bibinitperiod},
+           given={John},
+           giveni={J\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {International Press, Somerville, MA}%
+      }
+      \strng{namehash}{6810f45e07e8e808d37611b56524795d}
+      \strng{fullhash}{6810f45e07e8e808d37611b56524795d}
+      \strng{bibnamehash}{6810f45e07e8e808d37611b56524795d}
+      \strng{authorbibnamehash}{6810f45e07e8e808d37611b56524795d}
+      \strng{authornamehash}{6810f45e07e8e808d37611b56524795d}
+      \strng{authorfullhash}{6810f45e07e8e808d37611b56524795d}
+      \field{labelalpha}{OW23}
+      \field{sortinit}{O}
+      \field{sortinithash}{2cd7140a07aea5341f9e2771efe90aae}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Current developments in mathematics 2021}
+      \field{title}{Learning and testing quantum states via probabilistic combinatorics and representation theory}
+      \field{year}{2023}
+      \field{pages}{43\bibrangedash 94}
+      \range{pages}{52}
+    \endentry
+    \entry{Paninski08}{article}{}
+      \name{author}{1}{}{%
+        {{hash=b5ff96deb16b77fe4a862b665ba9b0c9}{%
+           family={Paninski},
+           familyi={P\bibinitperiod},
+           given={Liam},
+           giveni={L\bibinitperiod}}}%
+      }
+      \strng{namehash}{b5ff96deb16b77fe4a862b665ba9b0c9}
+      \strng{fullhash}{b5ff96deb16b77fe4a862b665ba9b0c9}
+      \strng{bibnamehash}{b5ff96deb16b77fe4a862b665ba9b0c9}
+      \strng{authorbibnamehash}{b5ff96deb16b77fe4a862b665ba9b0c9}
+      \strng{authornamehash}{b5ff96deb16b77fe4a862b665ba9b0c9}
+      \strng{authorfullhash}{b5ff96deb16b77fe4a862b665ba9b0c9}
+      \field{labelalpha}{Pan08}
+      \field{sortinit}{P}
+      \field{sortinithash}{ff3bcf24f47321b42cb156c2cc8a8422}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Information Theory}
+      \field{number}{10}
+      \field{title}{A Coincidence-Based Test for Uniformity Given Very Sparsely Sampled Discrete Data}
+      \field{volume}{54}
+      \field{year}{2008}
+      \field{pages}{4750\bibrangedash 4755}
+      \range{pages}{6}
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+
